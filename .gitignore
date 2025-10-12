@@ -23,4 +23,10 @@ Thumbs.db
 .vscode/
 
 # File di deploy
-.vercel/
+.vercel/.venv/
+__pycache__/
+.env
+user_*credentials*.json
+user_settings.json
+*.sqlite
+
