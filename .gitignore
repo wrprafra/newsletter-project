@@ -1,0 +1,26 @@
+# Ambienti Virtuali
+venv/
+.venv/
+env/
+.env
+
+# File di configurazione locale
+credentials.json
+newsletter.db
+*.db-journal
+
+# File di cache di Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# File di cache del sistema operativo
+.DS_Store
+Thumbs.db
+
+# File di cache di VS Code
+.vscode/
+
+# File di deploy
+.vercel/

@@ -1,0 +1,16 @@
+{
+  "francesco.prandi@webranking.it": {
+    "preferred_image_source": "pixabay",
+    "hidden_domains": [
+      "webranking.agency",
+      "datakojak.com",
+      "google.com"
+    ]
+  },
+  "escounpo@gmail.com": {
+    "preferred_image_source": "pixabay",
+    "hidden_domains": [
+      "subito.it"
+    ]
+  }
+}

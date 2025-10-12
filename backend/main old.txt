@@ -1,0 +1,2910 @@
+import os
+import base64
+import re
+import secrets
+import time
+import asyncio
+import httpx
+import json
+import ssl
+import http.client as http_client
+import io
+from PIL import Image
+import redis
+import logging
+from fastapi.middleware.gzip import GZipMiddleware
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from database import db, initialize_db, Newsletter
+from collections import defaultdict
+import uuid
+from fastapi import Header, BackgroundTasks, Request, HTTPException, Response, APIRouter, Query, FastAPI
+import socket
+import ipaddress
+import hashlib
+from urllib.parse import urlparse, unquote
+from collections import OrderedDict, Counter, deque
+import random
+import bleach
+from datetime import datetime
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.responses import StreamingResponse, RedirectResponse, JSONResponse
+import typing as t
+from pydantic import BaseModel, Field
+from typing import Dict, Any, Tuple
+from pathlib import Path
+import requests
+from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+import openai
+from html import escape as html_escape
+from bs4 import BeautifulSoup
+import sys
+import boto3
+from botocore.config import Config as BotoConfig
+from googleapiclient.errors import HttpError
+from processing_utils import (
+    _walk_parts, 
+    _decode_body, 
+    root_domain_py, 
+    extract_domain_from_from_header,
+    get_ai_keyword,
+    get_pixabay_image_by_query,
+)
+
+def extract_dominant_hex(img_bytes: bytes) -> str:
+    """Estrae il colore dominante, lo scurisce, e garantisce un contrasto minimo evitando il nero puro."""
+    try:
+        im = Image.open(io.BytesIO(img_bytes)).convert("RGBA").resize((64, 64))
+        pal = im.convert("P", palette=Image.Palette.ADAPTIVE, colors=8)
+        palette = pal.getpalette()
+        counts = sorted(pal.getcolors(), reverse=True)
+        
+        for _, idx in counts:
+            r, g, b = palette[idx*3: idx*3+3]
+
+            # --- INIZIO MODIFICA ---
+
+            # 1. Ignora i colori che sono già quasi neri in partenza per evitare di accentuarli.
+            original_luminance = (0.299 * r + 0.587 * g + 0.114 * b)
+            if original_luminance < 20:
+                continue # Prova il prossimo colore, questo è troppo scuro.
+
+            # 2. Scurisci il colore in modo leggermente meno aggressivo (es. 70% invece di 60%).
+            dark_r = int(r * 0.7)
+            dark_g = int(g * 0.7)
+            dark_b = int(b * 0.7)
+            
+            # Calcola la luminosità percepita del colore scurito.
+            final_luminance = (0.299 * dark_r + 0.587 * dark_g + 0.114 * dark_b)
+            
+            # 3. Definisci un range di luminosità accettabile per il background.
+            #    - Non troppo scuro (< 25) per evitare il nero profondo.
+            #    - Non troppo chiaro (> 120) per garantire il contrasto con il testo bianco.
+            if final_luminance < 25 or final_luminance > 120:
+                continue # Prova il prossimo colore, questo non ha il contrasto giusto.
+
+            # --- FINE MODIFICA ---
+
+            return f"#{dark_r:02x}{dark_g:02x}{dark_b:02x}"
+            
+    except Exception as e:
+        logging.warning(f"[COLOR] Errore durante l'estrazione del colore: {e}")
+
+    # Se nessun colore dominante ha abbastanza contrasto o c'è un errore, usa il fallback.
+    return "#374151" # Questo fallback è già un grigio scuro, non nero.
+
+
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+    
+# image_cache: dict[str, tuple[bytes, str]] = {}
+
+
+
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - [BACKEND] %(message)s',
+    handlers=[
+        logging.FileHandler("app.txt", mode='w', encoding='utf-8'),
+        logging.StreamHandler()  # ora stdout è UTF-8
+    ]
+)
+
+logger = logging.getLogger("app")
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+load_dotenv()
+GOOGLE_CLIENT_ID_WEB = os.getenv("GOOGLE_CLIENT_ID_WEB")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+logging.info("[CFG] OPENAI key present=%s len=%d", bool(OPENAI_API_KEY), len(OPENAI_API_KEY))
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+PIXABAY_KEY = os.getenv("PIXABAY_KEY")
+SETTINGS_PATH = "user_settings.json"
+CREDENTIALS_PATH = "user_credentials.json"
+SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
+CREDENTIALS_STORE: Dict[str, dict] = {}
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
+R2_BUCKET = os.getenv("R2_BUCKET", "newsletter-images-dev")
+R2_PUBLIC_BASE_URL = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+ENRICH_SEM = asyncio.Semaphore(2)
+INGEST_LOCK = asyncio.Lock()
+INGEST_JOBS: dict[str, dict] = {}  # job_id -> {"state": "...", "total": 0, "done": 0, "errors": 0}
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+INDEX = FRONTEND_DIR / "index.html"
+SSE_LISTENERS = defaultdict(list)
+print(f"[BOOT] Serving frontend from: {FRONTEND_DIR}")
+print(f"[BOOT] index.html exists? {INDEX.exists()}")
+IMG_PROXY_MAX_ITEMS = int(os.getenv("IMG_PROXY_MAX_ITEMS", "1024"))
+IMG_PROXY_TTL       = int(os.getenv("IMG_PROXY_TTL", str(24*3600)))  # 24h
+IMG_PROXY_MAX_BYTES = int(os.getenv("IMG_PROXY_MAX_BYTES", str(5*1024*1024)))  # 5MB
+PHOTOS_CACHE_MAX_ITEMS = int(os.getenv("PHOTOS_CACHE_MAX_ITEMS", "200"))
+photos_cache: "OrderedDict[str, dict]" = OrderedDict()
+PHOTOS_CACHE_TTL       = int(os.getenv("PHOTOS_CACHE_TTL", str(30*60)))  # 30m
+SESSION_EMAIL: dict[str, str] = {}
+PENDING_AUTH: dict[str, dict[str, dict]] = defaultdict(dict)  # sid -> { nonce: {"pkce":..., "auth_url":..., "ts":...} }
+AUTH_PENDING_TTL = 10 * 60
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+try:
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client.ping()
+    logging.info("API connessa a Redis con successo.")
+except redis.exceptions.ConnectionError as e:
+    logging.error(f"API: Impossibile connettersi a Redis: {e}. Il kickstart potrebbe non funzionare.")
+    redis_client = None # Imposta a None se la connessione fallisce
+
+_TRANSPARENT_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+)
+# AUTH_STATE_STORE: dict[str, list[tuple[str, float]]] = defaultdict(list)  # sid -> [(state, ts), ...]
+# AUTH_STATE_TTL = 10 * 60  # 10 minuti
+PHOTOS_POOLS: dict[str, list[dict]] = defaultdict(list)   # user_id -> [mediaItems]
+PHOTOS_BEARERS: dict[str, str] = {}      
+_BANNED_KW = {
+    "news", "newsletter", "update", "story", "blog", "article", "notizie", "aggiornamenti",
+    "email", "mail", "contenuto", "contenuti", "informazioni", "information", "comunicazione",
+    "report", "weekly", "daily", "monthly", "post", "pubblicazione"
+}
+
+ALLOWED_TAGS = [
+    "p","br","strong","b","em","i","u","ul","ol","li","blockquote",
+    "a","span","div","img","hr","h1","h2","h3","h4","h5","h6","pre","code"
+]
+ALLOWED_ATTRS = {
+    "*": ["class"],
+    "a": ["href","title","name","target","rel"],
+    "img": ["src","alt","title","width","height"],
+}
+ALLOWED_PROTOCOLS = ["http","https","data"]
+
+def sanitize_html(html: str) -> str:
+    return bleach.clean(
+        html or "",
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRS,
+        protocols=ALLOWED_PROTOCOLS,
+        strip=True
+    )
+
+# def _purge_auth_states(sid: str):
+#     now = time.time()
+#     AUTH_STATE_STORE[sid] = [(s,t) for (s,t) in AUTH_STATE_STORE.get(sid, []) if now - t < AUTH_STATE_TTL]
+#     # tieni gli ultimi 5
+#     AUTH_STATE_STORE[sid] = AUTH_STATE_STORE[sid][-5:]
+
+def clean_text_for_ai(html_content: str) -> str:
+    """Pulisce l'HTML, rimuove disclaimer/firme e lo tronca."""
+    if not html_content:
+        return ""
+    
+    # Rimuovi disclaimer e firme comuni con regex (case-insensitive)
+    patterns = [
+        r'unsubscribe from this list',
+        r'view in browser',
+        r'questo messaggio è confidenziale',
+        r'non rispondere a questa email',
+        r'sent from my iphone',
+    ]
+    text = html_content
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+
+    # Pulizia HTML di base
+    soup = BeautifulSoup(text, 'html.parser')
+    for element in soup(["script", "style", "head", "title", "meta", "header", "footer", "nav", "form"]):
+        element.extract()
+    
+    return ' '.join(soup.get_text(separator=' ', strip=True).split())
+
+def load_credentials_store():
+    global CREDENTIALS_STORE
+    if os.path.exists(CREDENTIALS_PATH):
+        try:
+            with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+                CREDENTIALS_STORE = json.load(f)
+                logging.info(f"[CREDENTIALS] Caricate {len(CREDENTIALS_STORE)} credenziali da file.")
+        except Exception as e:
+            logging.warning(f"[CREDENTIALS] Impossibile caricare le credenziali: {e}")
+            CREDENTIALS_STORE = {}
+    else:
+        CREDENTIALS_STORE = {}
+
+def save_credentials_store():
+    try:
+        with open(CREDENTIALS_PATH, "w", encoding="utf-8") as f:
+            json.dump(CREDENTIALS_STORE, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.error("[CREDENTIALS] Impossibile salvare le credenziali: %s", e)
+
+def _pending_auth(request: Request) -> dict:
+    """Ritorna la mappa pending per il sid corrente (in-memory, non in cookie)."""
+    sid = request.session.get("sid")
+    if not sid:
+        sid = str(uuid.uuid4())
+        request.session["sid"] = sid
+    return PENDING_AUTH.setdefault(sid, {})
+
+def _cleanup_pending_auth(request: Request):
+    """Droppa pending scadute dal nostro store in-memory; NON tocca la cookie."""
+    now = time.time()
+    sid = request.session.get("sid")
+    if not sid:
+        return
+    pa = PENDING_AUTH.get(sid, {})
+    for k, v in list(pa.items()):
+        if now - (v.get("ts") or 0) > AUTH_PENDING_TTL:
+            del pa[k]
+    if not pa:
+        PENDING_AUTH.pop(sid, None)
+
+def _gmail_service_for(request):
+    # recupera le credenziali già salvate in sessione come fai altrove nel progetto
+    sid = request.session.get("sid")
+    creds_dict = CREDENTIALS_STORE.get(sid)
+    if not creds_dict:
+        raise HTTPException(401, "Non autenticato")
+    creds = Credentials.from_authorized_user_info(creds_dict, SCOPES)
+    return build('gmail', 'v1', credentials=creds, cache_discovery=False)
+
+# def _walk_parts(p):
+#     yield p
+#     for part in (p.get('parts') or []):
+#         yield from _walk_parts(part)
+
+# def _decode_body(part):
+#     body = part.get('body', {}) or {}
+#     data = body.get('data')
+#     if data:
+#         return base64.urlsafe_b64decode(data.encode('utf-8')).decode('utf-8', 'replace')
+#     return ""  # gli allegati hanno attachmentId, non data inline
+
+    
+
+def _extract_json_from_string(text: str) -> str:
+    if not text:
+        return ""
+    m = re.search(r'\{', text)
+    if not m:
+        return ""
+    start = m.start()
+    open_braces = 0
+    end = -1
+    for i, ch in enumerate(text[start:]):
+        if ch == '{':
+            open_braces += 1
+        elif ch == '}':
+            open_braces -= 1
+            if open_braces == 0:
+                end = start + i + 1
+                break
+    return text[start:end] if end != -1 else ""
+
+
+# async def _enrich_email_task(msg_id: str, html_content: str, image_source: str, user_id: str | None, sem: asyncio.Semaphore):
+    # """
+    # Task in background per arricchire una newsletter con AI e immagine.
+    # Esegue AI in parallelo e gestisce diverse fonti di immagini (Google Photos, Pixabay).
+    # """
+    # async with sem:
+    #     logging.info(f"[ENRICH] Avvio arricchimento per email_id={msg_id} con source={image_source}")
+    #     try:
+    #         async with httpx.AsyncClient(timeout=45.0) as client:
+                
+    #             # (B) Lancia i task AI in parallelo subito
+    #             kw_task = asyncio.create_task(get_ai_keyword(html_content, client))
+    #             sum_task = asyncio.create_task(get_ai_summary(html_content, client))
+
+    #             image_url = ""
+    #             source_used = "none"
+
+    #             # Logica per decidere la fonte dell'immagine
+    #             if image_source == "google_photos" and user_id:
+    #                 try:
+    #                     photos = await get_google_photos(user_id, 1)
+    #                     if photos:
+    #                         item = photos[0]
+    #                         photo_id = (item.get("id") or "").strip()
+    #                         if photo_id:
+    #                             image_url = f"http://localhost:8000/api/photos/proxy/{photo_id}?w=1600&h=900&mode=no"
+    #                             source_used = "google_photos"
+    #                 except HTTPException:
+    #                     logging.warning(f"[ENRICH] Pool Google Photos vuota per user={user_id}, fallback a Pixabay.")
+    #                     # Se la pool è vuota, il codice procederà naturalmente al blocco successivo
+                
+    #             # Se non è stata trovata un'immagine da Google Photos, usa la logica Pixabay
+    #             if not image_url:
+    #                 source_used = "pixabay"
+    #                 keyword = ""
+    #                 try:
+    #                     # (C) Fallback aggressivo con timeout di 3 secondi per la keyword
+    #                     keyword = await asyncio.wait_for(kw_task, timeout=3.0)
+    #                 except asyncio.TimeoutError:
+    #                     logging.warning(f"[ENRICH] Timeout per la keyword di {msg_id}. Uso fallback.")
+    #                     keyword = _cheap_fallback_keyword_from_text(clean_text_for_ai(html_content))
+                    
+    #                 image_url = await get_pixabay_image_by_query(client, keyword, original_html=html_content)
+
+
+    #             # Aspetta il completamento del riassunto (che ha continuato in parallelo)
+    #             ai_result = await sum_task
+                
+    #             # Se non abbiamo usato la keyword per l'immagine (es. perché abbiamo usato Google Photos),
+    #             # dobbiamo comunque "consumare" il task per evitare un avviso di "task never awaited".
+    #             if source_used == "google_photos":
+    #                 await kw_task
+
+    #             # Calcola il colore dominante dall'immagine finale
+    #             accent_hex = None
+    #             if image_url:
+    #                 try:
+    #                     r = await client.get(image_url, timeout=15.0, follow_redirects=True)
+    #                     r.raise_for_status()
+    #                     accent_hex = extract_dominant_hex(r.content)
+    #                 except Exception as e:
+    #                     logging.warning("[ENRICH] accent extraction failed: %s", e)
+
+    #             # Aggiorna il DB con i dati completi
+    #             is_complete = all([
+    #                 ai_result.get('title'),
+    #                 ai_result.get('summary_markdown'),
+    #                 image_url,
+    #                 accent_hex
+    #             ])
+
+    #             # Aggiorna il DB con i dati completi
+    #             (Newsletter
+    #                 .update(
+    #                     ai_title=ai_result.get('title', 'Titolo in elaborazione...'),
+    #                     ai_summary_markdown=ai_result.get('summary_markdown', 'Riassunto in arrivo...'),
+    #                     image_url=image_url,
+    #                     accent_hex=accent_hex,
+    #                     enriched=True, # Marca sempre come tentato
+    #                     is_complete=is_complete # Imposta solo se tutto è andato a buon fine
+    #                 )
+    #                 .where(Newsletter.email_id == msg_id)
+    #                 .execute())
+                
+    #             logging.info(f"[!!! ENRICH COMPLETE !!!] Completato arricchimento per email_id={msg_id}. Immagine da {source_used}.")
+
+    #             if is_complete:
+    #                 try:
+    #                     async with httpx.AsyncClient() as client:
+    #                         await client.post(f"http://localhost:8000/api/sse/notify/{msg_id}")
+    #                 except Exception as sse_e:
+    #                     logging.warning(f"Could not send SSE notification for {msg_id}: {sse_e}")
+
+    #             try:
+    #                 async with httpx.AsyncClient() as client:
+    #                     await client.post(f"http://localhost:8000/api/sse/notify/{msg_id}")
+    #             except Exception as sse_e:
+    #                 logging.warning(f"Could not send SSE notification for {msg_id}: {sse_e}")
+
+    #     except Exception as e:
+    #         logging.error(f"[ENRICH] Fallimento critico durante l'arricchimento per email_id={msg_id}: {e}", exc_info=True)
+
+def _extract_output_text(d: dict) -> str | None:
+    """Estrae il testo utile dalla risposta dell'API /v1/responses."""
+    if not isinstance(d, dict):
+        return None
+
+    # --- NUOVO: Percorso primario per l'API /v1/responses ---
+    # Cerca in output -> message -> content -> {type: "output_text"} -> text
+    try:
+        for item in d.get("output", []):
+            if item.get("type") == "message":
+                for content_part in item.get("content", []):
+                    if content_part.get("type") == "output_text":
+                        text = content_part.get("text")
+                        if isinstance(text, str) and text.strip():
+                            return text
+    except (TypeError, AttributeError):
+        pass # Ignora errori se la struttura non corrisponde
+
+    # --- VECCHI FALLBACK (mantenuti per robustezza) ---
+    # 1) Testo diretto
+    txt = d.get("text")
+    if isinstance(txt, str) and txt.strip():
+        return txt
+
+    # 2) Chiavi legacy
+    for k in ("output_text", "content"):
+        v = d.get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+
+    # 3) Vecchio formato chat.completions
+    ch = d.get("choices")
+    if isinstance(ch, list) and ch:
+        msg = (ch[0] or {}).get("message") or {}
+        if isinstance(msg.get("content"), str):
+            return msg["content"]
+    
+    return None
+
+# def _cheap_fallback_keyword_from_text(text: str) -> str:
+    """Estrae una parola “concreta” ricorrente dal testo pulito."""
+    if not text:
+        return "newsletter"
+    t = text.lower()
+    # tokenizza parole con ≥ 5 lettere
+    tokens = re.findall(r"[a-zà-ù]{5,}", t)
+    stop = {
+        # stopwords it/en minime (puoi espanderle)
+        "questo","questa","queste","quello","quella","quelle","oltre","dalla","dalle","dello","della","delle",
+        "comunque","sempre","ancora","mentre","dopo","prima","entro","anche","solo","molto","poche","poco","tanto",
+        "nella","nelle","negli","dove","quando","quale","quali","oltre","oggi","ieri","domani","settimana","mese",
+        "about","there","their","which","while","after","before","still","always","today","yesterday","tomorrow",
+        "email","mail","contenuto","contenuti","newsletter","notizie","news","aggiornamenti","update","blog","articolo","article"
+    }
+    cand = [w for w in tokens if w not in stop]
+    if not cand:
+        return "newsletter"
+    kw, _ = Counter(cand).most_common(1)[0]
+    return kw
+
+def _current_user_id(request: Request) -> str:
+    uid = get_user_id_from_session(request)
+    if not uid or uid == "anonymous":
+        raise HTTPException(status_code=401, detail="Utente non autenticato.")
+    return uid
+
+def _user_pool(uid: str) -> list[dict]:
+    return PHOTOS_POOLS.setdefault(uid, [])
+
+def _user_bearer(uid: str) -> str | None:
+    return PHOTOS_BEARERS.get(uid)
+
+def _pkey(photo_id: str, w: int, h: int, mode: str) -> str:
+    return f"{photo_id}:{w}:{h}:{mode}"
+
+def _photos_cache_get(k: str):
+    ent = photos_cache.get(k)
+    if not ent:
+        return None
+    if (time.time() - ent["ts"]) > PHOTOS_CACHE_TTL:
+        photos_cache.pop(k, None)
+        return None
+    photos_cache.move_to_end(k, last=True)
+    return ent
+
+def _photos_cache_put(k: str, ent: dict):
+    photos_cache[k] = ent
+    photos_cache.move_to_end(k, last=True)
+    while len(photos_cache) > PHOTOS_CACHE_MAX_ITEMS:
+        photos_cache.popitem(last=False)
+
+# R2_PUBLIC_BASE_URL è già definita nel file: lo riutilizziamo per la whitelist
+def _host_or_none(u: str) -> str | None:
+    try:
+        return urlparse(u).hostname
+    except Exception:
+        return None
+
+IMG_ALLOWED_HOSTS = {h for h in [
+    _host_or_none(R2_PUBLIC_BASE_URL),
+    "picsum.photos",   # usato nel fallback front-end
+    "pixabay.com", "cdn.pixabay.com",  # permetti proxy di immagini dirette quando R2 non c'è
+    "images.unsplash.com",
+    "i.imgur.com",
+    "lh3.googleusercontent.com",
+] if h}
+
+image_cache = OrderedDict()  # url -> {"ts": float, "bytes": bytes, "ct": str, "etag": str|None, "lm": str|None}
+
+def _is_private_host(host: str) -> bool:
+    if not host:
+        return True
+    host_l = host.lower()
+    if host_l in {"localhost"} or host_l.endswith(".local"):
+        return True
+    try:
+        # Risolvi l'hostname in indirizzi IP
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+        for ai in infos:
+            ip_str = ai[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+                or ip_obj.is_reserved or ip_obj.is_multicast):
+                logging.warning(f"[PROXY] Bloccato tentativo di accesso a IP privato: {host} -> {ip_str}")
+                return True
+    except socket.gaierror:
+        # Se non riesci a risolvere l'host, consideralo non sicuro per precauzione
+        logging.warning(f"[PROXY] Impossibile risolvere l'host: {host}")
+        return True
+    except Exception as e:
+        logging.error(f"[PROXY] Errore imprevisto durante la validazione dell'host {host}: {e}")
+        return True
+    return False
+
+def _cache_get(url: str):
+    ent = image_cache.get(url)
+    if not ent:
+        return None
+    if (time.time() - ent["ts"]) > IMG_PROXY_TTL:
+        image_cache.pop(url, None)
+        return None
+    image_cache.move_to_end(url, last=True)
+    return ent
+
+def _cache_put(url: str, ent: dict):
+    image_cache[url] = ent
+    image_cache.move_to_end(url, last=True)
+    while len(image_cache) > IMG_PROXY_MAX_ITEMS:
+        image_cache.popitem(last=False)
+
+def _r2_client():
+    if not (R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_BUCKET and R2_PUBLIC_BASE_URL):
+        raise RuntimeError("Config R2 incompleta. Verifica ENV R2_*")
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+        config=BotoConfig(signature_version="s3v4"),
+    )
+
+# Lazy init: R2 è opzionale. Crealo solo al primo uso.
+_R2_CLIENT = None
+def _get_r2():
+    global _R2_CLIENT
+    if _R2_CLIENT is None:
+        try:
+            _R2_CLIENT = _r2_client()
+        except Exception as e:
+            logging.warning("[R2] client non disponibile o config mancante: %s", e)
+            _R2_CLIENT = None
+    return _R2_CLIENT
+
+PIXABAY_KW_CACHE: dict[str, tuple[float, str]] = {}  # {kw_lower: (ts, cdn_url)}
+KW_CACHE_TTL = 24 * 3600
+RECENT_PXB_IDS = deque(maxlen=200)
+
+router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
+
+def load_settings_store():
+    global SETTINGS_STORE
+    if os.path.exists(SETTINGS_PATH):
+        try:
+            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+                SETTINGS_STORE = json.load(f)
+        except Exception:
+            SETTINGS_STORE = {}
+    else:
+        SETTINGS_STORE = {}
+
+
+def save_settings_store():
+    try:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(SETTINGS_STORE, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+def slugify_kw(s: str) -> str:
+    s = re.sub(r"\s+", " ", (s or "").strip().lower())
+    s = s.replace("&", " e ")
+    s = re.sub(r"[^a-z0-9\- ]", "", s)
+    s = s.replace(" ", "-")
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s or "news"
+
+def r2_public_url(key: str) -> str:
+    return f"{R2_PUBLIC_BASE_URL}/{key.lstrip('/')}"
+
+def make_r2_key_from_kw(keyword: str, ext: str = "jpg") -> str:
+    ts = datetime.utcnow()
+    slug = slugify_kw(keyword)
+    return f"{ts:%Y/%m}/{uuid.uuid4().hex}_{slug}.{ext}"
+
+def upload_bytes_to_r2(data: bytes, key: str, content_type: str = "image/jpeg") -> str:
+    r2 = _get_r2()
+    if r2 is None:
+        raise RuntimeError("R2 non configurato (manca ENV R2_*)")
+    r2.put_object(
+        Bucket=R2_BUCKET,
+        Key=key,
+        Body=data,
+        ContentType=content_type,
+    )
+    return r2_public_url(key)
+
+def placeholder_svg_bytes(text: str = "newsletter") -> tuple[bytes, str]:
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900">
+<rect width="100%" height="100%" fill="#f2f2f2"/>
+<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+      font-family="Inter,system-ui,Segoe UI,Arial" font-size="72" fill="#777">{text}</text>
+</svg>'''
+    return svg.encode("utf-8"), "image/svg+xml"
+
+
+def get_user_id_from_session(request) -> str:
+    """
+    Ricava un identificatore utente (es. email). Adatta questa funzione
+    al modo in cui salvi l’utente in sessione.
+    """
+    # Esempio: se salvi l'email in request.session["user_email"]
+    # oppure se usi un dict request.state.user etc.
+    user_email = None
+    try:
+        user_email = request.session.get("user_email")
+    except Exception:
+        pass
+    return user_email or "anonymous"
+
+def get_pixabay_image():
+    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q=random&image_type=photo&per_page=50"
+    res = requests.get(url).json()
+    hits = res.get("hits", [])
+    if not hits:
+        return None
+    choice = random.choice(hits)
+    return choice.get("webformatURL")
+
+
+# --- GESTIONE CICLO DI VITA APP ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logging.info("Evento STARTUP: Inizio avvio applicazione...")
+    load_settings_store()
+    # --- INIZIO MODIFICA ---
+    # Assicurati che questa riga sia presente. È il pezzo mancante.
+    load_credentials_store()
+    # --- FINE MODIFICA ---
+    if db.is_closed():
+        logging.info("Evento STARTUP: Connessione al database...")
+        db.connect()
+    initialize_db()
+    logging.info("Evento STARTUP: Avvio completato.")
+    yield
+    logging.info("Evento SHUTDOWN: Inizio spegnimento applicazione...")
+    if not db.is_closed():
+        logging.info("Evento SHUTDOWN: Chiusura connessione al database.")
+        db.close()
+    logging.info("Evento SHUTDOWN: Spegnimento completato.")
+
+# ⬇️ UNICA istanza FastAPI
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@app.get("/api/feed/item/{email_id}")
+async def get_feed_item(email_id: str):
+    """Restituisce i dati completi di un singolo elemento del feed."""
+    try:
+        item = Newsletter.get(Newsletter.email_id == email_id)._data
+        if isinstance(item.get('received_date'), datetime):
+            item['received_date'] = item['received_date'].isoformat()
+        return item
+    except Newsletter.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+@app.get("/api/img")
+async def api_img(request: Request, u: str = Query(..., description="URL assoluto dell'immagine")):
+    return await proxy_image(u, request)
+
+async def proxy_image(u: str, request: Request):
+    url = unquote(u)
+
+    if "/api/img" in url:
+        raise HTTPException(status_code=400, detail="Loop di proxy rilevato")
+
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Solo http e https sono consentiti")
+
+    host = parsed.hostname
+    if not host or _is_private_host(host):
+        raise HTTPException(status_code=400, detail="Host non consentito o non risolvibile")
+
+    # Cache HIT (con gestione If-None-Match)
+    ent = _cache_get(url)
+    inm = (request.headers.get("if-none-match") or "").strip()
+    if ent:
+        if inm and ent.get("etag") and inm == ent["etag"]:
+            return Response(status_code=304)
+        headers = {
+            "Content-Type": ent["ct"],
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": ent.get("etag") or "",
+        }
+        if ent.get("lm"):
+            headers["Last-Modified"] = ent["lm"]
+        headers["X-Cache"] = "HIT"
+        return StreamingResponse(io.BytesIO(ent["bytes"]), media_type=ent["ct"], headers=headers)
+
+    # MISS: fetch remoto
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(url, follow_redirects=True)
+            r.raise_for_status()
+        content = r.content
+        if len(content) > IMG_PROXY_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="Immagine troppo grande")
+
+        ct   = r.headers.get("content-type", "image/jpeg")
+        etag = r.headers.get("etag") or f'W/"{hashlib.sha1(content).hexdigest()}"'
+        lm   = r.headers.get("last-modified")
+
+        _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag, "lm": lm})
+
+        headers = {
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": etag,
+        }
+        if lm:
+            headers["Last-Modified"] = lm
+        headers["X-Cache"] = "MISS"
+        return StreamingResponse(io.BytesIO(content), media_type=ct, headers=headers)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Errore proxying immagine {url}: {e}")
+        raise HTTPException(status_code=502, detail="Upstream image fetch failed")
+
+@app.get("/api/gmail/messages/{msg_id}/html")
+def gmail_message_html(msg_id: str, request: Request):
+    svc = _gmail_service_for(request)
+    msg = svc.users().messages().get(userId='me', id=msg_id, format='full').execute()
+    payload = msg.get('payload', {}) or {}
+
+    html = None
+    had_html = False
+    
+    # Non è più necessaria una cid_map qui, dato che non viene usata
+    # cid_map = {} 
+
+    for p in _walk_parts(payload):
+        mime = (p.get('mimeType') or '').lower()
+        if mime == 'text/html' and html is None:
+            html = _decode_body(p)
+            had_html = True
+            # Trovato l'HTML, possiamo interrompere il ciclo prima
+            break 
+    
+    # Fallback a testo semplice se non è stato trovato HTML
+    if not html:
+        txt = None
+        for p in _walk_parts(payload):
+            if (p.get('mimeType') or '').lower() == 'text/plain':
+                txt = _decode_body(p)
+                break
+        # html_escape è corretto qui, previene l'interpretazione di HTML nel testo semplice
+        html = f"<pre style='white-space:pre-wrap;font:14px/1.5 system-ui'>{html_escape(txt or '')}</pre>"
+        # Questo blocco è già sicuro, quindi non necessita di ulteriore sanificazione
+    
+    # --- Modifiche di Sicurezza Applicate Qui ---
+    
+    # Helper per la sostituzione
+    def _replace_cid(m):
+        # Pulisci il CID catturato da eventuali caratteri indesiderati
+        cid = m.group(1).strip()
+        return f"/api/gmail/messages/{msg_id}/cid/{cid}"
+
+    # 1. Sostituisci i CID con una regex più robusta che gestisce i "<>" opzionali
+    # Questo viene fatto PRIMA della sanificazione, così bleach può validare i percorsi relativi
+    if had_html: # Applica solo se l'origine è vero HTML
+        html = re.sub(r'cid:<?([^>\s"\'@]+@[^>\s"\']+)>?', _replace_cid, html)
+        html = re.sub(r'cid:<?([^>\s"\']+)?>?', _replace_cid, html)
+
+
+        # 2. Sanifica l'HTML per rimuovere script e tag pericolosi
+        html = sanitize_html(html)
+
+    return {"html": html, "had_html": had_html}
+
+
+@app.get("/api/gmail/messages/{msg_id}/cid/{cid}")
+def gmail_message_cid(msg_id: str, cid: str, request: Request):
+    svc = _gmail_service_for(request)
+    msg = svc.users().messages().get(userId='me', id=msg_id, format='full').execute()
+    payload = msg.get('payload', {}) or {}
+
+    # trova attachmentId corrispondente al Content-ID richiesto
+    target_att = None
+    ctype = "application/octet-stream"
+    for p in _walk_parts(payload):
+        headers = {h['name'].lower(): h['value'] for h in (p.get('headers') or [])}
+        content_id = (headers.get('content-id') or '').strip().strip('<>')
+        if content_id == cid:
+            att_id = (p.get('body') or {}).get('attachmentId')
+            if att_id:
+                target_att = att_id
+                ctype = headers.get('content-type', ctype)
+                break
+
+    if not target_att:
+        raise HTTPException(404, "CID non trovato")
+
+    att = svc.users().messages().attachments().get(
+        userId='me', messageId=msg_id, id=target_att
+    ).execute()
+    data = base64.urlsafe_b64decode((att.get('data') or '').encode('utf-8'))
+    return Response(content=data, media_type=ctype,
+                    headers={"Cache-Control":"public,max-age=31536000,immutable"})
+
+# ⬇️ middleware DOPO aver creato l’app
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
+    session_cookie="nl_sess",
+    same_site="lax",     # i cookie passano nel redirect Google -> localhost
+    https_only=False,    # in locale sei in http
+    max_age=60*60*8*7      # 8 ore
+)
+
+FRONTEND_ORIGINS = [
+    os.getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=FRONTEND_ORIGINS,   # niente "*" se allow_credentials=True
+    allow_credentials=True,           # serve per inviare i cookie (sessione)
+    allow_methods=["*"],
+    allow_headers=["*"],
+    # così il client può leggere questi header dalla response (/api/feed li usa)
+    expose_headers=["X-Next-Cursor", "X-Has-More", "X-Items"],
+)
+
+
+# --- COSTANTI E VARIABILI GLOBALI ---
+CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+]
+PHOTOS_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
+PHOTOS_PICKER_SESSIONS_URL = "https://photospicker.googleapis.com/v1/sessions"
+
+REDIRECT_URI = "http://localhost:8000/auth/callback"
+openai.api_key = os.getenv("OPENAI_API_KEY")
+UNSPLASH_API_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+user_credentials = None
+logging.info("Configurazione iniziale caricata.")
+from typing import Optional, List
+
+
+class UserSettingsIn(BaseModel):
+    preferred_image_source: t.Optional[str] = Field(default=None, description="pixabay | google_photos")
+    hidden_domains: t.Optional[list[str]] = Field(default=None, description="lista domini da nascondere")
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    # Verifica che esista una sessione valida (sid + credenziali presenti)
+    sid = request.session.get("sid")
+    creds_dict = CREDENTIALS_STORE.get(sid)
+    email = request.session.get("user_email")
+
+    if not sid or not creds_dict:
+        # Non autenticato
+        return JSONResponse({"email": None, "logged_in": False}, status_code=401)
+
+    # Autenticato
+    return {"email": email, "logged_in": True}
+
+@router_settings.get("")
+def get_settings(request: Request):
+    user_id = get_user_id_from_session(request)
+    settings = SETTINGS_STORE.get(user_id, {
+        "preferred_image_source": "pixabay",
+        "hidden_domains": []
+    })
+    return {
+        "preferred_image_source": settings.get("preferred_image_source", "pixabay"),
+        "hidden_domains": settings.get("hidden_domains", []),
+        "user_id": user_id
+    }
+
+@app.get("/api/ingest/status/{job_id}")
+async def ingest_status(job_id: str):
+    st = INGEST_JOBS.get(job_id)
+    if not st:
+        raise HTTPException(404, "Job non trovato")
+    return st
+
+@router_settings.post("")
+def update_settings(payload: UserSettingsIn, request: Request):
+    user_id = get_user_id_from_session(request)
+    current = SETTINGS_STORE.get(user_id, {
+        "preferred_image_source": "pixabay",
+        "hidden_domains": []
+    })
+
+    # aggiorna solo i campi presenti
+    if payload.preferred_image_source is not None:
+        # normalizza
+        src = payload.preferred_image_source.strip().lower()
+        if src not in ("pixabay", "google_photos"):
+            src = "pixabay"
+        current["preferred_image_source"] = src
+
+    if payload.hidden_domains is not None:
+        # normalizza i domini
+        doms = [d.strip().lower() for d in payload.hidden_domains if d.strip()]
+        current["hidden_domains"] = doms
+
+    SETTINGS_STORE[user_id] = current
+    save_settings_store()
+    return {"ok": True, "settings": current}
+    
+app.include_router(router_settings)
+
+
+@app.get("/api/photos/pool/debug")
+async def debug_photos_pool(request: Request):
+    uid = _current_user_id(request)
+    pool = _user_pool(uid)
+    sample = pool[:5]
+    return JSONResponse({"user_id": uid, "pool_size": len(pool), "sample": sample})
+
+@app.get("/api/photos/proxy/{photo_id}")
+async def proxy_photo(photo_id: str, request: Request, w: int = 1600, h: int = 900, mode: str = "no"):
+    uid = _current_user_id(request)
+    pool = _user_pool(uid)
+    bearer = _user_bearer(uid)
+
+    item = next((x for x in pool if (x.get("id") == photo_id)), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Foto non trovata in pool")
+
+    base = (item.get("baseUrl") or "").strip()
+    auth = (item.get("authUrl") or "").strip()
+    suffix = f"=w{w}-h{h}-{mode}"
+
+    key = f"{uid}:{photo_id}:{w}:{h}:{mode}"  # cache separata per utente
+    hit = _photos_cache_get(key)
+    if hit:
+        return StreamingResponse(io.BytesIO(hit["bytes"]), media_type=hit["ct"],
+                                 headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Cache": "HIT"})
+    
+    urls_and_modes: list[tuple[str, dict]] = []
+    if base: 
+        urls_and_modes.append((base + suffix, {}))
+    if base and bearer: 
+        urls_and_modes.append((base + suffix, {"Authorization": bearer}))
+    if base and bearer: 
+        urls_and_modes.append((base, {"Authorization": bearer}))
+    if base and bearer:
+        sep = "&" if "?" in base else "?"
+        urls_and_modes.append((base + f"{sep}alt=media", {"Authorization": bearer}))
+    if auth and bearer:
+        urls_and_modes.append((auth, {"Authorization": bearer}))
+
+    tried = []
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        for url, headers in urls_and_modes:
+            r = await c.get(url, headers=headers, follow_redirects=True)
+            tried.append((url, r.status_code))
+            if r.status_code == 200:
+                ct = r.headers.get("Content-Type", "image/jpeg")
+                body = r.content
+                _photos_cache_put(key, {"ts": time.time(), "bytes": body, "ct": ct})
+                return StreamingResponse(io.BytesIO(body), media_type=ct,
+                                         headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Cache": "MISS"})
+    logging.warning("[BACKEND] proxy fallito. Tentativi: %s", tried)
+    raise HTTPException(status_code=502, detail="Impossibile recuperare l'immagine dal provider")
+
+
+
+# async def proxy_image(u: str, request: Request):
+#     url = unquote(u)
+
+#     # Evita loop
+#     if "/api/img" in url:
+#         raise HTTPException(status_code=400, detail="Loop di proxy rilevato")
+
+#     # Evita SSRF verso se stesso
+#     if request.client.host in ("127.0.0.1", "localhost", "::1"):
+#         if urlparse(url).hostname in ("127.0.0.1", "localhost", "::1"):
+#             raise HTTPException(status_code=400, detail="Proxy verso localhost non consentito")
+
+#     # Consenti solo HTTPS
+#     parsed = urlparse(url)
+#     if parsed.scheme.lower() != "https":
+#         raise HTTPException(status_code=400, detail="Solo https è consentito")
+
+#     # Whitelist host + blocco reti private/localhost
+#     host = parsed.hostname
+#     if host not in IMG_ALLOWED_HOSTS or _is_private_host(host):
+#         raise HTTPException(status_code=400, detail="Host non consentito")
+
+#     # Cache HIT (con gestione If-None-Match)
+#     ent = _cache_get(url)
+#     inm = (request.headers.get("if-none-match") or "").strip()
+#     if ent:
+#         if inm and ent.get("etag") and inm == ent["etag"]:
+#             return Response(status_code=304)
+#         headers = {
+#             "Content-Type": ent["ct"],
+#             "Cache-Control": "public, max-age=31536000, immutable",
+#             "ETag": ent.get("etag") or "",
+#         }
+#         if ent.get("lm"):
+#             headers["Last-Modified"] = ent["lm"]
+#         headers["X-Cache"] = "HIT"
+#         return StreamingResponse(io.BytesIO(ent["bytes"]), media_type=ent["ct"], headers=headers)
+
+#     # MISS: fetch remoto
+#     try:
+#         async with httpx.AsyncClient(timeout=20.0) as client:
+#             r = await client.get(url, follow_redirects=True)
+#             r.raise_for_status()
+#         content = r.content
+#         if len(content) > IMG_PROXY_MAX_BYTES:
+#             raise HTTPException(status_code=413, detail="Immagine troppo grande")
+
+#         ct   = r.headers.get("content-type", "image/jpeg")
+#         etag = r.headers.get("etag") or f'W/"{hashlib.sha1(content).hexdigest()}"'
+#         lm   = r.headers.get("last-modified")
+
+#         _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag, "lm": lm})
+
+#         headers = {
+#             "Cache-Control": "public, max-age=31536000, immutable",
+#             "ETag": etag,
+#         }
+#         if lm:
+#             headers["Last-Modified"] = lm
+#         headers["X-Cache"] = "MISS"
+#         return StreamingResponse(io.BytesIO(content), media_type=ct, headers=headers)
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logging.error(f"Errore proxying immagine {url}: {e}")
+#         # --- MODIFICA: Restituisci un placeholder invece di 502 ---
+#         data, ct = placeholder_svg_bytes("Image Error")
+#         return Response(content=data, media_type=ct, status_code=200, headers={
+#             "Cache-Control": "no-cache, no-store, must-revalidate",
+#         })
+
+
+@app.get("/api/photos/albums")
+async def list_albums(authorization: str = Header(None), page_size: int = 50):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+    url = "https://photoslibrary.googleapis.com/v1/albums"
+    params = {"pageSize": min(page_size, 50)}
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(url, params=params, headers={"Authorization": authorization})
+    if r.status_code != 200:
+        raise HTTPException(status_code=r.status_code, detail=r.text)
+    return r.json()
+
+class ImportLatestBody(BaseModel):
+    limit: int = 500
+    mode: t.Optional[str] = "replace"  # "replace" oppure "append"
+
+@app.post("/api/photos/import/latest")
+async def import_latest(body: ImportLatestBody, request: Request, authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+    uid = _current_user_id(request)
+    PHOTOS_BEARERS[uid] = authorization
+
+    pool = _user_pool(uid)
+    url = "https://photoslibrary.googleapis.com/v1/mediaItems"
+    params = {"pageSize": min(max(body.limit, 1), 100)}
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(url, params=params, headers={"Authorization": authorization})
+    if r.status_code != 200:
+        raise HTTPException(status_code=r.status_code, detail=r.text)
+
+    if (body.mode or "append") == "replace":
+        PHOTOS_POOLS[uid] = []
+        pool = _user_pool(uid)
+
+    added = 0
+    for mi in (r.json().get("mediaItems") or []):
+        base_url = _pick_base_url(mi)
+        if not base_url: 
+            continue
+        mf = mi.get("mediaFile") or mi.get("media_file") or {}
+        auth_url = (mf.get("downloadUrl") or mf.get("download_url") or
+                    (mf.get("image") or {}).get("downloadUrl") or
+                    (mf.get("photo") or {}).get("downloadUrl"))
+        pool.append({
+            "id": mi.get("id"),
+            "baseUrl": base_url,
+            "authUrl": auth_url,
+            "mimeType": mi.get("mimeType"),
+            "filename": mi.get("filename"),
+        })
+        added += 1
+    return {"ok": True, "cached": added, "pool_size": len(pool)}
+
+@app.delete("/api/photos/pool/clear")
+async def clear_photos_pool(request: Request):
+    uid = _current_user_id(request)
+    n = len(PHOTOS_POOLS.get(uid, []))
+    PHOTOS_POOLS[uid] = []
+    return {"ok": True, "removed": n}
+
+class CacheFromSessionBody(BaseModel):
+    session_id: str
+    mode: t.Optional[str] = "replace"
+
+async def _photos_list_media_items(session_id: str, authorization: str) -> dict:
+    """
+    Nuova Photos Picker API:
+    usare GET /v1/mediaItems?sessionId=... (NON sessions/{id}:listMediaItems)
+    """
+    url = "https://photospicker.googleapis.com/v1/mediaItems"
+    params = {"sessionId": session_id, "pageSize": 100}
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(url, params=params, headers={
+            "Authorization": authorization,
+        })
+    # Quando l'utente non ha ancora premuto "Seleziona"/"Done",
+    # il servizio può rispondere con FAILED_PRECONDITION (400).
+    if r.status_code == 400 and "FAILED_PRECONDITION" in r.text:
+        return {"mediaItems": []}
+    if r.status_code != 200:
+        logging.error("[BACKEND] mediaItems.list failed: %s %s", r.status_code, r.text)
+        raise HTTPException(status_code=r.status_code, detail=r.text)
+    return r.json()
+
+@app.get("/api/photos/picker/session/{session_id}")
+async def get_photos_picker_session(session_id: str, request: Request, authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+    uid = _current_user_id(request)
+    PHOTOS_BEARERS[uid] = authorization
+    url = f"https://photospicker.googleapis.com/v1/sessions/{session_id}"
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as c:
+            r = await c.get(url, headers={"Authorization": authorization})
+        if r.status_code != 200:
+            logging.error("[BACKEND] GET session failed: %s %s", r.status_code, r.text)
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+        return r.json()
+    except httpx.HTTPError as e:
+        logging.exception("[BACKEND] Network error GET session: %s", e)
+        raise HTTPException(status_code=502, detail="Errore di rete verso PhotosPicker")
+    
+async def _assert_token_has_scope(creds, *required_scopes: str):
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.get("https://oauth2.googleapis.com/tokeninfo",
+                        params={"access_token": creds.token})
+        if r.status_code != 200 and creds.refresh_token:
+            creds.refresh(GoogleAuthRequest())
+            r = await c.get("https://oauth2.googleapis.com/tokeninfo",
+                            params={"access_token": creds.token})
+        if r.status_code != 200:
+            raise HTTPException(status_code=401, detail="Token non valido. Esegui di nuovo il login.")
+
+        data = r.json() if "application/json" in r.headers.get("content-type", "") else {}
+        scopes = set((data.get("scope") or "").split())
+        if not any(rs in scopes for rs in required_scopes):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Token privo degli scope richiesti: {', '.join(required_scopes)}"
+            )
+
+photos_pool_lock = asyncio.Lock()
+
+class PhotoItem(BaseModel):
+    id: Optional[str] = None
+    baseUrl: str
+    mimeType: Optional[str] = None
+    filename: Optional[str] = None
+
+class PickerItem(BaseModel):
+    id: str = Field(..., description="mediaItemId restituito dal Picker")
+    baseUrl: str | None = Field(None, description="URL dell’immagine (se disponibile)")
+    mimeType: str | None = None
+    filename: str | None = None
+
+class CachePhotosRequest(BaseModel):
+    items: list[PickerItem]
+    mode: Optional[str] = "append"
+
+COMMON_SLD = {
+    "co.uk","ac.uk","gov.uk",
+    "com.au","net.au","org.au",
+    "co.jp","ne.jp","or.jp",
+    "com.br","com.ar","com.mx","com.tr","com.cn","com.hk","com.sg",
+    "co.in","co.id","co.kr","co.za"
+}
+
+# def root_domain_py(d: str) -> str:
+#     """Riduce sottodomini al dominio 'radice' (heuristic semplice, copre i TLD più comuni)."""
+#     if not d:
+#         return ""
+#     d = d.strip().lower().lstrip('.')
+#     parts = d.split('.')
+#     if len(parts) <= 2:
+#         return d
+#     # es. something.co.uk -> prendi "co.uk" come coda
+#     tail = ".".join(parts[-2:])
+#     if tail in COMMON_SLD and len(parts) >= 3:
+#         return ".".join(parts[-3:])  # es. a.b.co.uk -> b.co.uk
+#     return ".".join(parts[-2:])      # default: a.b.c -> b.c
+
+# def extract_domain_from_from_header(sender_email_or_from: str) -> str:
+#     """
+#     Estrai dominio da 'from' o email. Fall-back safe.
+#     """
+#     if not sender_email_or_from:
+#         return ""
+#     s = sender_email_or_from.strip().lower()
+#     # prova a prendere parte dopo @ se è una email
+#     if "@" in s:
+#         return s.split("@")[-1].strip(">")
+#     # altrimenti rimuovi eventuali <...>
+#     if "<" in s and ">" in s:
+#         try:
+#             inside = s[s.index("<")+1:s.index(">")]
+#             if "@" in inside:
+#                 return inside.split("@")[-1]
+#         except Exception:
+#             pass
+#     # fallback
+#     return s
+
+def _pick_base_url(mi: dict) -> str:
+    """
+    Estrae un URL immagine dai diversi formati del nuovo Photos Picker.
+    Supporta campi piatti, annidati (mediaItem) e soprattutto mediaFile{...}.
+    Ritorna '' se non trova nulla.
+    """
+    if not isinstance(mi, dict):
+        return ""
+
+    candidates: list[str | None] = []
+
+    # ---- candidati “piatti” al top-level ----
+    candidates += [
+        mi.get("baseUrl"),
+        mi.get("base_url"),
+        mi.get("url"),
+        mi.get("contentUrl"),
+        mi.get("imageUrl"),
+        mi.get("mediaUrl"),
+        mi.get("downloadUrl"),
+    ]
+
+    # ---- se c'è mediaItem annidato ----
+    for key in ("mediaItem", "media_item"):
+        sub = mi.get(key)
+        if isinstance(sub, dict):
+            candidates += [
+                sub.get("baseUrl"), sub.get("base_url"),
+                sub.get("url"), sub.get("contentUrl"),
+                sub.get("imageUrl"), sub.get("mediaUrl"), sub.get("downloadUrl"),
+            ]
+            thumbs = sub.get("thumbnails") or []
+            if isinstance(thumbs, list) and thumbs:
+                candidates.append((thumbs[0] or {}).get("url"))
+
+    # ---- *** NUOVO: struttura moderna mediaFile {...} *** ----
+    for key in ("mediaFile", "media_file"):
+        mf = mi.get(key)
+        if isinstance(mf, dict):
+            # campi diretti
+            candidates += [
+                mf.get("baseUrl"), mf.get("base_url"),
+                mf.get("url"), mf.get("contentUrl"),
+                mf.get("imageUrl"), mf.get("mediaUrl"), mf.get("downloadUrl"),
+            ]
+            # thumbnails
+            thumbs = mf.get("thumbnails") or []
+            if isinstance(thumbs, list) and thumbs:
+                for t in thumbs:
+                    if isinstance(t, dict):
+                        candidates.append(t.get("url"))
+
+            # possibili sotto-oggetti tipizzati
+            for subkey in ("image", "photo", "video"):
+                sub = mf.get(subkey)
+                if isinstance(sub, dict):
+                    candidates += [
+                        sub.get("baseUrl"), sub.get("base_url"),
+                        sub.get("url"), sub.get("contentUrl"),
+                        sub.get("imageUrl"), sub.get("mediaUrl"), sub.get("downloadUrl"),
+                    ]
+                    # sorgenti multiple
+                    for listkey in ("sources", "variants"):
+                        lst = sub.get(listkey) or []
+                        if isinstance(lst, list):
+                            for s in lst:
+                                if isinstance(s, dict):
+                                    candidates += [
+                                        s.get("url"), s.get("downloadUrl"),
+                                        s.get("contentUrl"), s.get("src"),
+                                    ]
+
+    # ---- thumbnails anche al top-level ----
+    thumbs = mi.get("thumbnails") or []
+    if isinstance(thumbs, list) and thumbs:
+        candidates.append((thumbs[0] or {}).get("url"))
+
+    # scegli il primo valido
+    for c in candidates:
+        if isinstance(c, str) and c.strip():
+            return c.strip()
+    return ""
+
+@app.post("/api/photos/cache")
+async def cache_photos(payload: CachePhotosRequest, request: Request):
+    uid = _current_user_id(request)
+    pool = _user_pool(uid)
+
+    client_ip = request.client.host if request and request.client else "?"
+    logging.info(f"/api/photos/cache: uid={uid} from {client_ip}, items={len(payload.items)}, mode={payload.mode}")
+
+    if payload.mode == "replace":
+        PHOTOS_POOLS[uid] = []
+        pool = _user_pool(uid)
+
+    before, added = len(pool), 0
+    for it in payload.items:
+        if not it.baseUrl:
+            logging.warning("/api/photos/cache: item senza baseUrl → skip")
+            continue
+        pool.append({
+            "id": it.id,
+            "baseUrl": it.baseUrl,
+            "mimeType": it.mimeType,
+            "filename": it.filename
+        })
+        added += 1
+
+    after = len(pool)
+    return JSONResponse({"ok": True, "added": added, "pool_size": after})
+
+@app.post("/api/photos/picker/session/cache")
+async def cache_from_session(body: CacheFromSessionBody, request: Request, authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+    uid = _current_user_id(request)
+    PHOTOS_BEARERS[uid] = authorization
+    pool = _user_pool(uid)
+
+    attempts, media_items = 0, []
+    while attempts < 20 and not media_items:
+        attempts += 1
+        try:
+            payload = await _photos_list_media_items(body.session_id, authorization)
+            media_items = payload.get("mediaItems") or []
+            if media_items:
+                break
+        except HTTPException as he:
+            logging.warning("[BACKEND] mediaItems.list errore (%s). Retry breve.", he.status_code)
+        await asyncio.sleep(1.0)
+
+    if not media_items:
+        return JSONResponse({"ok": False, "cached": 0, "reason": "no_media_yet"}, status_code=202)
+
+    if (body.mode or "append") == "replace":
+        PHOTOS_POOLS[uid] = []
+        pool = _user_pool(uid)
+
+    added = 0
+    for mi in media_items:
+        base_url = _pick_base_url(mi)
+        if not base_url:
+            continue
+        mf = mi.get("mediaFile") or mi.get("media_file") or {}
+        auth_url = (
+            mf.get("downloadUrl") or mf.get("download_url") or
+            (mf.get("image") or {}).get("downloadUrl") or
+            (mf.get("photo") or {}).get("downloadUrl")
+        )
+        pool.append({
+            "id": mi.get("id") or (mi.get("mediaItem") or {}).get("id"),
+            "baseUrl": base_url,
+            "authUrl": auth_url,
+            "mimeType": mi.get("mimeType") or mi.get("mime_type") or (mi.get("mediaItem") or {}).get("mimeType"),
+            "filename": mi.get("filename") or (mi.get("mediaItem") or {}).get("filename"),
+        })
+        added += 1
+
+    return {"ok": True, "cached": added, "pool_size": len(pool)}
+
+# --- FUNZIONI HELPER ---
+async def get_google_photos(user_id: str, count=25):
+    pool = _user_pool(user_id)
+    if not pool:
+        raise HTTPException(status_code=409, detail="Foto non selezionate. Apri il Picker.")
+    take = min(count, len(pool))
+    return random.sample(pool, take) if len(pool) >= take else pool[:take]
+def extract_html_from_payload(payload: dict) -> str:
+    if not payload:
+        return ""
+    mime = payload.get("mimeType", "")
+    body = payload.get("body", {}) or {}
+    data = body.get("data")
+
+    if mime == "text/html" and data:
+        try:
+            return b64_urlsafe_decode(data).decode("utf-8", "ignore")
+        except Exception:
+            return ""
+
+    # Se multipart: cerca ricorsivamente
+    for part in (payload.get("parts") or []):
+        html = extract_html_from_payload(part)
+        if html:
+            return html
+    return ""
+
+def b64_urlsafe_decode(s: str) -> bytes:
+    s = s.replace('-', '+').replace('_', '/')
+    pad = (-len(s)) % 4
+    if pad:
+        s += '=' * pad
+    return base64.b64decode(s)
+
+def clean_html(html_content):
+    html_content = html_content or ""  # <— garantisce stringa
+    soup = BeautifulSoup(html_content, 'html.parser')
+    for element in soup(["script", "style", "head", "title", "meta", "header", "footer", "nav"]):
+        element.extract()
+    return ' '.join(soup.get_text(separator=' ', strip=True).split())
+
+def parse_sender(sender_header):
+    match = re.match(r'(.+?)<.*>', sender_header)
+    return match.group(1).strip().replace('"', '') if match else sender_header
+
+async def get_ai_summary(content: str, client: httpx.AsyncClient):
+    raw = content or ""
+    clean_content = clean_html(raw)[:4000]
+
+    # Istruzioni aggiornate per includere la parola "JSON"
+    instructions = """
+Developer: # Ruolo e Obiettivo
+- Sintetizzare il contenuto delle newsletter, generando un riassunto adatto a un feed in stile Instagram, mettendo in evidenza l'obiettivo principale della mail per l'utente.
+
+# Istruzioni
+- Analizza e riassumi il contenuto principale della newsletter.
+- Scrivi una descrizione conforme ai requisiti di output sotto riportati, assicurandoti di chiarire l'obiettivo della mail all'utente.
+- Escludi informazioni disponibili solo tramite abbonamento.
+
+# Contesto
+- Il riassunto sarà usato come anteprima su feed visuali tipo Instagram.
+- Il prompt non deve includere né fare riferimento a contenuti protetti da paywall o sottoscrizione.
+
+# REQUISITI DI OUTPUT (OBBLIGATORI)
+- Rispondi SOLO con un oggetto JSON valido. Il formato deve essere un JSON object.
+- Chiavi richieste: "title" (stringa) e "summary_markdown" (stringa).
+- "title": massimo 10 parole, in italiano.
+- "summary_markdown": massimo 400 caratteri totali, diviso in 2–3 paragrafi. Ogni paragrafo separato da UNA riga vuota e con una **parola chiave** in grassetto.
+- Vietato includere testo extra fuori dal JSON.
+"""
+    user_input = f"Testo da analizzare:\n---\n{clean_content}\n---"
+
+    try:
+        if not openai.api_key:
+            raise ValueError("La chiave API di OpenAI non è stata impostata nel file .env")
+
+        # Payload aggiornato al formato moderno e con più token
+        payload = {
+            "model": "gpt-5-nano",
+            "input": [
+                {"role": "system", "content": [{"type": "input_text", "text": instructions}]},
+                {"role": "user", "content": [{"type": "input_text", "text": user_input}]}
+            ],
+                    "text": {
+            "format": {"type": "json_object"},
+            "verbosity": "low"
+                },
+                "reasoning": {"effort": "minimal"},
+            "max_output_tokens": 300  # Aumentato a 1200 per sicurezza
+        }
+
+        resp = await client.post(
+            "https://api.openai.com/v1/responses",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {openai.api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=15.0,
+        )
+        
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            logging.error("[AI Summary] OpenAI error body: %s", e.response.text)
+            raise
+
+        data = resp.json()
+        text = _extract_output_text(data)
+        if not text:
+            raise ValueError(f"Risposta senza testo utile: {data}")
+
+        clean_json_str = _extract_json_from_string(text)
+        obj = json.loads(clean_json_str) if clean_json_str else {}
+
+        if not isinstance(obj, dict) or "title" not in obj or "summary_markdown" not in obj:
+            raise ValueError("JSON non valido o chiavi richieste mancanti.")
+
+        obj["title"] = obj["title"][:200]
+        obj["summary_markdown"] = obj["summary_markdown"][:1200]
+        return obj
+
+    except Exception as e:
+        logging.error(f"Errore critico in get_ai_summary: {e}", exc_info=True)
+        return {"title": "Errore Elaborazione AI", "summary_markdown": "Si è verificato un problema durante l'analisi."}
+
+
+# async def get_ai_keyword(content: str, client: httpx.AsyncClient) -> str:
+#     raw = content or ""
+#     logging.info("[KW] start | html_len=%d", len(raw))
+#     base = clean_html(raw)[:2000]
+#     logging.info("[KW] base_len=%d | base_preview=%r", len(base), base[:160])
+
+#     # Le istruzioni ora vanno dentro il payload come messaggio di sistema
+#     instructions = """
+# Ti fornirò il testo di una newsletter o articolo. Il tuo compito è restituire SOLO un oggetto JSON valido con una singola chiave "keyword". Il valore deve essere una parola o frase breve (1–3 parole) in inglese, concreta e visivamente rappresentabile, che simboleggi al meglio la newsletter. Evita concetti astratti, termini generici o brand. Rispondi solo con il JSON, senza spiegazioni.
+# Requisiti:
+# - Rispondi SOLO con un oggetto JSON valido con una singola chiave "keyword".
+# - Niente testo extra o spiegazioni fuori dal JSON.
+# - La keyword deve essere un **sostantivo concreto e visivamente rappresentabile**.
+# - Evita parole generiche (es. "notizie", "articolo", "aggiornamento") e nomi di brand.
+# - La keyword deve essere in **inglese**.
+# """
+#     user_input = f"Testo da analizzare:\n---\n{base}\n---"
+
+#     try:
+#         # Payload aggiornato per l'endpoint /v1/responses
+#         payload = {
+#         "model": "gpt-5-nano",
+#         "input": [
+#             {"role": "system", "content": [{"type": "input_text", "text": instructions}]},
+#             {"role": "user",   "content": [{"type": "input_text", "text": user_input}]}
+#         ],
+#         "text": {
+#             "format": {"type": "json_object"},
+#             "verbosity": "low"
+#         },
+#         "reasoning": {"effort": "minimal"},
+#         "max_output_tokens": 300
+#     }
+
+#         resp = await client.post(
+#             "https://api.openai.com/v1/responses", # Endpoint corretto
+#             json=payload,
+#             headers={
+#                 "Authorization": f"Bearer {openai.api_key}",
+#                 "Content-Type": "application/json",
+#             },
+#             timeout=15.0,
+#         )
+#         logging.info("[KW] OpenAI status=%s", resp.status_code)
+
+
+#         try:
+#             resp.raise_for_status()
+#         except httpx.HTTPStatusError as e:
+#             # Logga il corpo della risposta di errore prima di sollevare l'eccezione
+#             logging.error("[KW] OpenAI error body: %s", e.response.text)
+#             raise # Rilancia l'eccezione per farla gestire dal blocco 'except' esterno
+
+#         data = resp.json()
+#         logging.info("[KW] RAW OpenAI Response: %s", data)
+
+#         text = (
+#             data.get("output_text")
+#             or "".join(
+#                 seg.get("text","")
+#                 for item in data.get("output", [])
+#                 if item.get("type") == "message"
+#                 for seg in item.get("content", [])
+#                 if seg.get("type") == "output_text"
+#             )
+#         )
+
+#         # La funzione _extract_output_text potrebbe ancora funzionare,
+#         # ma è più robusto estrarre il testo dal nuovo formato di risposta.
+#         text = _extract_output_text(data)
+#         if not text:
+#             logging.warning("[KW] Nessun contenuto testuale trovato. Fallback.")
+#             return _cheap_fallback_keyword_from_text(base)
+
+#         clean_json_str = _extract_json_from_string(text)
+#         if not clean_json_str:
+#             logging.warning("[KW] Impossibile estrarre JSON dalla stringa. Fallback.")
+#             return _cheap_fallback_keyword_from_text(base)
+
+#         obj = json.loads(clean_json_str)
+#         kw = (obj.get("keyword") or "").strip()
+
+#         if not kw:
+#             logging.info("[KW] keyword vuota → fallback")
+#             return _cheap_fallback_keyword_from_text(base)
+
+#         parts = kw.split()
+#         if len(parts) > 3:
+#             kw = " ".join(parts[:3])
+
+#         if kw.lower() in _BANNED_KW:
+#             fb = _cheap_fallback_keyword_from_text(base)
+#             logging.info("[KW] keyword %r bannata → fallback %r", kw, fb)
+#             return fb
+
+#         logging.info("get_ai_keyword → %r", kw)
+#         return kw
+
+#     except Exception as e:
+#         logging.error("[KW] Eccezione in get_ai_keyword: %s", e, exc_info=True)
+#         return _cheap_fallback_keyword_from_text(base)
+
+    
+async def _pixabay_search(client: httpx.AsyncClient, query: str) -> list[dict]:
+    if not PIXABAY_KEY:
+        return []
+    params = {
+        "key": PIXABAY_KEY,
+        "q": query,
+        "image_type": "photo",
+        "orientation": "horizontal",
+        "safesearch": "true",
+        "order": "popular",
+        "per_page": 10,
+    }
+    backoffs = [0.2, 0.6, 1.2]
+    for i, b in enumerate(backoffs):
+        try:
+            r = await client.get("https://pixabay.com/api/", params=params, timeout=15.0)
+            if r.status_code == 429:
+                await asyncio.sleep(b)
+                continue
+            r.raise_for_status()
+            data = r.json()
+            return data.get("hits") or []
+        except httpx.HTTPError:
+            if i < len(backoffs) - 1:
+                await asyncio.sleep(b)
+            else:
+                return []
+    return []
+
+def _pick_best_hit(hits: list[dict]) -> dict | None:
+    if not hits:
+        return None
+    # Evita duplicati recenti, poi ordina per "likes" e dimensione
+    filtered = [h for h in hits if str(h.get("id")) not in RECENT_PXB_IDS]
+    candidates = filtered or hits
+    def score(h):
+        likes = h.get("likes") or 0
+        w = h.get("imageWidth") or 0
+        hgt = h.get("imageHeight") or 0
+        return (likes, w*hgt)
+    best = sorted(candidates, key=score, reverse=True)[0]
+    return best
+
+async def _download_image_bytes(client: httpx.AsyncClient, hit: dict) -> tuple[bytes, str]:
+    url = hit.get("largeImageURL") or hit.get("webformatURL")
+    if not url:
+        return b"", "image/jpeg"
+    r = await client.get(url, timeout=25.0, follow_redirects=True)
+    r.raise_for_status()
+    ct = r.headers.get("content-type", "image/jpeg").split(";")[0]
+    return r.content, ct
+
+# async def get_pixabay_image_by_query(client: httpx.AsyncClient, keyword: str, *, bypass_cache: bool = False, original_html: str = "") -> str:
+    # """
+    # Cerca un'immagine su Pixabay con una logica di fallback a cascata.
+    # 1. Prova la keyword AI.
+    # 2. Se fallisce, prova una keyword estratta dal testo.
+    # 3. Se fallisce, usa una keyword generica.
+    # 4. Come ultima risorsa, genera un placeholder.
+    # """
+    # # Lista dei tentativi di keyword
+    # keywords_to_try = [
+    #     (keyword or "").strip().lower(),
+    # ]
+    
+    # # Aggiungi un fallback intelligente se abbiamo l'HTML originale
+    # if original_html:
+    #     fallback_kw = _cheap_fallback_keyword_from_text(clean_text_for_ai(original_html))
+    #     if fallback_kw and fallback_kw not in keywords_to_try:
+    #         keywords_to_try.append(fallback_kw)
+            
+    # # Aggiungi un fallback generico
+    # keywords_to_try.append("technology")
+
+    # # Itera sui tentativi
+    # for i, kw in enumerate(keywords_to_try):
+    #     if not kw:
+    #         continue
+            
+    #     logging.info(f"[PIXABAY] Tentativo {i+1}/{len(keywords_to_try)} con keyword: '{kw}'")
+        
+    #     # Controlla la cache per questa keyword
+    #     now = time.time()
+    #     if not bypass_cache and kw in PIXABAY_KW_CACHE:
+    #         ts, cached_url = PIXABAY_KW_CACHE[kw]
+    #         if now - ts < KW_CACHE_TTL:
+    #             logging.info(f"[PIXABAY] Cache HIT per '{kw}'")
+    #             return cached_url
+
+    #     # Cerca su Pixabay
+    #     hits = await _pixabay_search(client, kw)
+    #     hit = _pick_best_hit(hits)
+
+    #     if hit:
+    #         # Trovato! Scarica, carica su R2 e restituisci l'URL
+    #         try:
+    #             data, ct = await _download_image_bytes(client, hit)
+    #             ext = "jpg" if "jpeg" in ct else "png" if "png" in ct else "jpg"
+    #             key = make_r2_key_from_kw(kw, ext=ext)
+    #             url = upload_bytes_to_r2(data, key, ct)
+    #             RECENT_PXB_IDS.append(str(hit.get("id")))
+    #             PIXABAY_KW_CACHE[kw] = (now, url)
+    #             logging.info(f"[PIXABAY] Successo con '{kw}', URL: {url}")
+    #             return url
+    #         except Exception as e:
+    #             logging.warning(f"Download/Upload fallito per '{kw}': {e}")
+    #             # Se il download fallisce, passa al prossimo tentativo
+    #             continue
+
+    # # Se tutti i tentativi falliscono, genera un placeholder
+    # logging.warning(f"[PIXABAY] Tutti i tentativi di ricerca immagine sono falliti. Genero placeholder.")
+    # final_kw = keyword or "newsletter"
+    # data, ct = placeholder_svg_bytes(final_kw)
+    # key = make_r2_key_from_kw(final_kw, ext="svg")
+    # url = upload_bytes_to_r2(data, key, ct)
+    # return url
+
+@app.post("/api/photos/picker/session")
+async def create_photos_picker_session(request: Request, authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+
+    # Body corretto per la nuova API: NIENTE wrapper "session", NIENTE origin/client.
+    picking_session = {
+        "pickingConfig": {
+            "maxItemCount": 500  # imposta qui il limite voluto
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as c:
+            r = await c.post(
+                "https://photospicker.googleapis.com/v1/sessions",
+                headers={
+                    "Authorization": authorization,  # Bearer <access_token GIS con scope photospicker>
+                    "Content-Type": "application/json",
+                },
+                json=picking_session,
+            )
+        if r.status_code != 200:
+            logging.error("[BACKEND] PhotosPicker CREATE SESSION failed: %s", r.status_code)
+            logging.error("[BACKEND] Response body: %s", r.text)
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+
+        resp = r.json()
+        # La risposta contiene "pickerUri" che il frontend deve aprire in popup
+        if not resp.get("pickerUri"):
+            logging.error("[BACKEND] Nessuna pickerUri nella risposta: %s", resp)
+            raise HTTPException(status_code=500, detail="Nessuna pickerUri nella risposta di Google.")
+        return resp
+
+    except httpx.HTTPError as e:
+        logging.exception("[BACKEND] Errore di rete verso PhotosPicker: %s", e)
+        raise HTTPException(status_code=502, detail="Errore di rete verso PhotosPicker")
+    
+# --- ENDPOINTS ---
+@app.get("/auth/login")
+async def auth_login(request: Request):
+    sid = request.session.get("sid")
+    if not sid:
+        sid = str(uuid.uuid4())
+        request.session["sid"] = sid
+
+    _cleanup_pending_auth(request)
+    pa = _pending_auth(request)
+
+    # Se ho già un login in corso, riuso l'URL esistente
+    if pa:
+        existing_nonce, data = next(reversed(list(pa.items())))
+        auth_url = data.get("auth_url")
+        if auth_url:
+            logging.info("[AUTH/LOGIN] Reusing pending auth for sid=%s nonce=%s", sid, existing_nonce)
+            return RedirectResponse(auth_url, status_code=302)
+
+    # Nessun pending: crea nuovo flow+nonce e lega PKCE al nonce
+    now = time.time()
+    nonce = secrets.token_urlsafe(24)
+    state = f"{sid}.{nonce}"
+
+    flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+    auth_url, _ = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+        state=state,
+    )
+
+    pa[nonce] = {
+        "pkce": getattr(flow, "code_verifier", None),
+        "auth_url": auth_url,   # <- ora sta in memoria, NON nel cookie
+        "ts": time.time(),
+    }
+
+    logging.info("[AUTH/LOGIN] issued state=%s (sid=%s pending=%d)", state, sid, len(pa))
+    return RedirectResponse(auth_url, status_code=302)
+
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request, bg: BackgroundTasks):
+    code  = request.query_params.get("code")
+    state = request.query_params.get("state")
+    if not code:
+        raise HTTPException(400, "Missing code")
+
+    logging.info("[AUTH/CALLBACK] code_present=%s cookies_present=%s", bool(code), bool(request.cookies))
+
+    is_new_user = request.session.get("sid") not in CREDENTIALS_STORE
+
+    sid_from_state, nonce = (state.split(".", 1) if (state and "." in state) else (None, None))
+    sid = request.session.get("sid")
+    if not sid and sid_from_state:
+        request.session["sid"] = sid_from_state
+        sid = sid_from_state
+        logging.info("[AUTH] restored sid from state: %s", sid)
+    if not sid:
+        logging.warning("[AUTH] callback without sid in session and not restorable")
+        return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
+
+    if request.session.get("_last_code") == code or request.session.get("_code_in_flight") == code:
+        return RedirectResponse("/?authenticated=true", status_code=303)
+    request.session["_code_in_flight"] = code
+
+    _cleanup_pending_auth(request)
+    pa = _pending_auth(request)
+    entry = pa.get(nonce or "")
+    if not nonce or not entry:
+        if CREDENTIALS_STORE.get(sid):
+            logging.info("[AUTH] duplicate callback (nonce not found) but creds already present → success")
+            request.session["_last_code"] = code
+            request.session.pop("_code_in_flight", None)
+            return RedirectResponse("/?authenticated=true", status_code=303)
+        request.session.pop("_code_in_flight", None)
+        logging.warning("[AUTH] state/nonce mismatch: sid=%s pending_keys=%s provided_nonce=%s",
+                        sid, list(pa.keys()), nonce)
+        return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
+
+    try:
+        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+        cv = entry.get("pkce")
+        if cv:
+            setattr(flow, "code_verifier", cv)
+
+        if request.session.get("_oauth_lock") == "1":
+            return RedirectResponse("/?authenticated=true", status_code=303)
+        request.session["_oauth_lock"] = "1"
+
+        flow.fetch_token(authorization_response=str(request.url))
+        creds = flow.credentials
+
+        sid = request.session.get("sid") or str(uuid.uuid4())
+        request.session["sid"] = sid
+        CREDENTIALS_STORE[sid] = {
+            "token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "token_uri": creds.token_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret,
+            "scopes": creds.scopes,
+        }
+        save_credentials_store()
+            
+        try:
+            profile = await asyncio.to_thread(
+                build('gmail', 'v1', credentials=creds, cache_discovery=False)
+                    .users().getProfile(userId='me').execute
+            )
+            email = (profile or {}).get("emailAddress")
+            if email:
+                request.session["user_email"] = email
+                SESSION_EMAIL[sid] = email
+                
+                # --- INIZIO MODIFICA ---
+                # Queste righe ora sono nel posto giusto, DOPO aver definito 'email'
+                if is_new_user:
+                    logging.info(f"Nuovo utente registrato: {email}. Avvio ingestione iniziale.")
+                    bg.add_task(kickstart_initial_ingestion, sid, email)
+                
+                await ensure_user_defaults(email)
+                # --- FINE MODIFICA ---
+
+        except Exception as e:
+            logging.warning("[AUTH] impossibile leggere profilo Gmail: %s", e)
+
+        pa.pop(nonce, None)
+        if not pa:
+            PENDING_AUTH.pop(sid, None)
+        request.session["_last_code"] = code
+        return RedirectResponse("/?authenticated=true", status_code=303)
+
+    except Exception as e:
+        if "invalid_grant" in str(e).lower() and CREDENTIALS_STORE.get(sid):
+            logging.info("[AUTH] fetch_token invalid_grant ma credenziali già presenti → success")
+            request.session["_last_code"] = code
+            return RedirectResponse("/?authenticated=true", status_code=303)
+
+        logging.exception("[AUTH] fetch_token failed: %s", e)
+        request.session["_last_code"] = code
+        return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
+
+    finally:
+        request.session.pop("_code_in_flight", None)
+        request.session.pop("_oauth_lock", None)
+        request.session.pop("pkce_verifier", None)
+        request.session.pop("_last_auth_url", None)
+        request.session.pop("_login_started_at", None)
+
+async def get_user_settings(user_id: str) -> dict | None:
+    # usa lo store già esistente su file (SETTINGS_STORE)
+    return SETTINGS_STORE.get(user_id)
+
+async def upsert_user_settings(user_id: str, **kwargs):
+    cur = SETTINGS_STORE.get(user_id, {"preferred_image_source": "pixabay", "hidden_domains": []})
+    cur.update(kwargs)
+    SETTINGS_STORE[user_id] = cur
+    save_settings_store()  # persisti su disco
+    return cur
+
+async def ensure_user_defaults(user_id: str):
+    # se è il primo login (nessun record) → imposta pixabay
+    if user_id not in SETTINGS_STORE:
+        SETTINGS_STORE[user_id] = {"preferred_image_source": "pixabay", "hidden_domains": []}
+        save_settings_store()
+
+
+@app.get("/debug/tokeninfo")
+async def debug_tokeninfo(request: Request):
+    sid = request.session.get("sid")
+    creds_dict = CREDENTIALS_STORE.get(sid or "")
+    if not sid or not creds_dict:
+        raise HTTPException(401, "non autenticato")
+    creds = Credentials.from_authorized_user_info(creds_dict, SCOPES)
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.get("https://oauth2.googleapis.com/tokeninfo",
+                        params={"access_token": creds.token})
+    ctype = r.headers.get("content-type","")
+    body = r.json() if ctype.startswith("application/json") else r.text
+    return JSONResponse({"status": r.status_code, "body": body})
+
+@app.get("/config")
+async def get_config(request: Request):
+    backend_base = str(request.base_url).rstrip("/")
+    return {
+        "GOOGLE_CLIENT_ID": GOOGLE_CLIENT_ID_WEB,
+        "GOOGLE_API_KEY": GOOGLE_API_KEY,
+        "BACKEND_BASE": backend_base,
+    }
+
+async def kickstart_initial_ingestion(sid: str, user_id: str):
+    """
+    Funzione speciale chiamata solo al primo login.
+    Recupera le prime email e le mette direttamente in coda, bypassando l'attesa dell'ingestor.
+    """
+    logging.info(f"Kickstart: Inizio recupero email per il nuovo utente {user_id}")
+    try:
+        creds_dict = CREDENTIALS_STORE.get(sid)
+        if not creds_dict:
+            return
+
+        creds = Credentials.from_authorized_user_info(creds_dict)
+        if creds.expired and creds.refresh_token:
+            creds.refresh(GoogleAuthRequest())
+
+        gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+        
+        # Prendiamo un lotto più grande per il primo avvio, es. 25
+        response = gmail.users().messages().list(userId='me', maxResults=25).execute()
+        messages = response.get('messages', [])
+        
+        if not messages:
+            logging.info(f"Kickstart: Nessuna email trovata per {user_id}.")
+            return
+
+        count = 0
+        for msg in messages:
+            job_payload = {"email_id": msg['id'], "user_id": user_id}
+            redis_client.lpush('email_queue', json.dumps(job_payload))
+            count += 1
+        
+        logging.info(f"Kickstart: Aggiunti {count} lavori alla coda per l'utente {user_id}. Il worker prenderà il controllo.")
+
+    except Exception as e:
+        logging.error(f"Kickstart fallito per l'utente {user_id}: {e}", exc_info=True)
+        
+@app.get("/debug/oauth-config")
+def debug_oauth_config():
+    with open(CLIENT_SECRETS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    cfg = (data.get("web") or data.get("installed") or {})
+    return {
+        "client_id": cfg.get("client_id"),
+        "has_client_secret": bool(cfg.get("client_secret")),
+        "redirect_uri_in_code": REDIRECT_URI,
+        "type": "web" if "web" in data else ("installed" if "installed" in data else "unknown")
+    }
+
+@app.get("/debug/session")
+def debug_session(request: Request):
+    # ATTENZIONE: solo in locale. Mostra cosa c'è in sessione.
+    return JSONResponse({
+        "sid": request.session.get("sid"),
+        "user_email": request.session.get("user_email"),
+        "has_creds": bool(CREDENTIALS_STORE.get(request.session.get("sid") or "")),
+    })
+
+def _parse_cursor(cur: str | None) -> Tuple[datetime | None, str | None]:
+    """Cursor formato: ISO_Z | email_id  ->  (dt, id)"""
+    if not cur:
+        return None, None
+    try:
+        date_part, id_part = cur.split("|", 1)
+        return datetime.fromisoformat(date_part.replace("Z","+00:00")), id_part
+    except Exception:
+        return None, None
+
+@app.get("/api/feed")
+async def get_feed(
+    request: Request,
+    page_size: int = Query(20, ge=1, le=50),
+    before: str | None = Query(None, description="cursor: 'ISOZ|<email_id>'"),
+    only_complete: bool = Query(False)
+):
+    user_id = get_user_id_from_session(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Non autenticato")
+
+    logging.info(f"[FEED] Richiesta per utente={user_id}, page_size={page_size}, before={before}")
+
+    # --- LOGICA PER IL PRIMO CARICAMENTO ---
+    # Controlla se il DB è vuoto PER QUESTO UTENTE. Questa è una query veloce.
+    user_has_newsletters = Newsletter.select().where(Newsletter.user_id == user_id).exists()
+
+    if not before and not user_has_newsletters:
+        # Il DB è vuoto. L'ingestione è stata (o sarà) avviata dal callback di login o dall'ingestor.
+        # Diamo al frontend il segnale di mettersi in attesa.
+        logging.info(f"Feed vuoto per {user_id}, segnalo al frontend di attendere l'ingestione.")
+        return JSONResponse({
+            "feed": [],
+            "next_cursor": None,
+            "has_more": False,
+            "ingest": {"running": True, "job_id": "initial_sync"} # Segnale per il frontend
+        })
+
+    # --- ESECUZIONE NORMALE (UTENTE CON DATI) ---
+    
+    user_settings = SETTINGS_STORE.get(user_id, {"hidden_domains": []})
+    hidden_domains = set(root_domain_py(d) for d in user_settings.get("hidden_domains", []))
+    
+    # 1. Query di base per l'utente, ordinata per data
+    query = (Newsletter
+             .select()
+             .where(Newsletter.user_id == user_id)
+             .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc()))
+
+    # 2. Applica filtri opzionali
+    if only_complete:
+        query = query.where(Newsletter.is_complete == True)
+    
+    # 3. Applica la paginazione (cursore)
+    cur_dt, cur_id = _parse_cursor(before)
+    if cur_dt and cur_id:
+        query = query.where(
+            (Newsletter.received_date < cur_dt) |
+            ((Newsletter.received_date == cur_dt) & (Newsletter.email_id < cur_id))
+        )
+
+    # 4. Esegui la query e filtra i domini nascosti in Python
+    #    (più efficiente che farlo nel DB con LIKE per ogni dominio)
+    all_items = list(query.limit(page_size * 3).dicts()) # Prendi un po' di più per compensare il filtro
+    
+    feed_items = []
+    for item in all_items:
+        item['received_date'] = item['received_date'].isoformat()
+        sender = item.get("sender_email") or ""
+        domain = root_domain_py(extract_domain_from_from_header(sender))
+        item["source_domain"] = domain
+        
+        if domain not in hidden_domains:
+            feed_items.append(item)
+        
+        if len(feed_items) >= page_size:
+            break
+            
+    logging.info(f"Trovati {len(feed_items)} elementi per la pagina.")
+
+    # 5. Calcola il prossimo cursore e se ci sono altre pagine
+    next_cursor = None
+    has_more = False
+    if feed_items:
+        last = feed_items[-1]
+        next_cursor = f"{last['received_date']}|{last['email_id']}"
+        
+        # Controlla se esiste almeno un altro elemento dopo l'ultimo di questa pagina
+        dt_iso, eid = next_cursor.split("|", 1)
+        dt = datetime.fromisoformat(dt_iso)
+        
+        exists_query = (Newsletter
+                        .select(Newsletter.id)
+                        .where(
+                            (Newsletter.user_id == user_id),
+                            (Newsletter.received_date < dt) | 
+                            ((Newsletter.received_date == dt) & (Newsletter.email_id < eid))
+                        )
+                        .limit(1))
+        
+        # Se la query per "has_more" trova almeno un record che non è tra i domini nascosti, allora has_more è True
+        # Questa è un'ottimizzazione, per ora possiamo semplificare
+        has_more = exists_query.exists()
+
+    return JSONResponse({
+        "feed": feed_items,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "ingest": {"running": False, "job_id": None},
+    })
+
+# @app.get("/api/feed")
+# async def get_feed(
+#     request: Request,
+#     bg: BackgroundTasks,
+#     page_size: int = Query(20, ge=1, le=50),
+#     before: str | None = Query(None, description="cursor: 'ISOZ|<email_id>'"),
+#     only_complete: bool = Query(False)
+# ):
+#     logging.info("[FEED] req page_size=%s before=%s", page_size, before)
+#     user_id = get_user_id_from_session(request)
+#     logging.info("[FEED] req user=%s page_size=%s before=%s", user_id, page_size, before)
+
+#     # --- PERCORSO A: PRIMO AVVIO O DB VUOTO ---
+#     # Se è la prima chiamata e non ci sono newsletter, avvia l'ingestione e termina subito.
+#     if not before and Newsletter.select().count() == 0:
+#         sid = request.session.get("sid")
+#         if sid and sid in CREDENTIALS_STORE:
+#             existing_job_id = next((jid for jid, st in INGEST_JOBS.items() if st.get("state") in ("queued", "running")), None)
+            
+#             if existing_job_id:
+#                 logging.info(f"[FEED] kickoff reuse job_id={existing_job_id}")
+#                 # Uscita anticipata: informa il frontend che un job è già attivo
+#                 return JSONResponse({
+#                     "feed": [], "next_cursor": None, "has_more": False,
+#                     "ingest": {"running": True, "job_id": existing_job_id}
+#                 })
+#             else:
+#                 job_id = uuid4().hex
+#                 INGEST_JOBS[job_id] = {"state": "queued", "total": 0, "done": 0, "errors": 0}
+#                 logging.info(f"[FEED] kickoff new job_id={job_id}")
+#                 bg.add_task(run_ingest_job, job_id, sid, 8, None)
+#                 # Uscita anticipata: informa il frontend che un nuovo job è partito
+#                 return JSONResponse({
+#                     "feed": [], "next_cursor": None, "has_more": False,
+#                     "ingest": {"running": True, "job_id": job_id}
+#                 })
+
+#     # --- PERCORSO B: ESECUZIONE NORMALE CON DATI PRESENTI ---
+#     # Se il codice arriva qui, significa che ci sono già dati nel DB e si procede normalmente.
+    
+#     sid = request.session.get("sid")
+#     creds_dict = CREDENTIALS_STORE.get(sid)
+#     if not sid or not creds_dict:
+#         logging.warning(f"[FEED] auth fail: sid/creds missing")
+#         return JSONResponse({
+#             "feed": [], "next_cursor": None, "has_more": False,
+#             "ingest": {"running": False, "job_id": None}
+#         }, status_code=401)
+
+#     user_settings = SETTINGS_STORE.get(user_id, {"preferred_image_source":"pixabay","hidden_domains":[]})
+#     hidden = set(root_domain_py(d) for d in user_settings.get("hidden_domains", []))
+    
+#     logging.info("[FEED] hidden_domains=%s", list(hidden))
+
+#     q = (Newsletter
+#          .select()
+#          .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc()))
+
+#     if only_complete:
+#         q = q.where(Newsletter.is_complete == True)
+    
+#     cur_dt, cur_id = _parse_cursor(before)
+#     if cur_dt and cur_id:
+#         logging.info(f"[FEED] parsed cursor dt={cur_dt.isoformat()} id={cur_id}")
+#         q = q.where(
+#             (Newsletter.received_date < cur_dt) |
+#             ((Newsletter.received_date == cur_dt) & (Newsletter.email_id < cur_id))
+#         )
+
+#     raw_items = list(q.limit(page_size * 3).dicts())
+#     logging.info("[FEED] raw_items=%d (limit=%d)", len(raw_items), page_size * 3)
+
+#     feed_items: list[dict] = []
+#     for item in raw_items:
+#         if isinstance(item.get('received_date'), datetime):
+#             item['received_date'] = item['received_date'].isoformat()
+#         sender = item.get("sender_email") or item.get("from") or item.get("sender_name") or ""
+#         dom = extract_domain_from_from_header(sender)
+#         item["source_domain"] = root_domain_py(dom) if dom else None
+        
+#         if item["source_domain"] in hidden:
+#             logging.debug("[FEED] skip by domain=%s email_id=%s", item["source_domain"], item.get("email_id"))
+#             continue
+            
+#         feed_items.append(item)
+#         if len(feed_items) >= page_size:
+#             break
+
+#     logging.info("[FEED] kept_items=%d (page_size=%d)", len(feed_items), page_size)
+
+#     next_cursor = None
+#     if feed_items:
+#         last = feed_items[-1]
+#         last_dt = last.get("received_date")
+#         last_id = str(last.get("email_id"))
+#         next_cursor = f"{last_dt}|{last_id}"
+
+#     has_more = False
+#     if next_cursor:
+#         dt_iso, eid = next_cursor.split("|", 1)
+#         dt = datetime.fromisoformat(dt_iso.replace("Z","+00:00")) if "Z" in dt_iso else datetime.fromisoformat(dt_iso)
+#         exists_q = (Newsletter
+#                     .select(Newsletter.id)
+#                     .where(
+#                         (Newsletter.received_date < dt) |
+#                         ((Newsletter.received_date == dt) & (Newsletter.email_id < eid))
+#                     )
+#                     .limit(1))
+#         has_more = exists_q.count() > 0
+        
+#     logging.info("[FEED] next_cursor=%s has_more=%s", next_cursor, has_more)
+
+#     return JSONResponse(
+#         {
+#             "feed": feed_items,
+#             "next_cursor": next_cursor,
+#             "has_more": has_more,
+#             "ingest": {"running": False, "job_id": None}, # In questo percorso, l'ingestione non è attiva.
+#         },
+#         headers={
+#             "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+#             "X-Next-Cursor": next_cursor or "",
+#             "X-Has-More": "1" if has_more else "0",
+#             "X-Items": str(len(feed_items)),
+#         }
+#     )
+
+@app.post("/api/ingest/trigger")
+async def trigger_ingest(request: Request):
+    """
+    Endpoint leggero che dice all'Ingestor di fare un controllo immediato.
+    """
+    user_id = get_user_id_from_session(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Non autenticato")
+    
+    # Invia un messaggio su un canale Redis a cui l'ingestor può iscriversi.
+    # Per semplicità, possiamo anche solo aggiungere un job speciale alla coda.
+    # Questo è un pattern avanzato, per ora possiamo ometterlo.
+    # La cosa più semplice è che il pulsante "Aggiorna" sul frontend
+    # faccia semplicemente un'altra chiamata a /api/feed.
+    
+    logging.info(f"Trigger di ingestione manuale richiesto per l'utente {user_id}")
+    # In una versione futura, questo pubblicherebbe un messaggio su Redis.
+    # Per ora, restituiamo solo un successo. L'ingestor controllerà comunque entro un minuto.
+    return {"status": "Richiesta di aggiornamento ricevuta."}
+
+class IngestPullBody(BaseModel):
+    batch: int = Field(default=25, ge=1, le=100)
+    image_source: str | None = Field(default=None)
+
+@app.post("/api/sse/notify/{email_id}")
+async def sse_notify(email_id: str):
+    # Questo è un trucco per comunicare con i listener SSE attivi
+    # In un'app di produzione, si userebbe Redis Pub/Sub o un message broker
+    for queue in SSE_LISTENERS.values():
+        for q in queue:
+            await q.put({"type": "update", "email_id": email_id})
+    return {"ok": True}
+
+@app.get("/api/ingest/events/{job_id}")
+async def ingest_events(job_id: str, request: Request):
+    # --- INIZIO BLOCCO MODIFICATO ---
+    # Questa funzione è stata riscritta per gestire correttamente la registrazione
+    # dei listener e l'invio degli heartbeat.
+    
+    # 1. Crea una coda per questo specifico client
+    queue = asyncio.Queue()
+    
+    # 2. Registra la coda per ricevere le notifiche per questo job_id
+    SSE_LISTENERS[job_id].append(queue)
+    logging.info(f"[SSE] Nuovo client connesso per job_id={job_id}. Totale listeners: {len(SSE_LISTENERS[job_id])}")
+
+    async def gen():
+        last_tick = time.time()
+        yield "retry: 5000\n\n"
+        
+        try:
+            while True:
+                if await request.is_disconnected():
+                    logging.info(f"[SSE] Client disconnesso (job_id={job_id})")
+                    break
+
+                # Controlla se ci sono notifiche dal worker
+                try:
+                    notification = await asyncio.wait_for(queue.get(), timeout=0.5)
+                    if notification.get("type") == "update":
+                        email_id = notification.get("email_id")
+                        # La stringa qui sotto era interrotta, ora è corretta
+                        yield f"event: update\ndata: {json.dumps({'state': 'update', 'email_id': email_id})}\n\n"
+                except asyncio.TimeoutError:
+                    pass # Nessuna notifica, procedi
+
+                st = INGEST_JOBS.get(job_id)
+                if not st:
+                    yield f"data: {json.dumps({'state':'unknown'})}\n\n"
+                    break
+                
+                yield f"event: progress\ndata: {json.dumps(st)}\n\n"
+
+                if st.get("state") in ("done", "failed"):
+                    logging.info(f"[SSE] Job terminato con stato={st.get('state')} (job_id={job_id})")
+                    yield f"data: {json.dumps(st)}\n\n" # Invia lo stato finale
+                    break
+                
+                # Heartbeat per tenere viva la connessione
+                now = time.time()
+                if now - last_tick > 10:
+                    yield 'event: tick\ndata: {"state":"tick"}\n\n'
+                    yield ': keepalive\n\n'
+                    last_tick = now
+
+        except asyncio.CancelledError:
+            logging.info(f"[SSE] Connessione SSE cancellata (job_id={job_id})")
+        finally:
+            # 3. Rimuovi la coda per pulire la memoria
+            SSE_LISTENERS[job_id].remove(queue)
+            logging.info(f"[SSE] Listener rimosso per job_id={job_id}. Listeners rimasti: {len(SSE_LISTENERS[job_id])}")
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+async def run_ingest_job(job_id: str, sid: str, batch: int, image_source: str | None):
+    """
+    Logica di ingestione eseguita in background. Simile all'ingestor, ma per un singolo utente on-demand.
+    """
+    global INGEST_JOBS, CREDENTIALS_STORE, redis_client
+
+    if not redis_client:
+        logging.error(f"[JOB {job_id}] Redis non disponibile. Job annullato.")
+        INGEST_JOBS[job_id] = {"state": "failed", "reason": "redis_unavailable"}
+        return
+
+    try:
+        INGEST_JOBS[job_id]["state"] = "running"
+        user_id = INGEST_JOBS[job_id].get("user_id")
+        
+        creds_dict = CREDENTIALS_STORE.get(sid)
+        if not creds_dict or not user_id:
+            raise ValueError("Credenziali o user_id non trovati per questo job.")
+
+        creds = Credentials.from_authorized_user_info(creds_dict)
+        if creds.expired and creds.refresh_token:
+            creds.refresh(GoogleAuthRequest())
+            # --- INIZIO MODIFICA ---
+            CREDENTIALS_STORE[user_id] = json.loads(creds.to_json()) # Usa CREDENTIALS_STORE
+            with open(CREDENTIALS_PATH, "w") as f:
+                json.dump(CREDENTIALS_STORE, f, indent=2) # Usa CREDENTIALS_STORE
+            # --- FINE MODIFICA ---
+
+        gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+        
+        existing_ids = {n.email_id for n in Newsletter.select(Newsletter.email_id).where(Newsletter.user_id == user_id)}
+        response = gmail.users().messages().list(userId='me', maxResults=max(50, batch)).execute()
+        messages = response.get('messages', [])
+        
+        to_process_ids = [msg['id'] for msg in messages if msg['id'] not in existing_ids][:batch]
+        INGEST_JOBS[job_id]["total"] = len(to_process_ids)
+
+        logging.info(f"[JOB {job_id}] Trovate {len(to_process_ids)} nuove email da processare.")
+
+        for email_id in to_process_ids:
+            job_payload = {"email_id": email_id, "user_id": user_id}
+            redis_client.rpush('email_queue', json.dumps(job_payload))
+        
+        INGEST_JOBS[job_id]["state"] = "done"
+        logging.info(f"[JOB {job_id}] Completato: {len(to_process_ids)} lavori aggiunti alla coda.")
+
+    except Exception as e:
+        logging.error(f"Errore critico nel job {job_id}: {e}", exc_info=True)
+        INGEST_JOBS[job_id]["state"] = "failed"
+
+@app.post("/api/ingest/pull")
+async def ingest_pull(body: IngestPullBody, request: Request, bg: BackgroundTasks):
+    # --- INIZIO BLOCCO MODIFICATO ---
+    # Questo endpoint ora avvia un job in background e restituisce subito un job_id.
+    # Non attende il completamento dell'ingestione.
+    
+    sid = request.session.get("sid")
+    user_id = get_user_id_from_session(request)
+    
+    if not sid or not user_id or sid not in CREDENTIALS_STORE:
+        raise HTTPException(status_code=401, detail="Utente non autenticato.")
+
+    # Controlla se c'è già un job attivo per evitare accavallamenti
+    active_job = next((job_id for job_id, state in INGEST_JOBS.items() if state.get("state") in ("queued", "running")), None)
+    if active_job:
+        logging.warning(f"[PULL] Ingestione già in corso (job_id={active_job}). Richiesta ignorata.")
+        return JSONResponse(
+            {"job_id": active_job, "status": "already_running"}, 
+            status_code=202 # Accepted
+        )
+
+    job_id = uuid.uuid4().hex
+    INGEST_JOBS[job_id] = {"state": "queued", "total": 0, "done": 0, "errors": 0, "user_id": user_id}
+    
+    logging.info(f"[PULL] Avvio nuovo job d'ingestione: job_id={job_id} per utente={user_id}")
+    
+    # Schedula il lavoro in background
+    bg.add_task(run_ingest_job, job_id, sid, body.batch, body.image_source)
+    
+    return {"job_id": job_id, "status": "started"}
+
+
+class IngestStartBody(BaseModel):
+    batch: int = Field(default=8, ge=1, le=50)  # piccolo lotto iniziale
+    image_source: str | None = None               # "google_photos" o "pixabay"
+
+# @app.post("/api/ingest/kickoff")
+# async def ingest_kickoff(body: IngestStartBody, request: Request, bg: BackgroundTasks):
+#     sid = request.session.get("sid")
+#     if not sid or sid not in CREDENTIALS_STORE:
+#         raise HTTPException(status_code=401, detail="Utente non autenticato.")
+#     job_id = uuid.uuid4().hex
+#     INGEST_JOBS[job_id] = {"state": "queued", "total": 0, "done": 0, "errors": 0}
+
+#     # 👇 LOG AGGIUNTO QUI
+#     logging.info(f"[INGEST] kickoff job_id={job_id} sid={sid} batch={body.batch} image_source={body.image_source}")
+
+#     # parte in background subito dopo la risposta
+#     bg.add_task(run_ingest_job, job_id, sid, body.batch, body.image_source)
+#     return {"job_id": job_id}
+
+class UpdateImagesBody(BaseModel):
+    email_ids: list[str]
+    image_source: str | None = "pixabay"
+
+async def _gmail_get_message_with_retries(gmail_or_creds, msg_id: str, max_attempts: int = 5):
+    backoff = 0.5
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return await asyncio.to_thread(
+                gmail_or_creds.users().messages().get(userId='me', id=msg_id, format='full').execute
+            )
+        except (HttpError, http_client.IncompleteRead, ssl.SSLError, socket.timeout, ConnectionResetError) as e:
+            last_exc = e
+            logging.warning(f"[ingest] transient gmail get error for {msg_id} (attempt {attempt}/{max_attempts}): {e}")
+            await asyncio.sleep(backoff)
+            backoff *= 2
+        except Exception as e:
+            last_exc = e
+            logging.warning(f"[ingest] gmail get unexpected error for {msg_id} (attempt {attempt}/{max_attempts}): {e}")
+            if attempt >= max_attempts: 
+                raise
+            await asyncio.sleep(backoff)
+            backoff *= 2
+    raise last_exc or RuntimeError("_gmail_get_message_with_retries: unknown failure")
+
+# # async def process_single_email(
+#     msg_id,
+#     gmail_service_or_creds,
+#     client,
+#     image_source,
+#     sem: asyncio.Semaphore, # <-- SPOSTATO QUI
+#     user_id: str | None = None # <-- ORA È ALLA FINE, CORRETTO
+# ):
+    # try:
+    #     # 0) Normalizza: accetta Service o Credentials
+    #     if hasattr(gmail_service_or_creds, "users"):
+    #         gmail = gmail_service_or_creds
+    #     else:
+    #         creds = (gmail_service_or_creds if isinstance(gmail_service_or_creds, Credentials)
+    #                  else Credentials(**gmail_service_or_creds))
+    #         gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+
+    #     # 1) Leggi il messaggio OFF-THREAD (la .execute() è blocking)
+    #     message = await _gmail_get_message_with_retries(gmail, msg_id, max_attempts=5)
+
+    #     headers = message.get('payload', {}).get('headers', []) or []
+    #     def h(name, default=""):
+    #         return next((h['value'] for h in headers if h.get('name','').lower() == name), default)
+
+    #     subject = h('subject', 'Nessun Oggetto')
+    #     sender  = h('from', 'Sconosciuto')
+    #     date_str= h('date', '')
+
+    #     # 2) Parsing data robusto
+    #     try:
+    #         parsed_date = parsedate_to_datetime(date_str) if date_str else datetime.now()
+    #     except Exception:
+    #         parsed_date = datetime.now()
+
+    #     # 3) Estrai HTML
+    #     html_content = extract_html_from_payload(message.get("payload", {}))
+    #     if not html_content:
+    #         logging.warning(f"Nessun contenuto HTML per {msg_id}. Salto.")
+    #         return False
+
+    #     # 4) Salvataggio immediato (dati minimi) ➜ il feed lo vede subito
+    #     Newsletter.get_or_create(
+    #         email_id=msg_id,
+    #         defaults={
+    #             "sender_name": parse_sender(sender),
+    #             "sender_email": sender,                # utile per dominio/icone
+    #             "original_subject": subject,
+    #             "ai_title": subject,                   # fallback
+    #             "ai_summary_markdown": "Elaborazione del contenuto…",
+    #             "image_url": "",                       # verrà riempita dopo
+    #             "full_content_html": html_content,
+    #             "received_date": parsed_date,
+    #         }
+    #     )
+    #     logging.info(f"[ingest] {msg_id} '{subject}' salvata (minima). Avvio arricchimento…")
+
+    #     # 5) Arricchimento in background (titolo/sommario/immagine)
+    #     # Verrà gestito in un secondo momento da un processo separato.
+    #     await _enrich_email_task(msg_id, html_content, image_source, user_id, sem)
+    #     return True
+
+    # except Exception as e:
+    #     logging.error(f"[ingest] Fallimento nel processare {msg_id}: {e}", exc_info=True)
+    #     return False
+    
+# async def run_ingest_job(job_id: str, sid: str, batch: int, image_source: str | None):
+    # global INGEST_LOCK, ENRICH_SEM, INGEST_JOBS, CREDENTIALS_STORE, SESSION_EMAIL, SETTINGS_STORE # NUOVO
+
+    # if INGEST_LOCK.locked():
+    #     logging.warning(f"[INGEST JOB {job_id}] Ingest già in corso, job annullato.")
+    #     INGEST_JOBS.pop(job_id, None)
+    #     return
+
+    # async with INGEST_LOCK:
+    #     INGEST_JOBS[job_id] = {"state": "running", "total": 0, "done": 0, "errors": 0}
+    #     try:
+    #         creds_dict = CREDENTIALS_STORE.get(sid)
+    #         if not creds_dict:
+    #             INGEST_JOBS[job_id]["state"] = "failed"
+    #             return
+
+    #         creds = Credentials(**creds_dict)
+    #         gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+
+    #         processed_ids = {n.email_id for n in Newsletter.select(Newsletter.email_id)}
+    #         list_call = gmail.users().messages().list(userId='me', maxResults=max(50, batch))
+    #         list_resp = await asyncio.to_thread(list_call.execute)
+    #         messages = list_resp.get('messages', []) or []
+    #         to_process = [m for m in messages if m['id'] not in processed_ids][:batch]
+
+    #         INGEST_JOBS[job_id]["total"] = len(to_process)
+
+    #         user_id = SESSION_EMAIL.get(sid)
+    #         preferred = (SETTINGS_STORE.get(user_id, {}) or {}).get("preferred_image_source", "pixabay")
+    #         effective_src = image_source or preferred or "pixabay"
+
+    #         async with httpx.AsyncClient(timeout=30.0) as client:
+    #             logging.info(f"Avvio elaborazione sequenziale di {len(to_process)} email...")
+    #             for m in to_process:
+    #                 try:
+    #                     # Passa il semaforo alla funzione successiva
+    #                     await process_single_email(m['id'], gmail, client, effective_src, sem=ENRICH_SEM, user_id=user_id)
+    #                     INGEST_JOBS[job_id]["done"] += 1
+    #                 except Exception as e:
+    #                     logging.error(f"Errore nel processare l'email {m['id']} nel job: {e}")
+    #                     INGEST_JOBS[job_id]["errors"] += 1
+    #             logging.info("Elaborazione sequenziale completata.")
+
+    #         INGEST_JOBS[job_id]["state"] = "done"
+
+    #     except Exception as e:
+    #         logging.error(f"Errore critico nel job d'ingestione {job_id}: {e}", exc_info=True)
+    #         INGEST_JOBS[job_id]["state"] = "failed"
+
+# ... (UpdateImagesRequest, /api/feed/update-images, /api/feed/{email_id}/favorite rimangono invariati)
+class UpdateImagesRequest(BaseModel):
+    email_ids: list[str]
+    image_source: str | None = "pixabay"
+    only_empty: bool = False 
+
+class ImportAlbumBody(BaseModel):
+    albumId: str
+    mode: Optional[str] = "append"  # o "replace"
+
+@app.post("/api/photos/import/album")
+async def import_album(body: ImportAlbumBody, request: Request, authorization: str = Header(None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Manca Authorization: Bearer <token>")
+
+    uid = _current_user_id(request)
+    PHOTOS_BEARERS[uid] = authorization
+    pool = _user_pool(uid)
+
+    url = "https://photoslibrary.googleapis.com/v1/mediaItems:search"
+    payload = {"albumId": body.albumId, "pageSize": 100}
+    added = 0
+    if (body.mode or "append") == "replace":
+        PHOTOS_POOLS[uid] = []
+        pool = _user_pool(uid)
+
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        page_token = None
+        while True:
+            data = dict(payload)
+            if page_token:
+                data["pageToken"] = page_token
+            r = await c.post(url, json=data, headers={"Authorization": authorization})
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail=r.text)
+            out = r.json()
+            for mi in (out.get("mediaItems") or []):
+                base_url = _pick_base_url(mi)
+                if not base_url:
+                    continue
+                mf = mi.get("mediaFile") or {}
+                auth_url = mf.get("downloadUrl") or (mf.get("image") or {}).get("downloadUrl")
+                pool.append({
+                    "id": mi.get("id"),
+                    "baseUrl": base_url,
+                    "authUrl": auth_url,
+                    "mimeType": mi.get("mimeType"),
+                    "filename": mi.get("filename"),
+                })
+                added += 1
+            page_token = out.get("nextPageToken")
+            if not page_token:
+                break
+
+    return {"ok": True, "cached": added, "pool_size": len(pool)}
+
+@app.post("/api/feed/update-images")
+async def update_images(body: UpdateImagesRequest, request: Request):
+    """
+    Aggiorna le immagini delle email.
+    - "google_photos": prende a giro dalla pool PER-UTENTE e usa il proxy /api/photos/proxy/{id}
+    - altrimenti: Pixabay→R2 per ciascuna email
+    """
+    uid = _current_user_id(request) # Identifica l'utente che fa la richiesta
+    logging.info(f"update_images: richiesta da uid={uid} con image_source={body.image_source}, email_ids={len(body.email_ids)}")
+    
+    try:
+        updated_items = []
+        source = body.image_source or "pixabay"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Pre-carica la pool di foto se la sorgente è Google Photos
+            pool = _user_pool(uid)
+            if source == "google_photos" and not pool:
+                raise HTTPException(status_code=409, detail="La tua pool di Google Photos è vuota. Seleziona prima le foto.")
+
+            start_index = random.randint(0, len(pool) - 1) if pool else 0
+
+            for i, email_id in enumerate(body.email_ids):
+                try:
+                    n = Newsletter.get(Newsletter.email_id == email_id)
+                    if body.only_empty and n.image_url:
+                        continue
+                except Newsletter.DoesNotExist:
+                    continue # Salta se l'email non esiste nel DB
+
+                new_image_url = ""
+                image_query = None
+                accent_hex = None
+
+                if source == "google_photos":
+                    item = pool[(start_index + i) % len(pool)]
+                    photo_id = (item.get("id") or "").strip()
+                    if photo_id:
+                        new_image_url = f"http://localhost:8000/api/photos/proxy/{photo_id}?w=1600&h=900&mode=no"
+                else: # Pixabay
+                    image_query = await get_ai_keyword(n.full_content_html or "", client)
+                    new_image_url = await get_pixabay_image_by_query(client, image_query, bypass_cache=True)
+                
+                try:
+                    r = await client.get(new_image_url, timeout=15.0, follow_redirects=True)
+                    r.raise_for_status()
+                    accent_hex = extract_dominant_hex(r.content)
+                except Exception as e:
+                    logging.warning(f"[UPDATE-IMAGES] accent extraction failed for {email_id}: {e}")
+
+                is_complete = bool(n.ai_title and n.ai_summary_markdown and new_image_url and accent_hex)
+
+                (Newsletter.update(image_url=new_image_url, accent_hex=accent_hex, is_complete=is_complete)
+                 .where(Newsletter.email_id == email_id)).execute()
+                updated_items.append({"email_id": email_id, "image_url": new_image_url, "image_query": image_query, "accent_hex": accent_hex})
+
+        logging.info(f"update_images: completato per uid={uid}. Aggiornati {len(updated_items)} elementi.")
+        return JSONResponse(content={"updated_items": updated_items})
+
+    except HTTPException as he:
+        logging.error(f"update_images: HTTPException {he.status_code} per uid={uid}: {he.detail}")
+        raise he
+    except Exception as e:
+        logging.error(f"update_images: errore imprevisto per uid={uid}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore interno durante l'aggiornamento immagini.")
+    
+@app.post("/api/r2/test-upload")
+async def r2_test_upload():
+    try:
+        data, ct = placeholder_svg_bytes("R2 OK")
+        key = f"tests/{uuid.uuid4().hex}.svg"
+        url = upload_bytes_to_r2(data, key, ct)
+        return {"ok": True, "url": url, "bucket": R2_BUCKET}
+    except Exception as e:
+        logging.error(f"R2 test upload failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="R2 upload failed")
+
+class BackfillBody(BaseModel):
+    email_ids: list[str] | None = None
+    limit: int = 50
+    only_empty: bool = True
+
+@app.post("/api/feed/backfill-images")
+async def backfill_images(body: BackfillBody):
+    """
+    Re-elabora immagini esistenti usando keyword→Pixabay→R2.
+    - se email_ids è popolato, processa quelle; altrimenti prende le ultime 'limit'
+      con image_url mancante (se only_empty=True) o tutte.
+    """
+    try:
+        q = Newsletter.select()
+        if body.email_ids:
+            q = q.where(Newsletter.email_id.in_(body.email_ids))
+        elif body.only_empty:
+            q = q.where(Newsletter.image_url.is_null(True) | (Newsletter.image_url == ""))
+
+        q = q.limit(max(1, min(200, body.limit)))
+
+        updated = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for n in q:
+                html = n.full_content_html or ""
+                kw = await get_ai_keyword(html, client)
+                url = await get_pixabay_image_by_query(client, kw)
+                logging.info("[BF] email_id=%s kw=%r url=%s", n.email_id, kw, url)
+                n.image_url = url
+                n.save()
+                updated.append({"email_id": n.email_id, "image_url": url, "image_query": kw})
+        return {"ok": True, "updated_items": updated}
+    except Exception as e:
+        logging.error(f"Backfill error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Backfill failed")
+    
+@app.get("/api/feed/{email_id}/image-query")
+async def get_image_query(email_id: str):
+    try:
+        n = Newsletter.get(Newsletter.email_id == email_id)
+    except Newsletter.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Newsletter non trovata.")
+    html = n.full_content_html or ""
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        kw = await get_ai_keyword(html, client)
+    logging.info("[DBG] image-query for %s -> %r", email_id, kw)
+    return {"email_id": email_id, "image_query": kw}
+
+@app.post("/api/feed/{email_id}/favorite")
+async def toggle_favorite(email_id: str):
+    try:
+        newsletter = Newsletter.get(Newsletter.email_id == email_id)
+        newsletter.is_favorite = not newsletter.is_favorite
+        newsletter.save()
+        return {"email_id": email_id, "is_favorite": newsletter.is_favorite}
+    except Newsletter.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Newsletter non trovata.")
+    
+@app.get("/auth/logout")
+async def logout(request: Request):
+    uid = get_user_id_from_session(request)
+    sid = request.session.get("sid")
+
+    if sid:
+        CREDENTIALS_STORE.pop(sid, None)
+        save_credentials_store()
+        SESSION_EMAIL.pop(sid, None)
+
+    # pulisci pool e bearer per-utente
+    if uid and uid != "anonymous":
+        PHOTOS_POOLS.pop(uid, None)
+        PHOTOS_BEARERS.pop(uid, None)
+
+    global user_credentials
+    user_credentials = None
+
+    try:
+        request.session.clear()
+    except Exception:
+        pass
+    return JSONResponse({"ok": True})
+
+class EnrichBody(BaseModel):
+    limit: int = 20
+    only_missing: bool = True
+
+# @app.post("/api/feed/enrich")
+# async def enrich_feed_items(body: EnrichBody, bg: BackgroundTasks):
+#     """
+#     Avvia l'arricchimento per gli elementi del feed che non sono ancora completi.
+#     """
+#     q = Newsletter.select()
+#     if body.only_missing:
+#         q = q.where(Newsletter.enriched == False)
+    
+#     items_to_enrich = list(q.order_by(Newsletter.received_date.desc()).limit(body.limit))
+    
+#     if not items_to_enrich:
+#         return {"status": "noop", "message": "Nessun elemento da arricchire."}
+
+#     user_id = "francesco.prandi@webranking.it" # Per ora usiamo un valore fisso
+#     image_source = "pixabay" # Per ora usiamo un valore fisso
+
+#     for item in items_to_enrich:
+#         bg.add_task(
+#             _enrich_email_task,
+#             item.email_id,
+#             item.full_content_html,
+#             image_source,
+#             user_id
+#         )
+#         # Marca subito come "in arricchimento" per evitare doppie esecuzioni
+#         (Newsletter.update(enriched=True)
+#          .where(Newsletter.email_id == item.email_id)
+#          .execute())
+
+#     return {"status": "started", "enriched_count": len(items_to_enrich)}
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
