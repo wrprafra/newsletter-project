@@ -1,0 +1,48 @@
+name: Deploy to Hetzner Server
+
+# Questo workflow si attiva ogni volta che fai 'push' sul branch 'main'
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Scarica il codice dal repository GitHub
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Si connette al tuo server Hetzner ed esegue i comandi di deploy
+    - name: Deploy to Hetzner via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HETZNER_HOST }}
+        username: ${{ secrets.HETZNER_USERNAME }}
+        key: ${{ secrets.HETZNER_SSH_KEY }}
+        script: |
+          # --- INIZIO SCRIPT SUL SERVER ---
+
+          # 1. Vai nella cartella del progetto
+          #    Sostituisci '/home/deployer/newsletter-project' con il percorso che hai trovato con 'pwd'
+          cd cd /opt/newsletter  # <--- DEVI CAMBIARE QUESTO PERCORSO!
+
+          # 2. Scarica le ultime modifiche da GitHub
+          echo ">>> Pulling latest code from GitHub..."
+          git pull origin main
+
+          # 3. Attiva l'ambiente virtuale e installa/aggiorna le librerie
+          echo ">>> Installing dependencies..."
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+          # 4. Riavvia tutti e tre i servizi dell'applicazione per applicare le modifiche
+          echo ">>> Restarting application services..."
+          sudo systemctl restart newsletter-web.service
+          sudo systemctl restart newsletter-worker.service
+          sudo systemctl restart newsletter-ingestor.service
+          
+          echo ">>> Deploy completed successfully!"
+          # --- FINE SCRIPT SUL SERVER ---

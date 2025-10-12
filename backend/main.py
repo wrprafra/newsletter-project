@@ -1042,7 +1042,10 @@ async def get_feed_item(email_id: str, request: Request):
     item = _add_gmail_deep_link_fields(item)
     return JSONResponse(item)
 
-    
+def _redirect_uri(request: Request) -> str:
+    """Costruisce dinamicamente il redirect_uri basato sull'host della richiesta."""
+    return str(request.base_url).rstrip("/") + "/auth/callback"
+
 @app.get("/api/img")
 async def api_img(request: Request, u: str = Query(..., description="URL assoluto dell'immagine")):
     return await proxy_image(u, request)
@@ -1221,34 +1224,9 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
     return Response(content=data, media_type=ctype,
                     headers={"Cache-Control":"public,max-age=31536000,immutable"})
 
-SESSION_DOMAIN = os.getenv("SESSION_DOMAIN") # Es: ".thegist.tech" in produzione
-IS_PROD = bool(SESSION_DOMAIN)
 
-# ⬇️ middleware DOPO aver creato l’app
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
-    session_cookie="nl_sess",
-    same_site="lax",
-    https_only=SESSION_HTTPS_ONLY, # <-- NUOVO VALORE DINAMICO
-    max_age=60*60*8*7
-)
 
-FRONTEND_ORIGINS = [
-    os.getenv("FRONTEND_ORIGIN", "https://app.thegist.tech"),
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN], # <-- NUOVO VALORE DINAMICO
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Next-Cursor", "X-Has-More", "X-Items"],
-)
 
 # --- COSTANTI E VARIABILI GLOBALI ---
 CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
@@ -1263,6 +1241,8 @@ PHOTOS_PICKER_SESSIONS_URL = "https://photospicker.googleapis.com/v1/sessions"
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ('true', '1', 't')
+SESSION_DOMAIN = os.getenv("SESSION_DOMAIN") # Es: ".thegist.tech" in produzione
+IS_PROD = bool(SESSION_DOMAIN)
 logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
 logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
 logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
@@ -1271,6 +1251,32 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 logging.info("Configurazione iniziale caricata.")
 from typing import Optional, List
 
+# ⬇️ middleware DOPO aver creato l’app
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
+    session_cookie="nl_sess",
+    same_site="lax",
+    https_only=SESSION_HTTPS_ONLY,
+    max_age=60*60*24*7,  # 7 giorni
+    domain=SESSION_DOMAIN if IS_PROD else None
+)
+
+FRONTEND_ORIGINS = [
+    os.getenv("FRONTEND_ORIGIN", "https://app.thegist.tech"),
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_ORIGIN],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Next-Cursor", "X-Has-More", "X-Items"],
+)
 
 class UserSettingsIn(BaseModel):
     preferred_image_source: t.Optional[str] = Field(default=None, description="pixabay | google_photos")
@@ -1931,39 +1937,24 @@ async def create_photos_picker_session(request: Request, authorization: str = He
 # --- ENDPOINTS ---
 @app.get("/auth/login")
 async def auth_login(request: Request):
-    ua = request.headers.get("user-agent","-")
-    logging.info("[AUTH/LOGIN] ua=%s scheme=%s host=%s", ua, request.url.scheme, request.url.hostname)
     sid = request.session.get("sid")
     if not sid:
         sid = str(uuid.uuid4())
         request.session["sid"] = sid
 
-    # L'URL di reindirizzamento viene costruito dinamicamente a partire dalla richiesta.
-    # Grazie a --proxy-headers e Caddy, questo genererà https://app.thegist.tech/auth/callback
-    
-    _cleanup_pending_auth(request)
-    pa = _pending_auth(request)
-
-    if pa:
-        existing_nonce, data = next(reversed(list(pa.items())))
-        auth_url = data.get("auth_url")
-        if auth_url:
-            logging.info("[AUTH/LOGIN] Riutilizzo auth in sospeso per sid=%s", sid)
-            return RedirectResponse(auth_url, status_code=302)
-
+    redirect_uri = _redirect_uri(request) # <-- Usa la funzione dinamica
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
 
-    flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
-    
-    # <-- INIZIO MODIFICA PKCE -->
-    # 1. Genera il code_verifier e il code_challenge per PKCE
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=redirect_uri
+    )
+
     code_verifier = secrets.token_urlsafe(96)[:128]
     code_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(code_verifier.encode()).digest()
     ).rstrip(b'=').decode()
 
-    # 2. Genera l'URL di base
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -1973,155 +1964,110 @@ async def auth_login(request: Request):
         code_challenge_method="S256"
     )
 
+    # Salva il verifier nello store di autenticazione in sospeso
+    pa = _pending_auth(request)
     pa[nonce] = {
-        "pkce": getattr(flow, "code_verifier", None),
+        "pkce": code_verifier,  # <-- FIX: Salva la variabile corretta
         "auth_url": auth_url,
         "ts": time.time(),
     }
+    _save_pending_auth(request, pa) # Assumendo che questa funzione salvi su Redis/sessione
 
-    # 3. Salva il code_verifier su Redis per il recupero nel callback
-    if not redis_client:
-        logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
-        raise HTTPException(status_code=500, detail="Auth store non disponibile")
-    try:
-        entry = {"pkce": code_verifier}
-        # NOTA: Uso redis_client.setex (sincrono), non await redis.setex
-        redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
-    except Exception as e:
-        logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
-        raise HTTPException(status_code=500, detail="Auth store non disponibile")
-    # <-- FINE MODIFICA PKCE -->
+    logging.info(
+        "[AUTH/LOGIN] Inizio autenticazione. sid=%s, redirect_uri=%s",
+        sid, redirect_uri
+    )
 
-    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, redirect_uri)
-    
-    # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
-    response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
+    # Prepara la risposta con il cookie di backup per PKCE
+    response = RedirectResponse(auth_url, status_code=303)
     response.set_cookie(
         "__Host-nl_pkce",
         value=code_verifier,
-        max_age=600,      # 10 minuti bastano
+        max_age=600,  # 10 minuti
         path="/",
-        secure=True,
+        secure=IS_PROD, # Dinamico in base all'ambiente
         httponly=True,
-        samesite="none",
+        samesite="lax", # Lax è più sicuro e sufficiente per questo flusso
     )
-
     return response
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request, bg: BackgroundTasks):
-    ua = request.headers.get("user-agent","-")
-    logging.info("[AUTH/CALLBACK] ua=%s scheme=%s cookies_present=%s", ua, request.url.scheme, bool(request.cookies))
     code = request.query_params.get("code")
     state = request.query_params.get("state")
-    if not code:
-        raise HTTPException(400, "Missing code")
+    redirect_uri = _redirect_uri(request) # <-- Usa la funzione dinamica
 
-    logging.info("[AUTH/CALLBACK] code_present=%s, cookies_present=%s", bool(code), bool(request.cookies))
+    logging.info("[AUTH/CALLBACK] Ricevuto callback per redirect_uri=%s", redirect_uri)
+
+    if not code or not state:
+        return RedirectResponse("/?auth_error=missing_params", status_code=303)
 
     sid_from_state, nonce = (state.split(".", 1) if "." in state else (None, None))
-    sid_from_session = request.session.get("sid")
+    sid = request.session.get("sid")
 
-    if not sid_from_session and sid_from_state:
-        request.session["sid"] = sid_from_state
-        sid_from_session = sid_from_state
-        logging.info("[AUTH/CALLBACK] SID ripristinato dallo 'state': %s", sid_from_session)
-    
-    if not sid_from_session:
-        logging.error("[AUTH/CALLBACK] ERRORE CRITICO: SID non trovato né in sessione né nello 'state'. Impossibile procedere.")
-        return RedirectResponse("/?auth_error=session_lost", status_code=303)
-
-    if sid_from_state and sid_from_session != sid_from_state:
-        logging.warning("[AUTH/CALLBACK] Mismatch di SID tra sessione (%s) e state (%s). Potenziale attacco CSRF o sessione corrotta.", sid_from_session, sid_from_state)
+    if not sid or not nonce or sid != sid_from_state:
+        logging.warning("[AUTH/CALLBACK] State/Session mismatch.")
         return RedirectResponse("/?auth_error=state_mismatch", status_code=303)
 
-    _cleanup_pending_auth(request)
-    pa = _pending_auth(request)
-    pending_entry = pa.get(nonce or "")
+    # Cerca il verifier PKCE in modo robusto
+    pkce_verifier = None
+    
+    # 1. Prova dalla sessione/memoria
+    pa = _load_pending_auth(request) # Assumendo che questa funzione legga da Redis/sessione
+    pending_entry = pa.get(nonce)
+    if pending_entry:
+        pkce_verifier = pending_entry.get("pkce")
+        logging.info("[AUTH/CALLBACK] Trovato PKCE verifier in sessione/memoria.")
 
-    if not nonce or not pending_entry:
-        logging.warning("[AUTH/CALLBACK] Nonce non valido o scaduto. sid=%s, nonce_fornito=%s, pending_keys=%s", sid_from_session, nonce, list(pa.keys()))
-        # Se le credenziali esistono già, potrebbe essere un doppio callback, lo permettiamo.
-        if CREDENTIALS_STORE.get(request.session.get("user_id")):
-             logging.info("[AUTH/CALLBACK] Nonce non valido ma utente già loggato. Procedo.")
-             return RedirectResponse("/?authenticated=true", status_code=303)
-        return RedirectResponse("/?auth_error=invalid_nonce", status_code=303)
+    # 2. Fallback sul cookie sicuro
+    if not pkce_verifier:
+        pkce_verifier = request.cookies.get("__Host-nl_pkce")
+        if pkce_verifier:
+            logging.warning("[AUTH/CALLBACK] Usato PKCE verifier dal cookie di backup.")
+
+    if not pkce_verifier:
+        logging.error("[AUTH/CALLBACK] ERRORE CRITICO: PKCE verifier non trovato.")
+        return RedirectResponse("/?auth_error=pkce_missing", status_code=303)
 
     try:
-        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
-        
-        pkce_verifier = pending_entry.get("pkce")
-        if pkce_verifier:
-            flow.code_verifier = pkce_verifier
-
-        logging.info(
-            "OAUTH: Inizio scambio token.",
-            extra={
-                "redirect_uri": REDIRECT_URI,
-                "state_prefix": state[:8],
-                "has_verifier": bool(pkce_verifier),
-            },
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=redirect_uri
         )
+        flow.code_verifier = pkce_verifier
 
-        # Esegui lo scambio del token
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
 
-        # Ottieni il profilo utente per avere email e user_id
-        profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
+        profile_service = build('oauth2', 'v2', credentials=creds)
         profile = profile_service.userinfo().get().execute()
-        
         email = profile.get("email")
-        user_id = profile.get("id") # L'ID numerico di Google è un identificatore stabile
+        user_id = profile.get("id")
 
         if not email or not user_id:
-            raise ValueError("Impossibile recuperare email o ID utente dal profilo Google.")
+            raise ValueError("Impossibile recuperare email o ID utente.")
 
-        # Salva le informazioni corrette nella sessione
         request.session["user_email"] = email
         request.session["user_id"] = user_id
-
-        # Salva le credenziali usando l'ID UTENTE come chiave
         CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
         save_credentials_store()
         
-        # Pulisci il nonce usato
-        pa.pop(nonce, None)
-        
-        # Avvia i processi in background se è un nuovo utente
-        is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
-        if is_new_user:
-            logging.info(f"Nuovo utente registrato: {email} (ID: {user_id}). Avvio ingestione iniziale.")
-            bg.add_task(kickstart_initial_ingestion, user_id)
-        
         await ensure_user_defaults(user_id)
-
-        logging.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
-        return RedirectResponse("/?authenticated=true", status_code=303)
+        
+        logging.info("[AUTH/CALLBACK] Autenticazione completata per %s", email)
+        response = RedirectResponse("/?authenticated=true", status_code=303)
+        response.delete_cookie("__Host-nl_pkce") # Pulisce il cookie di backup
+        return response
 
     except InvalidGrantError as e:
-        client_id_from_flow = flow.client_config.get("client_id", "N/A")
-        logging.error(
-            "OAUTH: InvalidGrantError durante lo scambio del token.",
-            extra={
-                "reason": getattr(e, "description", str(e))[:200],
-                "hint": getattr(e, "uri", None),
-                "redirect_uri_usato": REDIRECT_URI,
-                "has_verifier": bool(pkce_verifier),
-                "client_id_tail": client_id_from_flow[-6:],
-            },
-        )
-        # In caso di errore, reindirizza alla pagina di login con un messaggio chiaro
+        logging.error("OAUTH: InvalidGrantError: %s", getattr(e, "description", str(e)))
         return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
-
     except Exception as e:
-        logging.error(f"[AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: {e}", exc_info=True)
-        return RedirectResponse(f"/?auth_error=unknown_error", status_code=303)
-
+        logging.error(f"[AUTH/CALLBACK] Errore imprevisto: {e}", exc_info=True)
+        return RedirectResponse("/?auth_error=unknown", status_code=303)
     finally:
-        # Pulisci sempre lo stato temporaneo dalla sessione per evitare riutilizzi
-        request.session.pop("_code_in_flight", None)
-        request.session.pop("_oauth_lock", None)
+        # Pulisci lo stato pendente
+        _clear_pending_auth(request)
+
 
 async def get_user_settings(user_id: str) -> dict | None:
     # usa lo store già esistente su file (SETTINGS_STORE)
