@@ -47,6 +47,18 @@ from googleapiclient.discovery import build
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 load_dotenv()
+
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ('true', '1', 't')
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")
+IS_PROD = bool(SESSION_DOMAIN)
+
+logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
+logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
+logging.info("[CFG] IS_PROD: %s", IS_PROD)
+
 import openai
 from html import escape as html_escape
 import sys
@@ -1237,15 +1249,6 @@ SCOPES = [
 ]
 PHOTOS_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
 PHOTOS_PICKER_SESSIONS_URL = "https://photospicker.googleapis.com/v1/sessions"
-
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ('true', '1', 't')
-SESSION_DOMAIN = os.getenv("SESSION_DOMAIN") # Es: ".thegist.tech" in produzione
-IS_PROD = bool(SESSION_DOMAIN)
-logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
-logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
-logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 logging.info("Configurazione iniziale caricata.")
