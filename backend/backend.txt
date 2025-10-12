@@ -1,0 +1,1038 @@
+[2025-10-08 21:29:56] [INFO] [BACKEND] Logging configurato. L'output verrà scritto da capo su 'backend.txt'.
+[2025-10-08 21:29:56] [INFO] [BACKEND] [CFG] OPENAI key present=True len=164
+[2025-10-08 21:29:56] [INFO] [BACKEND] API connessa a Redis con successo.
+[2025-10-08 21:29:56] [INFO] [BACKEND] Configurazione iniziale caricata.
+[2025-10-08 21:29:56] [INFO] [BACKEND] Evento STARTUP: Inizio avvio applicazione...
+[2025-10-08 21:29:56] [INFO] [BACKEND] [CREDENTIALS] Caricate 1 credenziali da file.
+[2025-10-08 21:29:56] [INFO] [BACKEND] Evento STARTUP: Connessione al database...
+[2025-10-08 21:29:56] [INFO] [BACKEND] DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...
+[2025-10-08 21:29:56] [INFO] [BACKEND] DB: Assicuro la presenza degli indici...
+[2025-10-08 21:29:56] [INFO] [BACKEND] DB: Inizializzazione e migrazione completate.
+[2025-10-08 21:29:56] [INFO] [BACKEND] Evento STARTUP: Avvio completato.
+[2025-10-08 21:29:59] [INFO] [BACKEND] [{}]
+[2025-10-08 21:29:59] [INFO] [BACKEND] {"type": "http_request", "rid": "8e32b2d26310", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:00] [INFO] [BACKEND] {"type": "http_request", "rid": "de8c5a0a2c69", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 14}
+[2025-10-08 21:30:00] [INFO] [BACKEND] {"type": "http_request", "rid": "1dda5c5438f2", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-08 21:30:00] [INFO] [BACKEND] {"type": "http_request", "rid": "1a176d4a40ab", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "b34e38cd37a4", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "f173c28ce034", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "b20c22525f29", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "47e071e5d185", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "65866193e26b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "c36285ec06e8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "0ad683d4cee8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "d548fde5f451", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "2e4c86099c89", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "66a1886a403b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "a08230a98eb6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "9493304c8813", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "1c18c9ae6b6b", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "cd080c012361", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 84.0ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "e7b2df1f913c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:01] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "88d7622d5a71", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:01] [INFO] [BACKEND] {"type": "http_request", "rid": "f625abd1b9e3", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 3}
+[2025-10-08 21:30:02] [INFO] [BACKEND] [{}]
+[2025-10-08 21:30:02] [INFO] [BACKEND] {"type": "http_request", "rid": "1ae6c27aa569", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:03] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-08 21:30:03] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=myufOyuo61vGjQHWtZLV__7qy6gdoCCb redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-08 21:30:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f77970bd375a", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-08 21:30:03] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-08 21:30:03] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=lsGEqHCjy0XmQnty74dQlebvKgZpRM2G redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-08 21:30:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f109aa1596d6", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-08 21:30:06] [INFO] [BACKEND] {"type": "http_request", "rid": "3d693e81eba3", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-08 21:30:09] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-08 21:30:09] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-08 21:30:09] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-08 21:30:09] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-08 21:30:09] [INFO] [BACKEND] {"type": "http_request", "rid": "7cc5ec5e6a03", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.lsGEqHCjy0XmQnty74dQlebvKgZpRM2G&code=4/0AVGzR1C1sHQPRTA7mDuqNFAzYR0vbN9Z1hnP9J-6LbTnDxG8_y2NFHYt-6B0CH_NtmWVOA&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 458}
+[2025-10-08 21:30:09] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: b50fad0c12dc4193ad6399be2372d444)
+[2025-10-08 21:30:10] [INFO] [BACKEND] Kickstart: Nessuna *nuova* email trovata per escounpo@gmail.com.
+[2025-10-08 21:30:10] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-08 21:30:10] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-08 21:30:10] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-08 21:30:10] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    flow.fetch_token(
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "4e2c662c02fc", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.lsGEqHCjy0XmQnty74dQlebvKgZpRM2G&code=4/0AVGzR1C1sHQPRTA7mDuqNFAzYR0vbN9Z1hnP9J-6LbTnDxG8_y2NFHYt-6B0CH_NtmWVOA&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 70}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "4aa18c8efcf4", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "3749e2da982c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "14c6a59df831", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "7370c99b2fe5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "581b730e6ff3", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "ed1fe5610c2d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "aad2f2973b17", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "bc2a60e4ecdb", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "f398ec657110", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "b5b4293a96f4", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "675ed6117289", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "4063f17e72c7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-08 21:30:10] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "38145b6b6e98", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 2}
+[2025-10-08 21:30:10] [INFO] [BACKEND] {"type": "http_request", "rid": "5b60f4d15186", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:11] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 75.2ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-08 21:30:11] [INFO] [BACKEND] {"type": "http_request", "rid": "d199b007cfdb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:12] [INFO] [BACKEND] {"type": "http_request", "rid": "ae932562e033", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-08 21:30:46] [INFO] [BACKEND] [{}]
+[2025-10-08 21:30:46] [INFO] [BACKEND] {"type": "http_request", "rid": "b8c47f710984", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:46] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-08 21:30:46] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=L9ePfe0A3hzQmPvRCs8Dqt7oAKvN9VVq redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-08 21:30:46] [INFO] [BACKEND] {"type": "http_request", "rid": "2be925714d10", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-08 21:30:46] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-08 21:30:46] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=FdF4jHqPI905sPdDTcjafUoORZiWlmhx redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-08 21:30:46] [INFO] [BACKEND] {"type": "http_request", "rid": "e6f16337a644", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-08 21:30:50] [INFO] [BACKEND] {"type": "http_request", "rid": "58066ca44c34", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-08 21:30:53] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-08 21:30:53] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-08 21:30:53] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-08 21:30:54] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-08 21:30:54] [INFO] [BACKEND] {"type": "http_request", "rid": "777c8611c48f", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.FdF4jHqPI905sPdDTcjafUoORZiWlmhx&code=4/0AVGzR1CX8gB2_SI_6QmQaQ4nyETWBqjEcKC7_nSyHBl-tl2F5e6IAPg1LiZcHUq7WLUn1w&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 366}
+[2025-10-08 21:30:54] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: af25ece6ceb9494d80836dbafd60bdec)
+[2025-10-08 21:30:54] [INFO] [BACKEND] Kickstart: Nessuna *nuova* email trovata per escounpo@gmail.com.
+[2025-10-08 21:30:54] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-08 21:30:54] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-08 21:30:54] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-08 21:30:54] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    flow.fetch_token(
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-08 21:30:54] [INFO] [BACKEND] {"type": "http_request", "rid": "53835823388d", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.FdF4jHqPI905sPdDTcjafUoORZiWlmhx&code=4/0AVGzR1CX8gB2_SI_6QmQaQ4nyETWBqjEcKC7_nSyHBl-tl2F5e6IAPg1LiZcHUq7WLUn1w&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 85}
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "ba384bdc4e62", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "defaa1cf3f4c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "cfe2aeea92ef", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "b37c3a683619", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "654edf912688", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "09eaee5dc7b6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "82358190adcf", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "52eb6aa35ac6", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "f89edf7eac24", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "f2e3080a36c6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "a0e87ba76f92", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "ab648775caae", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 1}
+[2025-10-08 21:30:55] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "5dad59dad3f5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "5bf718ebf1a2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-08 21:30:55] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 79.8ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-08 21:30:55] [INFO] [BACKEND] {"type": "http_request", "rid": "71ebfd11616c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-08 21:30:57] [INFO] [BACKEND] {"type": "http_request", "rid": "9028eca52562", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-08 23:29:41] [INFO] [BACKEND] {"type": "http_request", "rid": "5f94118eecbb", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-08 23:29:41] [INFO] [BACKEND] {"type": "http_request", "rid": "9cf0ea7a11e5", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 04:23:03] [INFO] [BACKEND] {"type": "http_request", "rid": "b22149d3ddc0", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "76521642e29e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 13}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[feed.fetch.ms]",22,"db;dur=9"]
+[2025-10-09 07:33:03] [WARNING] [BACKEND] ["[FEED][CLEAR] Motivo: fetchFeed(reset=true)"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[DIAG] mount 199ba3607ce7cf74 Δ=7.9ms text=true img=true"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[DIAG] mount 199b8f3c924f6e5b Δ=6.3ms text=true img=true"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[DIAG] mount 199bb61eb8306afe Δ=29.2ms text=true img=true"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] [{"reset":true,"cursor":null,"force":false,"inFlight":false,"isIngesting":false}]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "3c0da63ace2e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 18}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[DIAG] mount 199b7ebd8a1cc405 Δ=4.2ms text=true img=true"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "e14c7011ce70", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 13}
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "b72f1d8afc0c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 13}
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "08ddb3713a86", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 13}
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f32505c4690e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 12}
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "b4651ea1fdc8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 12}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[first.paint.ready]",{"count":4,"ms":46}]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "1bb2fafa0a48", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 13}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "afc3772a867c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 14}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "8caf84008b92", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 15}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "406c453af866", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 16}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[GPhotos][settings] preferred_image_source (server)=","pixabay"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "3cb1b3b7d1d0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 15}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "e1feafbad812", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 15}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "4c5f4e5510de", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 14}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[GPhotos][settings] preferred_image_source (effective)=","pixabay"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "00ad0b456c4f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 12}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[GPhotos][sync] source=","pixabay","| showIcon=",false]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "428d71dd6a6a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 10}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "d480a44e054d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 10}
+[2025-10-09 07:33:03] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: true"]
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "0cbf136c5114", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 9}
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f6837bdc39cc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 8}
+[2025-10-09 07:33:03] [INFO] [BACKEND] [SSE] connect job_id=ee40b5c000a04feeb12e05c485bba12f from=93.47.126.88
+[2025-10-09 07:33:03] [INFO] [BACKEND] {"type": "http_request", "rid": "c7c20e96cd56", "method": "GET", "path": "/api/ingest/events/ee40b5c000a04feeb12e05c485bba12f", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 07:33:04] [INFO] [BACKEND] {"type": "http_request", "rid": "e288ed2b0055", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-09 07:33:04] [INFO] [BACKEND] ["[ingest/pull(on-enter)#1] → POST https://app.thegist.tech/api/ingest/pull body[34]"]
+[2025-10-09 07:33:04] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-09 07:33:04] [INFO] [BACKEND] {"type": "http_request", "rid": "8a1b25a0a99c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:04] [INFO] [BACKEND] {"type": "http_request", "rid": "e407887f3164", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:04] [INFO] [BACKEND] {"type": "http_request", "rid": "b3826bb4c2c0", "method": "GET", "path": "/manifest.json", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-09 07:33:04] [INFO] [BACKEND] ["[ingest/pull(on-enter)#1] ← 401 85.6ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-09 07:33:04] [INFO] [BACKEND] {"type": "http_request", "rid": "2e1e7eb44cb8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:05] [INFO] [BACKEND] [{"jobId":"ee40b5c000a04feeb12e05c485bba12f"}]
+[2025-10-09 07:33:05] [INFO] [BACKEND] {"type": "http_request", "rid": "7650f37037ff", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:06] [INFO] [BACKEND] [{"hasMore":true,"inFlight":false,"isIngesting":true,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405"}]
+[2025-10-09 07:33:06] [INFO] [BACKEND] [{"reset":false,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405","force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "2369b7032ebc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "31e0a302f028", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "c923f939-2b9", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:06] [INFO] [BACKEND] ["[feed.fetch.ms]",77,null]
+[2025-10-09 07:33:06] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "692707dcda9b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "4580741ba2d1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:06] [INFO] [BACKEND] {"type": "http_request", "rid": "819a56768f0f", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "4fccea636a27", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "e040e74d0cf2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "22555628bd57", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "59ebe4c7cdf9", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "afa02996470d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "9382d26ded7f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "02b75ac68169", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "690398c7dad6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "81b4aaa38597", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "c3e9b28017bf", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "653c47b2873a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "4790fda8e5c6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "b5f595e0f457", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "fccfcf1c42df", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "0ed960fcb3e0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "b73caa7d3223", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "00ecd27a27d1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "cef226f1f69c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "471f63eac3ff", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "d4258097ec80", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "a23420c6510e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "93d5eb9ff12c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "a05e2585e1c7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "4d6bacf196a1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "c53434846685", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "df74329c3ee1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "41c874d329a0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "979c9d8894cc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "f8c8719b271f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "14b49b0bdce0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "710fb5523943", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "d6fdae8c350c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "5b4381f51418", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "55b4567a280b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "c975841bae50", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "2e007a228239", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "4bea76d3adc0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "335733bd28eb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "5ef1132c331a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:08] [INFO] [BACKEND] ["[ingest/pull(ptr-wheel)#2] → POST https://app.thegist.tech/api/ingest/pull body[34]"]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "16a85239f5c2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "3e573790ee92", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-09 07:33:08] [INFO] [BACKEND] ["[ingest/pull(ptr-wheel)#2] ← 401 81.4ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "8b48df660582", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "0e76ed2e-4c2", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{"hasMore":true,"inFlight":false,"isIngesting":true,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405"}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] [{"reset":false,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405","force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "ac4809d4d18b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "40b3deaa60d9", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:08] [INFO] [BACKEND] ["[feed.fetch.ms]",79,null]
+[2025-10-09 07:33:08] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "fdabfc800bc4", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:08] [INFO] [BACKEND] {"type": "http_request", "rid": "3bc28780d6d3", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "42b3065f09bb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "1ce3807a8dfb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "e08cf31538cb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "2da3b447f818", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "d46b4906e16b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "b7a1ce583e1d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "ec83850504b8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "e7f0386d20b3", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:09] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:09] [INFO] [BACKEND] {"type": "http_request", "rid": "c44d15c9af1e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "473a1146f20f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "9143f7c990ff", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "8e1a752154ac", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "bcc16f073c78", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "342920ec8d06", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "e4f5cc762695", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "3c565828b077", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "a0636ab12af9", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "028ad7606a4c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "00041f57794d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "65eba27fb32a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "729b5a784e0e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "98e290962512", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "30ce84c7b18c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "aeac58d86155", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "96ad70583ccf", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "51c3dacf4540", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "4fe0c184-fd3", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 3}
+[2025-10-09 07:33:10] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "6f6a38388e6d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 77}
+[2025-10-09 07:33:10] [INFO] [BACKEND] ["[ingest/pull(ptr-wheel)#3] → POST https://app.thegist.tech/api/ingest/pull body[34]"]
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "b3b5b99037e5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "d1e60d4b979f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "c2d27760378c", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 4}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "5bdd0666b574", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 07:33:10] [INFO] [BACKEND] ["[feed.fetch.ms]",150,null]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "c545ffdb077d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "aa6c7916708c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:10] [INFO] [BACKEND] ["[ingest/pull(ptr-wheel)#3] ← 401 155.5ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "26b08a7f9bef", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "18dfe6c1-4df", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 1}
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{"hasMore":true,"inFlight":false,"isIngesting":true,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405"}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] [{"reset":false,"cursor":"2025-10-06T05:08:30Z|199b7ebd8a1cc405","force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "94e599a3bc64", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "c6c305a91c5e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 07:33:10] [INFO] [BACKEND] ["[feed.fetch.ms]",77,null]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "0e1e0617d1bf", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:10] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:10] [INFO] [BACKEND] {"type": "http_request", "rid": "83fc5f949cb5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:15] [INFO] [BACKEND] {"type": "http_request", "rid": "bcad6d24-ad4", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 2}
+[2025-10-09 07:33:15] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:15] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:15] [INFO] [BACKEND] {"type": "http_request", "rid": "14fc4de03a99", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:15] [INFO] [BACKEND] {"type": "http_request", "rid": "b38e9e85368c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:15] [INFO] [BACKEND] ["[feed.fetch.ms]",216,null]
+[2025-10-09 07:33:15] [INFO] [BACKEND] {"type": "http_request", "rid": "27e28add1f98", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:15] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:15] [INFO] [BACKEND] {"type": "http_request", "rid": "447859c265b4", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:21] [INFO] [BACKEND] {"type": "http_request", "rid": "67ca7252-2f8", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 3}
+[2025-10-09 07:33:21] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:21] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:21] [INFO] [BACKEND] {"type": "http_request", "rid": "440e76c03de0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:21] [INFO] [BACKEND] {"type": "http_request", "rid": "72044b549bf7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:21] [INFO] [BACKEND] ["[feed.fetch.ms]",1490,null]
+[2025-10-09 07:33:21] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:21] [INFO] [BACKEND] {"type": "http_request", "rid": "2081c267e99c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:21] [INFO] [BACKEND] {"type": "http_request", "rid": "c2f6b82ddf2f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:25] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:25] [INFO] [BACKEND] {"type": "http_request", "rid": "ead7407dabc7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-09 07:33:25] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:25] [INFO] [BACKEND] {"type": "http_request", "rid": "a6487659546b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:26] [INFO] [BACKEND] {"type": "http_request", "rid": "447b8770-e14", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:26] [INFO] [BACKEND] ["[feed.fetch.ms]",580,null]
+[2025-10-09 07:33:26] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:26] [INFO] [BACKEND] {"type": "http_request", "rid": "2017322f5d70", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:26] [INFO] [BACKEND] {"type": "http_request", "rid": "0756c0868a00", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:30] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:30] [INFO] [BACKEND] {"type": "http_request", "rid": "ec5ec8080956", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:30] [INFO] [BACKEND] {"type": "http_request", "rid": "a09a4c7f-bdf", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 1}
+[2025-10-09 07:33:30] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:30] [INFO] [BACKEND] {"type": "http_request", "rid": "2ac5513f44c0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:30] [INFO] [BACKEND] ["[feed.fetch.ms]",194,null]
+[2025-10-09 07:33:30] [INFO] [BACKEND] {"type": "http_request", "rid": "cd745cc2db00", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:30] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:30] [INFO] [BACKEND] {"type": "http_request", "rid": "4aa74df1c640", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:35] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:35] [INFO] [BACKEND] {"type": "http_request", "rid": "7d4c3b4c4721", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 07:33:35] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:35] [INFO] [BACKEND] {"type": "http_request", "rid": "b1e687811441", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:35] [INFO] [BACKEND] {"type": "http_request", "rid": "0e2c1d88-6ae", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 1}
+[2025-10-09 07:33:35] [INFO] [BACKEND] ["[feed.fetch.ms]",82,null]
+[2025-10-09 07:33:35] [INFO] [BACKEND] {"type": "http_request", "rid": "7752ecebf370", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:35] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:35] [INFO] [BACKEND] {"type": "http_request", "rid": "4c4ce8c3b8a0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:40] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:40] [INFO] [BACKEND] {"type": "http_request", "rid": "182537b3ad9a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:40] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:40] [INFO] [BACKEND] {"type": "http_request", "rid": "6b9b00880f90", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:40] [INFO] [BACKEND] {"type": "http_request", "rid": "e4566727-e73", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:40] [INFO] [BACKEND] ["[feed.fetch.ms]",179,null]
+[2025-10-09 07:33:40] [INFO] [BACKEND] {"type": "http_request", "rid": "1ef269489c83", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:40] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:40] [INFO] [BACKEND] {"type": "http_request", "rid": "6fcc806f037f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:45] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:45] [INFO] [BACKEND] {"type": "http_request", "rid": "6a1b22f5f65a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:45] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:45] [INFO] [BACKEND] {"type": "http_request", "rid": "82c7f06aefea", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:45] [INFO] [BACKEND] {"type": "http_request", "rid": "effdc676-466", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:45] [INFO] [BACKEND] ["[feed.fetch.ms]",110,null]
+[2025-10-09 07:33:45] [INFO] [BACKEND] {"type": "http_request", "rid": "f3777e60b74d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:45] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:45] [INFO] [BACKEND] {"type": "http_request", "rid": "3ce7eae1c911", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:50] [INFO] [BACKEND] {"type": "http_request", "rid": "6f313cdc-967", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 1}
+[2025-10-09 07:33:50] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:50] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:50] [INFO] [BACKEND] {"type": "http_request", "rid": "28e768c82a02", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 07:33:50] [INFO] [BACKEND] {"type": "http_request", "rid": "3cc4e9e12a94", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:50] [INFO] [BACKEND] ["[feed.fetch.ms]",121,null]
+[2025-10-09 07:33:50] [INFO] [BACKEND] {"type": "http_request", "rid": "b4f4811a7995", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:50] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:50] [INFO] [BACKEND] {"type": "http_request", "rid": "ac34b91b875e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:55] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:33:55] [INFO] [BACKEND] {"type": "http_request", "rid": "2ccdca890176", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:33:55] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:33:55] [INFO] [BACKEND] {"type": "http_request", "rid": "b11c8ca35219", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:33:55] [INFO] [BACKEND] {"type": "http_request", "rid": "1093a85a-25a", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:33:55] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:33:55] [INFO] [BACKEND] ["[feed.fetch.ms]",81,null]
+[2025-10-09 07:33:55] [INFO] [BACKEND] {"type": "http_request", "rid": "7ec39cf741fc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:33:55] [INFO] [BACKEND] {"type": "http_request", "rid": "3a683b88eb01", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 07:34:00] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:34:00] [INFO] [BACKEND] {"type": "http_request", "rid": "aa71b3e96a54", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:00] [INFO] [BACKEND] {"type": "http_request", "rid": "4318a7d2-ecb", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:34:00] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:34:00] [INFO] [BACKEND] {"type": "http_request", "rid": "452f1fbfd722", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:00] [INFO] [BACKEND] ["[feed.fetch.ms]",81,null]
+[2025-10-09 07:34:00] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:34:00] [INFO] [BACKEND] {"type": "http_request", "rid": "2f053ed6f4f0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:00] [INFO] [BACKEND] {"type": "http_request", "rid": "2cccf664d49f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "1a23826e-c08", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-06T05%3A08%3A30Z%7C199b7ebd8a1cc405", "status": 401, "dur_ms": 0}
+[2025-10-09 07:34:05] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-09 07:34:05] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "b97a9d2fe391", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "20c7f59a8d3b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 07:34:05] [INFO] [BACKEND] ["[feed.fetch.ms]",77,null]
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "fad98128dad5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:34:05] [ERROR] [BACKEND] ["[fetchFeed] Errore HTTP 401:","{\"detail\":\"Non autenticato\"}"]
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "e4801fcedd63", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 07:34:05] [INFO] [BACKEND] ["Polling in background terminato."]
+[2025-10-09 07:34:05] [INFO] [BACKEND] {"type": "http_request", "rid": "ff5935620420", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-09 12:36:36] [INFO] [BACKEND] {"type": "http_request", "rid": "2d4165ed081e", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 1}
+[2025-10-09 12:36:38] [INFO] [BACKEND] {"type": "http_request", "rid": "1d6cd4b45a14", "method": "GET", "path": "/manifest.json", "query": "", "status": 200, "dur_ms": 2}
+[2025-10-09 12:36:38] [INFO] [BACKEND] {"type": "http_request", "rid": "e86d6c5f753e", "method": "GET", "path": "/sw.js", "query": "", "status": 200, "dur_ms": 4}
+[2025-10-09 12:36:49] [INFO] [BACKEND] {"type": "http_request", "rid": "9ca3dca2e29b", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 12:36:49] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-09 12:36:49] [INFO] [BACKEND] {"type": "http_request", "rid": "242b3b0d8fdf", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 12:36:50] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-09 12:36:50] [INFO] [BACKEND] {"type": "http_request", "rid": "6aa36258cc0a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-09 12:36:50] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-09 12:36:50] [INFO] [BACKEND] {"type": "http_request", "rid": "29db66666e3e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "346027f9bac5", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "b462f09cca56", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "6e1407bb3132", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "c48960a149f1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "245cb4fed9b9", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "3465a2b8a0d5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 12:36:51] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "14eabc871fb2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "bea081b3dea4", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "a9c3f9238569", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-09 12:36:51] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-09 12:36:51] [INFO] [BACKEND] {"type": "http_request", "rid": "ab6be61c06a1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 12:36:52] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 175.0ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-09 12:36:52] [INFO] [BACKEND] {"type": "http_request", "rid": "7cdccfc362fc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-09 13:36:13] [INFO] [BACKEND] {"type": "http_request", "rid": "d78f911788b7", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 13:36:14] [INFO] [BACKEND] {"type": "http_request", "rid": "1897b2392b2d", "method": "GET", "path": "/css/support_parent.css", "query": "", "status": 404, "dur_ms": 0}
+[2025-10-09 13:36:14] [INFO] [BACKEND] {"type": "http_request", "rid": "40706c0a31d2", "method": "GET", "path": "/js/lkk_ch.js", "query": "", "status": 404, "dur_ms": 0}
+[2025-10-09 13:36:14] [INFO] [BACKEND] {"type": "http_request", "rid": "becf3f6839a4", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 13:36:14] [INFO] [BACKEND] {"type": "http_request", "rid": "4c1790bae056", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 13:36:14] [INFO] [BACKEND] {"type": "http_request", "rid": "d033237f909f", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 13:36:22] [INFO] [BACKEND] {"type": "http_request", "rid": "376c9074afb3", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-09 13:36:22] [INFO] [BACKEND] {"type": "http_request", "rid": "1d9ce3108b2f", "method": "GET", "path": "/manifest.json", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 13:36:22] [INFO] [BACKEND] {"type": "http_request", "rid": "c3274b2b7ce3", "method": "GET", "path": "/img/icons/icon-192.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 14:25:25] [INFO] [BACKEND] {"type": "http_request", "rid": "2e8f430fc3dc", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 14:25:30] [INFO] [BACKEND] {"type": "http_request", "rid": "28ee79f9b14c", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 14:57:46] [INFO] [BACKEND] {"type": "http_request", "rid": "ad0e08712342", "method": "GET", "path": "/favicon.ico", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-09 22:08:39] [INFO] [BACKEND] {"type": "http_request", "rid": "effe9a962248", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-09 22:08:39] [INFO] [BACKEND] {"type": "http_request", "rid": "f9f76f713f95", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 02:28:22] [INFO] [BACKEND] {"type": "http_request", "rid": "82119325e38f", "method": "GET", "path": "/.git/config", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 04:14:18] [INFO] [BACKEND] {"type": "http_request", "rid": "02c62b541285", "method": "GET", "path": "/.git/config", "query": "", "status": 404, "dur_ms": 0}
+[2025-10-10 04:43:39] [INFO] [BACKEND] {"type": "http_request", "rid": "a2fccbf18376", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 04:43:39] [INFO] [BACKEND] {"type": "http_request", "rid": "b4621a0902f9", "method": "GET", "path": "/js/twint_ch.js", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "b97da3a133ec", "method": "GET", "path": "/js/lkk_ch.js", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "ae786a7d7354", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "ca9305b0cd9a", "method": "GET", "path": "/css/support_parent.css", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "6bde3f171b73", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "871443d8ab5b", "method": "GET", "path": "/manifest.json", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "f961220bf7b5", "method": "GET", "path": "/img/icons/icon-192.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-10 04:43:43] [INFO] [BACKEND] {"type": "http_request", "rid": "abe0447a2b95", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 04:45:48] [INFO] [BACKEND] {"type": "http_request", "rid": "11e0d157a7ce", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 10:50:20] [INFO] [BACKEND] {"type": "http_request", "rid": "93a1b9bf046b", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-10 10:50:29] [INFO] [BACKEND] {"type": "http_request", "rid": "20012ef01b34", "method": "GET", "path": "/manifest.js", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 10:50:29] [INFO] [BACKEND] {"type": "http_request", "rid": "2edab9f146b5", "method": "GET", "path": "/sw.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-10 10:50:29] [INFO] [BACKEND] {"type": "http_request", "rid": "d21cc3f4df29", "method": "GET", "path": "//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 10:50:32] [INFO] [BACKEND] {"type": "http_request", "rid": "3ac86f8df960", "method": "GET", "path": "//apis.google.com/js/api.js", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-10 12:28:28] [INFO] [BACKEND] {"type": "http_request", "rid": "6c34e38718ce", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 01:43:39] [INFO] [BACKEND] {"type": "http_request", "rid": "06a460af2c59", "method": "GET", "path": "/.git/config", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 01:45:17] [INFO] [BACKEND] {"type": "http_request", "rid": "669a9901b4d4", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 01:45:50] [INFO] [BACKEND] {"type": "http_request", "rid": "1a911c51d113", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 01:45:52] [INFO] [BACKEND] {"type": "http_request", "rid": "d8d5c1f9fc31", "method": "GET", "path": "/favicon.ico", "query": "", "status": 404, "dur_ms": 0}
+[2025-10-12 01:45:53] [INFO] [BACKEND] {"type": "http_request", "rid": "ce8e7aaa49ee", "method": "GET", "path": "/robots.txt", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 01:45:53] [INFO] [BACKEND] {"type": "http_request", "rid": "715eb43c60fb", "method": "GET", "path": "/sitemap.xml", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 01:45:56] [INFO] [BACKEND] {"type": "http_request", "rid": "c9b89b408935", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 01:45:57] [INFO] [BACKEND] {"type": "http_request", "rid": "80cc23c1e3c0", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 01:45:58] [INFO] [BACKEND] {"type": "http_request", "rid": "b89f6cdcf87f", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 01:46:01] [INFO] [BACKEND] {"type": "http_request", "rid": "b154f85404f8", "method": "GET", "path": "/sitemap.xml", "query": "", "status": 404, "dur_ms": 2}
+[2025-10-12 01:46:01] [INFO] [BACKEND] {"type": "http_request", "rid": "442958e84e50", "method": "GET", "path": "/robots.txt", "query": "", "status": 404, "dur_ms": 3}
+[2025-10-12 02:59:05] [INFO] [BACKEND] {"type": "http_request", "rid": "cd045ce63c4a", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 02:59:48] [INFO] [BACKEND] {"type": "http_request", "rid": "3507cb7d97ec", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 02:59:50] [INFO] [BACKEND] {"type": "http_request", "rid": "3d7cf822f9b0", "method": "GET", "path": "/favicon.ico", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 02:59:51] [INFO] [BACKEND] {"type": "http_request", "rid": "1b8b891aced9", "method": "GET", "path": "/sitemap.xml", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 02:59:51] [INFO] [BACKEND] {"type": "http_request", "rid": "e4e1f998e7fa", "method": "GET", "path": "/robots.txt", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 02:59:54] [INFO] [BACKEND] {"type": "http_request", "rid": "943ae742be44", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 02:59:55] [INFO] [BACKEND] {"type": "http_request", "rid": "685471b3247f", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 02:59:57] [INFO] [BACKEND] {"type": "http_request", "rid": "20fc84d20b7b", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 02:59:59] [INFO] [BACKEND] {"type": "http_request", "rid": "d2cd40b3034a", "method": "GET", "path": "/robots.txt", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 02:59:59] [INFO] [BACKEND] {"type": "http_request", "rid": "d099c1b115ca", "method": "GET", "path": "/sitemap.xml", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 12:57:44] [INFO] [BACKEND] {"type": "http_request", "rid": "9846d59ad18f", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 12:57:48] [INFO] [BACKEND] {"type": "http_request", "rid": "7089788f8a75", "method": "GET", "path": "/robots.txt", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 12:57:49] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko; compatible; BW/1.3; rb.gy/qyzae5) Chrome/124.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 12:57:49] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=8e047bd2-d129-441a-b3b8-80758ead1fbd nonce=oa04APyP5GgxX7f1qdLfa7FKeVh8JbCb redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 12:57:49] [INFO] [BACKEND] {"type": "http_request", "rid": "2a9a5dc188fe", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 1}
+[2025-10-12 12:57:55] [INFO] [BACKEND] {"type": "http_request", "rid": "10be1357e0b2", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 12:57:55] [INFO] [BACKEND] {"type": "http_request", "rid": "4457083dad02", "method": "GET", "path": "/ads.txt", "query": "", "status": 404, "dur_ms": 1}
+[2025-10-12 18:11:02] [INFO] [BACKEND] {"type": "http_request", "rid": "72fe28dc8313", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 1}
+[2025-10-12 18:11:29] [INFO] [BACKEND] {"type": "http_request", "rid": "2e50c1fa2cfd", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 18:11:33] [INFO] [BACKEND] {"type": "http_request", "rid": "50e58f2e1adb", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 18:11:42] [INFO] [BACKEND] {"type": "http_request", "rid": "d3b24b7e3568", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 18:11:42] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 18:11:42] [INFO] [BACKEND] {"type": "http_request", "rid": "8b206b5da961", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:43] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 18:11:43] [INFO] [BACKEND] {"type": "http_request", "rid": "bbca9e144ea7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:11:43] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 18:11:43] [INFO] [BACKEND] {"type": "http_request", "rid": "7384dd3ef411", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:46] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 18:11:46] [INFO] [BACKEND] {"type": "http_request", "rid": "2f577454b30b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:46] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 18:11:46] [INFO] [BACKEND] {"type": "http_request", "rid": "ba08b62ef549", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:47] [INFO] [BACKEND] {"type": "http_request", "rid": "b7ffdeef5689", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 18:11:47] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 18:11:47] [INFO] [BACKEND] {"type": "http_request", "rid": "d1f3f6b76c38", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:48] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 18:11:48] [INFO] [BACKEND] {"type": "http_request", "rid": "1293167dc997", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:49] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 18:11:49] [INFO] [BACKEND] {"type": "http_request", "rid": "456dc1061d0b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:11:51] [INFO] [BACKEND] {"type": "http_request", "rid": "0be84ff3d55c", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 18:11:54] [INFO] [BACKEND] {"type": "http_request", "rid": "1c25eea63351", "method": "GET", "path": "/manifest.json", "query": "", "status": 304, "dur_ms": 0}
+[2025-10-12 18:11:54] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 18:11:54] [INFO] [BACKEND] {"type": "http_request", "rid": "1199230483a0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:12:26] [INFO] [BACKEND] {"type": "http_request", "rid": "c6e1366c6735", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 0}
+[2025-10-12 18:23:43] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 18:23:43] [INFO] [BACKEND] {"type": "http_request", "rid": "580b951c72ac", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:23:43] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 18:23:43] [INFO] [BACKEND] {"type": "http_request", "rid": "d32c2dadd059", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-12 18:23:43] [INFO] [BACKEND] {"type": "http_request", "rid": "c093df2921d0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:43] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 429.7ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 18:23:43] [INFO] [BACKEND] {"type": "http_request", "rid": "9e3eb3f43367", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "37b46a880850", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "7be074346e97", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "f9b4c25973ac", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "d4263996da23", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] [{}]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "8936bfb385b4", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "becee2c6b22d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "36509a5e0d1e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "eda63ae4abe2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "c1b627b33fb3", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "6ed6c411243b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "17984f48bc33", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "25597dbba013", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "feb58109f519", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "c68a7d5a9587", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "864c3356746e", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-12 18:23:49] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 100.3ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 18:23:49] [INFO] [BACKEND] {"type": "http_request", "rid": "5c9c70dfe46d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:51] [INFO] [BACKEND] {"type": "http_request", "rid": "cb15f93d9500", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 18:23:53] [INFO] [BACKEND] [{}]
+[2025-10-12 18:23:53] [INFO] [BACKEND] {"type": "http_request", "rid": "34a129fe4d3e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "3c99937e8aaf", "method": "GET", "path": "/", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "b016fa7d1f61", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 18:23:58] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "253240eb04f2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:58] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 18:23:58] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "b68510d16fd6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "d78f4336ed2e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:23:58] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "249be63b2e96", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:23:58] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "ad8f3d662dfd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:23:58] [INFO] [BACKEND] {"type": "http_request", "rid": "4454845156aa", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "f674ae85c2b1", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 1}
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "bccf76e0300d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "64b79cc3af8f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "42b795e6246e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:23:59] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "74d5d128faf7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "beaf66624011", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "32489be87612", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:23:59] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 238.5ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 18:23:59] [INFO] [BACKEND] {"type": "http_request", "rid": "b8a7c86d5efc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:24:01] [INFO] [BACKEND] {"type": "http_request", "rid": "fcd76c71f8dc", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 0}
+[2025-10-12 18:24:05] [INFO] [BACKEND] [{}]
+[2025-10-12 18:24:05] [INFO] [BACKEND] {"type": "http_request", "rid": "e5cde8da6df6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:24:06] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 18:24:06] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=zWEFKW8w0rOrZHd5gSSENV2mrZbaX6Z8 redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 18:24:06] [INFO] [BACKEND] {"type": "http_request", "rid": "62f82b4e17b0", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 18:24:06] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 18:24:06] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=S2fpCzhdCq8vBlgLd3OB7vHcg3K2Jdzq redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 18:24:06] [INFO] [BACKEND] {"type": "http_request", "rid": "3d5bb68b5e6a", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 18:24:11] [INFO] [BACKEND] {"type": "http_request", "rid": "7ce2e7e6464a", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-12 18:24:16] [INFO] [BACKEND] {"type": "http_request", "rid": "0db9d74d20c1", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.S2fpCzhdCq8vBlgLd3OB7vHcg3K2Jdzq&code=4/0AVGzR1Bl0PH1lHEElO_ptokBkoLaGv4BwC5VGVao2Y-jM09cfOhyMp8F1KzPIEiz7uvirg&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 447}
+[2025-10-12 18:24:16] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: 29f5290ccb154b36a26787eebf8e153e)
+[2025-10-12 18:24:16] [INFO] [BACKEND] Kickstart: Aggiunti 10 lavori alla coda per l'utente escounpo@gmail.com. Il worker prenderà il controllo.
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 18:24:16] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 18:24:16] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    flow.fetch_token(
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-12 18:24:16] [INFO] [BACKEND] {"type": "http_request", "rid": "871199e36d19", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.S2fpCzhdCq8vBlgLd3OB7vHcg3K2Jdzq&code=4/0AVGzR1Bl0PH1lHEElO_ptokBkoLaGv4BwC5VGVao2Y-jM09cfOhyMp8F1KzPIEiz7uvirg&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 160}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "89d01e3e4dcf", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 2}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "a5d1f268c12a", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "df176e21b0d2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 8}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "3500725a377c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 8}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "04c2c706e86c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "28499ee38c57", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "d97f1cf4cd3c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "a606b00d995f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "96e0de899665", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "0af87e3b3552", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 18:24:17] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "a209bed33ff2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "f2d2f374987d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "13047e49a0f3", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "1ca99332fc2e", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "ac8933113d43", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 18:24:17] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 77.4ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 18:24:17] [INFO] [BACKEND] {"type": "http_request", "rid": "7369f2cf1567", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 18:24:19] [INFO] [BACKEND] {"type": "http_request", "rid": "f8982b9de2a8", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 18:24:21] [INFO] [BACKEND] {"type": "http_request", "rid": "2320f6870902", "method": "GET", "path": "/sw.js", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 18:24:49] [INFO] [BACKEND] [{}]
+[2025-10-12 18:24:49] [INFO] [BACKEND] {"type": "http_request", "rid": "930f1c5c4486", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:24:51] [INFO] [BACKEND] [{}]
+[2025-10-12 18:24:51] [INFO] [BACKEND] {"type": "http_request", "rid": "5c1b18ba82e7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:24:51] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 18:24:51] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=fcdfyNz9hdXsVpH4bm1FvJarqdT5167r redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 18:24:51] [INFO] [BACKEND] {"type": "http_request", "rid": "5e5dede217b5", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 18:24:51] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 18:24:51] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=junuhNrqXrnL96dGxgeZCAhmWKk_bAZT redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 18:24:51] [INFO] [BACKEND] {"type": "http_request", "rid": "49ac4bb29c0a", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 18:24:55] [INFO] [BACKEND] {"type": "http_request", "rid": "cb3fb09858c9", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 18:24:59] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 18:24:59] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 18:24:59] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 18:24:59] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-12 18:24:59] [INFO] [BACKEND] {"type": "http_request", "rid": "ca6bc8706dd0", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.junuhNrqXrnL96dGxgeZCAhmWKk_bAZT&code=4/0AVGzR1DYyJCnBICCUY-RkVWzUwsnYOYqn8MshokGntzYbXp8gA2zIt_cvoH2ErtQD7lsMw&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 436}
+[2025-10-12 18:24:59] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: 3eaa489b3d4044f5a45ccb283fb72d85)
+[2025-10-12 18:25:00] [INFO] [BACKEND] Kickstart: Nessuna *nuova* email trovata per escounpo@gmail.com.
+[2025-10-12 18:25:00] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 18:25:00] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 18:25:00] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 18:25:00] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    flow.fetch_token(
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "4804992e0ca6", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.junuhNrqXrnL96dGxgeZCAhmWKk_bAZT&code=4/0AVGzR1DYyJCnBICCUY-RkVWzUwsnYOYqn8MshokGntzYbXp8gA2zIt_cvoH2ErtQD7lsMw&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 74}
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "6164997e7c4c", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 2}
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "8c2c7ee5b79e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "ce68d86226b6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "816afa3c75cd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "a58a68f94b79", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "e1c06ceaaf64", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:25:00] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 18:25:00] [INFO] [BACKEND] {"type": "http_request", "rid": "f4442afa054a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "80e5d71343db", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 18:25:01] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 18:25:01] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "783d657eb636", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "9d4128ac1b82", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 18:25:01] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "828464ab3665", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "62d1953733cf", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 3}
+[2025-10-12 18:25:01] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "56c0cab9694a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 18:25:01] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "8db0f29d92d7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 18:25:01] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 128.2ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 18:25:01] [INFO] [BACKEND] {"type": "http_request", "rid": "26d408e018c8", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 18:25:02] [INFO] [BACKEND] {"type": "http_request", "rid": "7b4b3ef83ea7", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 0}
+[2025-10-12 19:26:03] [INFO] [BACKEND] [{}]
+[2025-10-12 19:26:03] [INFO] [BACKEND] {"type": "http_request", "rid": "43945290ab89", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "9826cb9aded0", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "73ed58bec46e", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "f5b2c29fc895", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 3}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "90816ea93ea8", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "885a05159e8b", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "f56014ce52d1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "3cd246677fff", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "05c330b5cf8e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "251f4d1c3d57", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "a036bc09af06", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "67f0aec1818b", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "6194c410294d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "3a9bb08318be", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "5d455a6bdd4e", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:04] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "ac0fdc374064", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:04] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "3ec8a0fab6ee", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 4}
+[2025-10-12 19:26:04] [INFO] [BACKEND] {"type": "http_request", "rid": "2daf45553637", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:05] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 150.8ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 19:26:05] [INFO] [BACKEND] {"type": "http_request", "rid": "fbd2eb7be2e6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:05] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 19:26:05] [INFO] [BACKEND] {"type": "http_request", "rid": "1b63d6ec14a3", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:05] [INFO] [BACKEND] {"type": "http_request", "rid": "023ac8e62fe3", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 3}
+[2025-10-12 19:26:05] [INFO] [BACKEND] {"type": "http_request", "rid": "41b1e3cd5d90", "method": "GET", "path": "/img/icons/icon-192.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 19:26:06] [INFO] [BACKEND] [{}]
+[2025-10-12 19:26:06] [INFO] [BACKEND] {"type": "http_request", "rid": "7fa915f970e5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 19:26:06] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 19:26:06] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=x1iDhC4o8F1DxWQJXdmK5t8hvOXcjHki redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 19:26:06] [INFO] [BACKEND] {"type": "http_request", "rid": "440d3a50e279", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 19:26:06] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 19:26:06] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=ucXlV3MFNlBdcMGQZVhiYeZHy4DLNkDm redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 19:26:06] [INFO] [BACKEND] {"type": "http_request", "rid": "8e4d663cfed1", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 1}
+[2025-10-12 19:26:07] [INFO] [BACKEND] {"type": "http_request", "rid": "2c6fd52cfeff", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:10] [INFO] [BACKEND] {"type": "http_request", "rid": "ce1ae7aeeec3", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-12 19:26:13] [INFO] [BACKEND] {"type": "http_request", "rid": "7179e9de962a", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.ucXlV3MFNlBdcMGQZVhiYeZHy4DLNkDm&code=4/0AVGzR1AyXYjnxt9dtCHKk9ZGhLodyubrL7e1jTgxcYCk1bal634cShOMxSmVLwEaTDvN3Q&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 383}
+[2025-10-12 19:26:13] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: 9b77a92c2cf04983aba2124778bd9bc4)
+[2025-10-12 19:26:13] [INFO] [BACKEND] Kickstart: Nessuna *nuova* email trovata per escounpo@gmail.com.
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 19:26:13] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 19:26:13] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    # Esegui lo scambio del token
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-12 19:26:13] [INFO] [BACKEND] {"type": "http_request", "rid": "e8bd9d274e23", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.ucXlV3MFNlBdcMGQZVhiYeZHy4DLNkDm&code=4/0AVGzR1AyXYjnxt9dtCHKk9ZGhLodyubrL7e1jTgxcYCk1bal634cShOMxSmVLwEaTDvN3Q&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 85}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "606dfc28315b", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "d37c217fd4e2", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "9288d35f9f2a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "b10abab0f68c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "4d1177f3f046", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "59b3f22cd0ce", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "b26c58e18fc5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "3645f52f75ad", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "3cb14f4bfe8d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "a792fd6b3a39", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "ff36066928f3", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 5}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "d0fc600ae103", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:14] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "61cc42d0173c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "c4cda5793629", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:14] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 63.6ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 19:26:14] [INFO] [BACKEND] {"type": "http_request", "rid": "cbb6835212af", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:16] [INFO] [BACKEND] {"type": "http_request", "rid": "3f3f288cd7a6", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 19:26:45] [INFO] [BACKEND] [{}]
+[2025-10-12 19:26:45] [INFO] [BACKEND] {"type": "http_request", "rid": "f1d59936e2bd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:46] [INFO] [BACKEND] {"type": "http_request", "rid": "6908b3d4a3c0", "method": "GET", "path": "/", "query": "auth_error=invalid_grant", "status": 200, "dur_ms": 1}
+[2025-10-12 19:26:46] [INFO] [BACKEND] {"type": "http_request", "rid": "10e4393f9f16", "method": "GET", "path": "/img/the-gist-icon.png", "query": "", "status": 200, "dur_ms": 1}
+[2025-10-12 19:26:46] [INFO] [BACKEND] {"type": "http_request", "rid": "6b922552c57b", "method": "GET", "path": "/style.css", "query": "", "status": 200, "dur_ms": 3}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "347dab7dfca1", "method": "GET", "path": "/app.js", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "58432dd5a7b9", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 3}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "63b46d11dc27", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "bd315872609c", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "c9e1f4c86b5d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "01d38ce2056a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "5f4f8cbae924", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "14cb11c5e400", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "45dc4bbfc143", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "1a300ad5030b", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "fda24803a7ce", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 19:26:47] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "5995d4c06fff", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "c18696205d26", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 5}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "69bb86870a0d", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 4}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 89.0ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "d2787a2fd26f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:47] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "6d247e86f742", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 0}
+[2025-10-12 19:26:47] [INFO] [BACKEND] {"type": "http_request", "rid": "2678b9dc3a5f", "method": "GET", "path": "/favicon.png", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:48] [INFO] [BACKEND] [{}]
+[2025-10-12 19:26:48] [INFO] [BACKEND] {"type": "http_request", "rid": "ae7894002218", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:49] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 19:26:49] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=G61fYNcKhHkw6h4bzOXyzVk-8Rm10lJ9 redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 19:26:49] [INFO] [BACKEND] {"type": "http_request", "rid": "6b2837d8bdd0", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 1}
+[2025-10-12 19:26:49] [INFO] [BACKEND] [AUTH/LOGIN] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https host=app.thegist.tech
+[2025-10-12 19:26:49] [INFO] [BACKEND] [AUTH/LOGIN] saved sid=bb726438-c813-4521-996a-f5d069f7a990 nonce=MiG_A1LV42SBWuGW8VuRCvf2G6VxT--y redirect_uri=https://app.thegist.tech/auth/callback
+[2025-10-12 19:26:49] [INFO] [BACKEND] {"type": "http_request", "rid": "060b52faf145", "method": "GET", "path": "/auth/login", "query": "", "status": 303, "dur_ms": 2}
+[2025-10-12 19:26:53] [INFO] [BACKEND] {"type": "http_request", "rid": "0cd0e081a690", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 1}
+[2025-10-12 19:26:55] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 19:26:55] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 19:26:55] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 19:26:56] [INFO] [BACKEND] [AUTH] login ok user=escounpo@gmail.com
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "d3727ce0c383", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.MiG_A1LV42SBWuGW8VuRCvf2G6VxT--y&code=4/0AVGzR1B-nrwkmf3ecdcpNuqEw5kmYVSXs99RfYAgBiYPfi-PkyUR_wxjgeEODJ0yAwJuSQ&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 428}
+[2025-10-12 19:26:56] [INFO] [BACKEND] Kickstart: Inizio recupero email per il nuovo utente escounpo@gmail.com (Job: 6aa9dfe592324e5aaf339af32176a62c)
+[2025-10-12 19:26:56] [INFO] [BACKEND] Kickstart: Nessuna *nuova* email trovata per escounpo@gmail.com.
+[2025-10-12 19:26:56] [INFO] [BACKEND] [AUTH/CALLBACK] ua=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 scheme=https cookies_present=True
+[2025-10-12 19:26:56] [INFO] [BACKEND] [AUTH/CALLBACK] code_present=True, cookies_present=True
+[2025-10-12 19:26:56] [INFO] [BACKEND] [AUTH] state/nonce: entry mancante, usando fallback da cookie PKCE per sid=bb726438-c813-4521-996a-f5d069f7a990
+[2025-10-12 19:26:56] [ERROR] [BACKEND] [AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: (invalid_grant) Bad Request
+Traceback (most recent call last):
+  File "/opt/newsletter/backend/main.py", line 2056, in auth_callback
+    # Esegui lo scambio del token
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/google_auth_oauthlib/flow.py", line 285, in fetch_token
+    return self.oauth2session.fetch_token(self.client_config["token_uri"], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/requests_oauthlib/oauth2_session.py", line 406, in fetch_token
+    self._client.parse_request_body_response(r.text, scope=self.scope)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/clients/base.py", line 426, in parse_request_body_response
+    self.token = parse_token_response(body, scope=scope)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 444, in parse_token_response
+    validate_token_parameters(params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/parameters.py", line 451, in validate_token_parameters
+    raise_from_error(params.get('error'), params)
+  File "/opt/newsletter/.venv/lib/python3.11/site-packages/oauthlib/oauth2/rfc6749/errors.py", line 398, in raise_from_error
+    raise cls(**kwargs)
+oauthlib.oauth2.rfc6749.errors.InvalidGrantError: (invalid_grant) Bad Request
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "c2a0e2bf8228", "method": "GET", "path": "/auth/callback", "query": "state=bb726438-c813-4521-996a-f5d069f7a990.MiG_A1LV42SBWuGW8VuRCvf2G6VxT--y&code=4/0AVGzR1B-nrwkmf3ecdcpNuqEw5kmYVSXs99RfYAgBiYPfi-PkyUR_wxjgeEODJ0yAwJuSQ&scope=https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/photospicker.mediaitems.readonly%20https://www.googleapis.com/auth/photoslibrary.readonly", "status": 303, "dur_ms": 85}
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "62111d5a8bde", "method": "GET", "path": "/config", "query": "", "status": 200, "dur_ms": 0}
+[2025-10-12 19:26:56] [INFO] [BACKEND] ["AVVIO: Verifico sessione utente..."]
+[2025-10-12 19:26:56] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Inizio avvio dell'applicazione."]
+[2025-10-12 19:26:56] [INFO] [BACKEND] ["[TypeMenu] Inizializzazione completata correttamente."]
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "3fe60cbb05bb", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "b1aac4ec3dbd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:56] [INFO] [BACKEND] {"type": "http_request", "rid": "5b865087babe", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[CFG] BACKEND_BASE:","https://app.thegist.tech"]
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[CFG] Configurazione caricata correttamente."]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "80820989ab52", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "d0d1d5a74a45", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "3d52c5ff2a88", "method": "GET", "path": "/api/auth/me", "query": "", "status": 401, "dur_ms": 0}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: false"]
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[JS] Avvio completato. Abilito lo scroll automatico."]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "92b8a22ce33a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "41278dc453ae", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[SCROLL] Infinite scroll inizializzato correttamente."]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "2b8afdc942c0", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 6}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["Service Worker registrato con successo:",{}]
+[2025-10-12 19:26:57] [INFO] [BACKEND] [{"hasMore":false,"inFlight":false,"isIngesting":false,"cursor":null}]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "b59121914b90", "method": "POST", "path": "/api/ingest/pull", "query": "", "status": 401, "dur_ms": 6}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] → POST https://app.thegist.tech/api/ingest/pull body[33]"]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "dce93310c2c6", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "3b54a38c60d7", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 7}
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "38186a177323", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 8}
+[2025-10-12 19:26:57] [INFO] [BACKEND] ["[ingest/pull(sentinel-scroll)#1] ← 401 67.1ms bytes=36 {\"detail\":\"Utente non autenticato.\"}"]
+[2025-10-12 19:26:57] [INFO] [BACKEND] {"type": "http_request", "rid": "7981dbe592dc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-12 19:26:58] [INFO] [BACKEND] {"type": "http_request", "rid": "09984647d973", "method": "GET", "path": "/sw.js", "query": "", "status": 304, "dur_ms": 0}

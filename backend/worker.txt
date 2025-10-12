@@ -1,0 +1,98 @@
+[2025-10-08 21:29:55] [INFO] [WORKER] Logging configurato. L'output verrà scritto da capo su 'worker.txt'.
+[2025-10-08 21:29:55] [INFO] [WORKER] Connesso a Redis.
+[2025-10-08 21:29:55] [INFO] [WORKER] DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...
+[2025-10-08 21:29:55] [INFO] [WORKER] DB: Assicuro la presenza degli indici...
+[2025-10-08 21:29:55] [INFO] [WORKER] DB: Inizializzazione e migrazione completate.
+[2025-10-08 21:29:55] [INFO] [WORKER] Worker avviato. In attesa di lavoro...
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d9999c7bdbf16
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d9999c7bdbf16", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d8eb84f88b49c
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d8eb84f88b49c", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d73ff2261b23a
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d73ff2261b23a", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d73c7d7a16af4
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d73c7d7a16af4", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d7225bf08e6ae
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d7225bf08e6ae", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d5204920ec3d9
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d5204920ec3d9", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d31efb4bfc6f2
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d31efb4bfc6f2", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:16] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d247f7da31d48
+[2025-10-12 18:24:16] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d247f7da31d48", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:17] [INFO] [WORKER] Nuovo lavoro ricevuto: 199d2160aadd5710
+[2025-10-12 18:24:17] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199d2160aadd5710", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:17] [INFO] [WORKER] Nuovo lavoro ricevuto: 199cff6394efd3f2
+[2025-10-12 18:24:17] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199cff6394efd3f2", "job_id": "29f5290ccb154b36a26787eebf8e153e"}
+[2025-10-12 18:24:19] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Payment+Confirmation&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Discount+Event&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=payment+confirmation&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=A%2FB+testing&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:21] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Home+Equity+Cash&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Up+to+70%25+Off&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=soft+credit+pull&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=New+Document+Alert&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d73c7d7a16af4", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d73c7d7a16af4"}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d73c7d7a16af4", "dur_ms": 5669}
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Keep+Learning&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d31efb4bfc6f2", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d31efb4bfc6f2"}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d31efb4bfc6f2", "dur_ms": 5848}
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d73ff2261b23a", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d73ff2261b23a"}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d73ff2261b23a", "dur_ms": 5969}
+[2025-10-12 18:24:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d2160aadd5710", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d2160aadd5710"}
+[2025-10-12 18:24:22] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d2160aadd5710", "dur_ms": 5202}
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d8eb84f88b49c", "updated_rows": 1, "is_complete": false}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d8eb84f88b49c"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d8eb84f88b49c", "dur_ms": 6321}
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d7225bf08e6ae", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d7225bf08e6ae"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d7225bf08e6ae", "dur_ms": 6336}
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "type_override_applied", "domain": "emails.better.com", "new_type": "personali"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d5204920ec3d9", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d5204920ec3d9"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d5204920ec3d9", "dur_ms": 6344}
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "type_override_applied", "domain": "emails.better.com", "new_type": "personali"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199cff6394efd3f2", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199cff6394efd3f2"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199cff6394efd3f2", "dur_ms": 5662}
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Security+Alert&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d247f7da31d48", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d247f7da31d48"}
+[2025-10-12 18:24:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d247f7da31d48", "dur_ms": 6952}
+[2025-10-12 18:24:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-12 18:24:24] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199d9999c7bdbf16", "updated_rows": 1, "is_complete": true}
+[2025-10-12 18:24:24] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "29f5290ccb154b36a26787eebf8e153e", "email_id": "199d9999c7bdbf16"}
+[2025-10-12 18:24:24] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199d9999c7bdbf16", "dur_ms": 7544}

@@ -1,0 +1,87 @@
+[2025-10-04 17:39:21] [INFO] [WORKER] Logging configurato. L'output verrà scritto da capo su 'worker.txt'.
+[2025-10-04 17:39:21] [INFO] [WORKER] Connesso a Redis.
+[2025-10-04 17:39:21] [INFO] [WORKER] DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...
+[2025-10-04 17:39:21] [INFO] [WORKER] DB: Assicuro la presenza degli indici...
+[2025-10-04 17:39:21] [INFO] [WORKER] DB: Inizializzazione e migrazione completate.
+[2025-10-04 17:39:21] [INFO] [WORKER] Worker avviato. In attesa di lavoro...
+[2025-10-04 17:39:24] [INFO] [WORKER] Nuovo lavoro ricevuto: 199af640eb70db55
+[2025-10-04 17:39:24] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199af640eb70db55", "job_id": null}
+[2025-10-04 17:39:25] [INFO] [WORKER] Nuovo lavoro ricevuto: 199af097f30f438f
+[2025-10-04 17:39:25] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199af097f30f438f", "job_id": null}
+[2025-10-04 17:39:25] [INFO] [WORKER] Nuovo lavoro ricevuto: 199af06f27e09384
+[2025-10-04 17:39:25] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199af06f27e09384", "job_id": null}
+[2025-10-04 17:39:29] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 17:39:29] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 17:39:30] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Faster+Payments&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=track+your+purchase&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 17:39:31] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Daily+productivity&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 17:39:32] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:32] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199af640eb70db55", "updated_rows": 1, "is_complete": true}
+[2025-10-04 17:39:32] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199af640eb70db55", "dur_ms": 7664}
+[2025-10-04 17:39:32] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:32] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199af06f27e09384", "updated_rows": 1, "is_complete": true}
+[2025-10-04 17:39:32] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199af06f27e09384", "dur_ms": 7813}
+[2025-10-04 17:39:33] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:39:33] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199af097f30f438f", "updated_rows": 1, "is_complete": true}
+[2025-10-04 17:39:33] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199af097f30f438f", "dur_ms": 8232}
+[2025-10-04 17:54:06] [INFO] [WORKER] Nuovo lavoro ricevuto: 199afee1d6d73e80
+[2025-10-04 17:54:06] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199afee1d6d73e80", "job_id": null}
+[2025-10-04 17:54:09] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 17:54:10] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:54:10] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Data+Access+Control&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 17:54:11] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 17:54:11] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199afee1d6d73e80", "updated_rows": 1, "is_complete": true}
+[2025-10-04 17:54:11] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199afee1d6d73e80", "dur_ms": 4844}
+[2025-10-04 18:05:37] [INFO] [WORKER] Nuovo lavoro ricevuto: 199aff8a7223c988
+[2025-10-04 18:05:37] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199aff8a7223c988", "job_id": null}
+[2025-10-04 18:05:40] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 18:05:41] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 18:05:41] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Account+Security&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 18:05:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 18:05:42] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199aff8a7223c988", "updated_rows": 1, "is_complete": true}
+[2025-10-04 18:05:42] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199aff8a7223c988", "dur_ms": 5178}
+[2025-10-04 23:17:19] [INFO] [WORKER] Nuovo lavoro ricevuto: 199b107b1c08d191
+[2025-10-04 23:17:19] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199b107b1c08d191", "job_id": null}
+[2025-10-04 23:17:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 23:17:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:17:25] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Home+Equity+Options&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 23:17:26] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:17:26] [INFO] [WORKER] {"type": "worker", "stage": "type_override_applied", "domain": "emails.better.com", "new_type": "personali"}
+[2025-10-04 23:17:26] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199b107b1c08d191", "updated_rows": 1, "is_complete": true}
+[2025-10-04 23:17:26] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199b107b1c08d191", "dur_ms": 7026}
+[2025-10-04 23:48:53] [INFO] [WORKER] Nuovo lavoro ricevuto: 199b132bf9b030fe
+[2025-10-04 23:48:53] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199b132bf9b030fe", "job_id": null}
+[2025-10-04 23:48:53] [INFO] [WORKER] Nuovo lavoro ricevuto: 199b13271a37a8b6
+[2025-10-04 23:48:53] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199b13271a37a8b6", "job_id": null}
+[2025-10-04 23:48:58] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 23:48:58] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 23:49:00] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:49:00] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Email+Activation&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 23:49:01] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:49:01] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Account+Management&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 23:49:01] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:49:02] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199b132bf9b030fe", "updated_rows": 1, "is_complete": true}
+[2025-10-04 23:49:02] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199b132bf9b030fe", "dur_ms": 8795}
+[2025-10-04 23:49:03] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:49:03] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199b13271a37a8b6", "updated_rows": 1, "is_complete": true}
+[2025-10-04 23:49:03] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199b13271a37a8b6", "dur_ms": 9724}
+[2025-10-04 23:49:56] [INFO] [WORKER] Nuovo lavoro ricevuto: 199b133227925515
+[2025-10-04 23:49:56] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199b133227925515", "job_id": null}
+[2025-10-04 23:49:59] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-04 23:50:00] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:50:01] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Email+Verification&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-04 23:50:02] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-04 23:50:02] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199b133227925515", "updated_rows": 1, "is_complete": true}
+[2025-10-04 23:50:02] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199b133227925515", "dur_ms": 5947}
+[2025-10-05 00:06:39] [INFO] [WORKER] Nuovo lavoro ricevuto: 199b142bced652d1
+[2025-10-05 00:06:39] [INFO] [WORKER] {"type": "worker", "stage": "start", "user_id": "escounpo@gmail.com", "email_id": "199b142bced652d1", "job_id": null}
+[2025-10-05 00:06:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-05 00:06:43] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-05 00:06:43] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52078898-49f11380eb9a8417b5e810125&q=Email+Verification&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-05 00:06:44] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-05 00:06:44] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "escounpo@gmail.com", "email_id": "199b142bced652d1", "updated_rows": 1, "is_complete": true}
+[2025-10-05 00:06:44] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "escounpo@gmail.com", "email_id": "199b142bced652d1", "dur_ms": 5152}

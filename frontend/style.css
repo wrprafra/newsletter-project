@@ -1,0 +1,520 @@
+/* COPIA TUTTO QUESTO CODICE E SOSTITUISCI IL CONTENUTO DI style.css */
+:root {
+    --app-bg: #F5F5F5;
+    --accent-static: #e11d48; /* rosso saturo per UI statica (header/footer) */
+    --card-1: #334155; /* slate-700 */
+    --card-2: #3f3a34; /* warm dark */
+    --card-3: #3a4a42; /* greenish dark */
+    --fg: #F9FAFB;
+  }
+
+  body {
+    background: var(--app-bg);
+    font-family: "Roboto", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* overflow-x: hidden; */
+  }
+
+  /* html {
+    overflow-x: hidden;
+  } */
+
+  .reading-title {
+    font-family: inherit !important;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .reading-copy {
+    font-family: inherit !important;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+
+  .reading-copy .md-p { margin: 0 0 .75rem; }
+  .reading-copy strong { font-weight: 800; color: #fff; }
+  .reading-copy em { font-style: italic; }
+  .reading-copy a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .reading-copy code {
+    padding: 0 .25rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .12);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .reading-copy .md-list { list-style: disc; padding-left: 1.25rem; margin: .5rem 0 .75rem; }
+  .reading-copy .md-list > li { margin: .2rem 0; }
+
+  /* --- COMPONENTI CONSOLIDATI (da più blocchi) --- */
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .22);
+    transition: background-color 0.15s ease-in-out;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+  }
+  .tag-chip:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  .tag-chip[data-empty="true"] {
+    opacity: .7;
+    border-style: dashed;
+  }
+
+  .icon-btn {
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background-color: transparent;
+    border: 0;
+    transition: background-color 0.15s ease-in-out, transform .12s ease;
+    cursor: pointer;
+  }
+  .icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+  }
+  .icon-btn:active {
+    transform: translateY(0);
+  }
+  .icon-btn .material-symbols-outlined {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.8);
+    transition: color .12s ease, font-variation-settings .12s ease;
+  }
+
+  /* --- FEED CARD E IMMAGINI --- */
+  #feed-container {
+    margin-top: 0.1rem;
+  }
+  .image-wrapper {
+    aspect-ratio: 16 / 9;
+    line-height: 0; /* Previene gap sotto l'immagine */
+    position: relative; /* Necessario per overlay e spinner */
+  }
+  .card-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+  .card-image.is-loaded {
+    opacity: 1;
+  }
+
+  /* --- STILI CARD INTERNA (TILE) --- */
+  .tile-dark {
+    color: var(--fg);
+    border-radius: 14px;
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .tile-attach { margin-top: -1px; }
+  .tile-dark .topline { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+  .tile-dark .source-logo { font-size: 18px; line-height: 1; opacity: .9; }
+  .tile-dark .badge {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .25rem .5rem; border-radius: 999px; font-size: .75rem;
+    background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .22);
+    color: #fff; letter-spacing: .02em;
+    backdrop-filter: saturate(120%) blur(2px);
+  }
+  .tile-dark h2 { font-weight: 700; font-size: 1.375rem; line-height: 1.2; margin: 0 0 .25rem; color: #fff; }
+  .tile-dark .reading-copy { color: rgba(255, 255, 255, .92); font-size: .95rem; }
+  .tile-dark .muted { opacity: .75; text-transform: capitalize; }
+
+  .tile-actions {
+    margin-top: 12px;
+    padding: 10px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, .18);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .tile-actions .action-left { display: flex; align-items: center; gap: 14px; }
+  .tile-read {
+    font: 600 14px/1.2 system-ui;
+    color: #fff;
+    opacity: .95;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+  }
+  .tile-read .material-symbols-outlined { font-size: 20px; }
+
+  /* --- ICONE --- */
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-weight: normal; font-style: normal;
+    font-size: 24px; line-height: 1;
+    letter-spacing: normal; text-transform: none;
+    display: inline-block; white-space: nowrap; direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    transition: font-variation-settings .15s ease-in-out, color .15s ease-in-out;
+  }
+  .avatar-dot {
+    width: 16px; height: 16px;
+    border-radius: 9999px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  /* --- MODAL E OVERLAY --- */
+  .body-lock { overflow: hidden; touch-action: none; }
+  .close-button { position: absolute; right: 12px; top: 10px; cursor: pointer; }
+
+  #email-modal {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  #email-modal .modal-content {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92vw, 1000px);
+    height: min(88vh, 900px);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  #email-modal .modal-body { flex: 1; overflow: auto; padding: 0; }
+  #email-modal iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+
+  .hidden { 
+    display: none !important; 
+  }
+
+  @media (max-width: 520px) {
+    #email-modal .modal-content {
+      position: fixed; inset: 0;
+      transform: none;
+      width: 100vw; height: 100dvh;
+      border-radius: 0;
+    }
+  }
+
+  /* --- STATI DI CARICAMENTO E FEEDBACK (Spinner, Toast, Skeleton) --- */
+  #load-more-sentinel { margin-bottom: 80px; }
+  .loading-indicator { text-align: center; padding: 2rem 1rem; color: #6b7280; }
+  .loading-indicator p { font-size: 0.9rem; margin-top: 0.75rem; }
+  .loading-indicator img { width: 48px; height: 48px; margin: 0 auto; opacity: 0.6; }
+
+  #img-switch-progress {
+    position: fixed; left: 0; top: 0; height: 3px; width: 100%;
+    background: linear-gradient(90deg, rgba(0, 0, 0, .15) 0%, rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, .15) 100%);
+    background-size: 200% 100%;
+    animation: imgSwitchingIndeterminate 1.2s linear infinite;
+    z-index: 9999; display: none;
+  }
+  body.img-switching #img-switch-progress { display: block; }
+  @keyframes imgSwitchingIndeterminate {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .image-wrapper:has(img.updating-image)::before {
+    content: ""; position: absolute; inset: 0; background: rgba(255, 255, 255, .55); backdrop-filter: blur(2px);
+  }
+  .image-wrapper:has(img.updating-image)::after {
+    content: ""; position: absolute; width: 28px; height: 28px; border: 3px solid rgba(0, 0, 0, .35);
+    border-top-color: transparent; border-radius: 50%; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); animation: spinImg 0.9s linear infinite;
+  }
+  @keyframes spinImg { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+  [data-busy="1"] { position: relative; opacity: .85; pointer-events: none; }
+  [data-busy="1"]::after {
+    content: ""; position: absolute; right: 12px; top: 50%; width: 16px; height: 16px;
+    border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+    transform: translateY(-50%); animation: spinBtn .8s linear infinite;
+  }
+  @keyframes spinBtn { to { transform: translateY(-50%) rotate(360deg); } }
+
+  #toast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: #111; color: #fff; padding: 10px 14px; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25); z-index: 10000; display: none; font: 600 13px/1.2 system-ui;
+  }
+  #toast.ok { background: #0f766e; }
+  #toast.err { background: #b91c1c; }
+  #toast.show { display: block; animation: toastIn .15s ease-out; }
+  @keyframes toastIn {
+    from { transform: translateX(-50%) translateY(6px); opacity: .001 }
+    to { transform: translateX(-50%) translateY(0); opacity: 1 }
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+
+  #feed-loading-indicator {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4rem 1rem; text-align: center; color: #6b7280;
+  }
+  #feed-loading-indicator img { width: 60px; height: 60px; margin-bottom: 1rem; }
+  #feed-loading-indicator p { font-size: 0.9rem; font-weight: 500; }
+
+  .skeleton-card {
+    position: relative; overflow: hidden;
+    background-color: #e5e7eb;
+    border-radius: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .skeleton-card .skel-img { width: 100%; padding-top: 56.25%; background-color: #d1d5db; }
+  .skeleton-card .p-4 { padding: 1rem; }
+  .skeleton-card .skel-line { height: 1rem; margin-bottom: 0.75rem; border-radius: 0.25rem; background-color: #d1d5db; }
+  .skeleton-card .skel-line:last-child { margin-bottom: 0; }
+  .skeleton-card::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .image-wrapper:has(img.updating-image)::after,
+    [data-busy="1"]::after,
+    #img-switch-progress,
+    .skeleton-card::after {
+      animation: none !important;
+    }
+  }
+
+  /* --- COMPONENTI SPECIFICI --- */
+  footer nav button.nav-active {
+    color: var(--accent-static) !important;
+  }
+  #gphotos-menu-btn { display: flex; align-items: center; justify-content: center; }
+  #gphotos-logo-img {
+    width: 24px; height: 24px; display: block; margin: 0 auto;
+    object-fit: contain; object-position: center;
+    transform: translateX(7px);
+  }
+  /* Assicura che la classe 'hidden' di Tailwind vinca sempre */
+  #gphotos-menu-btn.hidden { display: none !important; }
+.feed-card {
+  content-visibility: auto;
+  /* Stima un'altezza media per una card completa */
+  contain-intrinsic-size: 320px 640px;
+}
+
+.skeleton-card {
+  content-visibility: auto;
+  /* Stima un'altezza per lo skeleton */
+  contain-intrinsic-size: 320px 200px;
+}
+/* già nascondiamo il blocco sinistro, ma teniamolo */
+
+.icon-btn[aria-pressed="true"] {
+    background-color: transparent !important;
+}
+
+/* Stile unificato per le icone attive (es. cuore pieno e più spesso) */
+.icon-btn[aria-pressed="true"] .material-symbols-outlined,
+.material-symbols-outlined.ms-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24 !important;
+  color: #fff !important;
+}
+
+/* helpers per header compatto */
+.hdr-hide {
+  display: none !important;
+}
+.hdr-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
+}
+#app-header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  transition: padding .2s ease-out;
+}
+#app-header .hdr-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .8);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid rgba(0, 0, 0, .07);
+  pointer-events: none;
+  transition: background-color .2s ease-out;
+}
+#header-bar {
+  position: relative;
+  transition: height .2s ease-out, padding .2s ease-out;
+}
+#header-left, .brand-logo, .brand-title {
+  transition: all .2s ease-out;
+}
+
+/* --- STATO COMPATTO --- */
+
+/* 2. Riduci l'altezza del contenitore */
+#app-header.compact {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+#app-header.compact #header-bar {
+  height: 52px; /* <<< Altezza ulteriormente ridotta */
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  /* Cambia il layout da 3 a 2 colonne per spostare il titolo */
+  grid-template-columns: 1fr auto;
+}
+
+/* 3. Nascondi completamente la sezione sinistra (fotocamera) */
+#app-header.compact #choose-photo-btn,
+#app-header.compact #gphotos-menu-btn {
+  display: none;
+}
+
+/* 4. Sposta il blocco logo+titolo all'inizio della sua cella (a sinistra) */
+#app-header.compact .justify-self-center {
+  justify-self: start;
+}
+
+/* 5. Rimpicciolisci il titolo. Il logo resta visibile di default. */
+#app-header.compact .brand-title {
+  font-size: 1.25rem;
+}
+
+/* 6. Fallback per browser vecchi */
+@supports not (position: sticky) {
+  #app-header {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+  main {
+    padding-top: 75px;
+  }
+}
+/* Stato lettura */
+.read-dot{
+  width: 10px; height: 10px; border-radius: 9999px;
+  background: #ef4444; /* rosso = non letto */
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.15) inset;
+  flex-shrink: 0;
+}
+.feed-card.is-read .read-dot{ background:#10b981; } 
+.read-dot-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px; /* Per l'outline del focus */
+}
+
+/* Stili per il tooltip dello stato di lettura */
+.read-status-tooltip {
+  position: fixed; /* Usiamo fixed per evitare problemi con contenitori overflow:hidden */
+  z-index: 1000;
+  background-color: #1f2937; /* Grigio scuro */
+  color: #f9fafb; /* Testo quasi bianco */
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none; /* Non deve essere cliccabile */
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.read-status-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+#ptr {
+  /* Aggiunte per un effetto "sticky" più pulito */
+  position: sticky;
+  top: 0;
+  z-index: 70; /* Sotto l'header (z-index: 80) */
+  background: var(--app-bg, #F5F5F5);
+
+  /* Stato di base: nascosto e non occupa spazio */
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  color: #4b5563; /* Grigio scuro per il testo */
+  transition: height 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Stato di caricamento: occupa spazio e spinge il contenuto verso il basso */
+#ptr.ptr--loading {
+  height: 64px;
+  opacity: 1;
+}
+
+/* Stato durante il "pull": l'altezza è controllata da JS per la gesture */
+#ptr.ptr--pull {
+  height: var(--ptr-pull, 0px);
+  opacity: 1;
+}
+
+#ptr.ptr--ready .ptr-text::after {
+  content: " — rilascia per aggiornare";
+  font-weight: 600;
+}
+
+#ptr .ptr-icon {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  /* L'icona appare solo quando si tira abbastanza o si sta caricando */
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+#ptr.ptr--pull .ptr-icon,
+#ptr.ptr--loading .ptr-icon {
+  opacity: 1;
+}
+
+#ptr.ptr--loading .ptr-icon {
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(1turn); } }

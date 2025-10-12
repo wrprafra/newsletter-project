@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newsletter Feed</title>
+  
+  <!-- Meta tag per PWA e iOS -->
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/img/icons/icon-192.png">
+
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=swap" rel="stylesheet">
+
+  <!-- Tailwind viene caricato prima per permettere a style.css di sovrascriverlo -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Il tuo CSS personalizzato viene caricato dopo -->
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://apis.google.com/js/api.js?onload=onGapiLoad" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<header id="app-header" class="sticky top-0 z-[80]">
+  <!-- Overlay per sfondo e blur, separato dallo sticky container -->
+  <div class="hdr-bg" aria-hidden="true"></div>
+  
+  <!-- Contenuto dell'header, posizionato relativamente sopra l'overlay -->
+  <div id="header-bar" class="relative max-w-2xl mx-auto grid grid-cols-2 items-center p-4 pb-3">
+    <!-- HINT BAR (invariato) -->
+    <div id="picker-hint"
+     class="hidden col-span-2 border-t border-amber-200 bg-amber-50 text-amber-900 text-sm text-center px-4 py-2">
+      <strong>Hai scelto le foto?</strong> Torna a questa scheda, aggiorneremo il feed automaticamente.
+    </div>
+
+    <!-- SINISTRA: Fotocamera + Icona GPhotos (condizionale) -->
+    <div id="header-left" class="flex items-center gap-3">
+      <img src="img/the-gist-icon.png" alt="Logo" class="h-7 brand-logo" width="28" height="28" fetchpriority="high" decoding="async" />
+      <span class="brand-title text-2xl font-bold text-gray-800 tracking-tight select-none whitespace-nowrap">the gist</span>
+
+      <!-- Mantengo gli elementi per non rompere JS, ma invisibili -->
+      <button id="choose-photo-btn" type="button" class="hidden" aria-hidden="true" tabindex="-1"></button>
+      <button id="gphotos-menu-btn" type="button" class="hidden" aria-hidden="true" tabindex="-1"></button>
+    </div>
+
+    <!-- DESTRA: Nuovo Filtro Tipologie -->
+    <div id="header-right" class="justify-self-end">
+          <button id="btnTypeFilter" type="button"
+                class="rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
+                aria-haspopup="menu" aria-controls="type-menu" aria-expanded="false"
+                aria-label="Filtra per tipologia" title="Filtra per tipologia">
+          <span class="material-symbols-outlined">filter_list</span>
+        </button>
+        </div>
+  </div>
+</header>
+
+<div id="type-menu"
+     class="hidden fixed z-[120] w-56 rounded-xl bg-white shadow-xl ring-1 ring-black/5"
+     role="menu" aria-labelledby="btnTypeFilter">
+  <div class="p-2 text-sm">
+    <button data-type="newsletter" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg">
+      <span>Newsletter</span><span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+    <button data-type="promo" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg">
+      <span>Promo</span><span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+    <button data-type="personali" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg">
+      <span>Personali</span><span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+    <button data-type="informative" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg">
+      <span>Informative</span><span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+    <div class="my-2 border-t border-gray-200"></div>
+    <button data-read="read" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Letto</span>
+      <span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+    <button data-read="unread" role="menuitem" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Non letto</span>
+      <span class="count text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">0</span>
+    </button>
+  </div>
+</div>
+
+<div id="type-override-menu" class="hidden fixed z-50 w-56 rounded-xl bg-white shadow-xl ring-1 ring-black/5">
+  <div class="p-2 text-sm">
+    <button data-type="newsletter"  class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Newsletter</span>
+    </button>
+    <button data-type="promo"       class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Promo</span>
+    </button>
+    <button data-type="personali"   class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Personali</span>
+    </button>
+    <button data-type="informative" class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100">
+      <span>Informative</span>
+    </button>
+  </div>
+</div>
+
+<div id="ptr" class="flex items-center justify-center gap-2 text-gray-600">
+  <div class="ptr-icon" aria-hidden="true"></div>
+  <div class="ptr-text">Tira per aggiornare</div>
+</div>
+
+<!-- Live region usata da announce() nel JS -->
+<span id="sr-live" class="sr-only" aria-live="polite"></span>
+<main class="px-4 pt-6 pb-32">
+  
+
+  <!-- Pre-login pulito -->
+  <section id="login-message" class="max-w-2xl mx-auto text-center py-12">
+    <div class="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+        <span class="material-symbols-outlined">mail</span>
+      </div>
+      <h2 class="text-2xl font-bold mb-2">Trasforma le tue newsletter in un feed</h2>
+        <p class="text-gray-600 mb-6">Accedi con Google per creare il tuo feed personale.</p>
+
+        <a href="/auth/login"
+          class="inline-flex items-center justify-center rounded-full bg-black px-5 h-11 text-white font-semibold hover:bg-gray-800">
+          <span class="mr-2" aria-hidden="true">🔐</span>
+          Accedi con Google
+        </a>
+
+<p class="text-xs text-gray-500 mt-4">Permessi di sola lettura, usati per generare il feed.</p>
+    </div>
+  </section>
+
+  <!-- Feed (centrato) -->
+  <section id="feed-container" class="max-w-2xl mx-auto space-y-6"></section>
+  <div id="feed-loading" class="hidden text-center text-sm text-gray-500 py-6">
+  Sto preparando nuove mail
+</div>
+  <div id="load-more-sentinel"
+     role="button"
+     tabindex="0"
+     aria-label="Carica altri"
+     class="py-6 text-center text-sm text-gray-500 hidden">
+  Carico altri…
+</div>
+<div id="feed-end-message" class="max-w-2xl mx-auto text-center text-gray-400 text-sm py-6 hidden">
+  Hai letto tutto ✨
+</div>
+</main>
+
+<template id="feed-card-template">
+  <!-- Il contenuto di questo template viene generato dinamicamente da JavaScript -->
+  <article class="feed-card opacity-0" data-email-id="">
+  </article>
+</template>
+
+<div id="email-modal" role="dialog" aria-modal="true" aria-labelledby="email-modal-title" class="hidden fixed inset-0 z-50 bg-white/80 backdrop-blur-sm">
+  <div class="modal-content h-full w-full flex flex-col bg-white shadow-2xl">
+    
+    <!-- Header Sticky del Modal -->
+    <header class="flex-shrink-0 p-4 border-b flex items-center gap-4">
+      <button type="button" data-close="email-modal" class="close-button text-2xl text-gray-500 hover:text-gray-900" aria-label="Chiudi">&times;</button>
+      <div class="flex-grow overflow-hidden">
+        <h2 id="email-modal-title" class="text-lg font-bold truncate">Caricamento...</h2>
+        <p id="email-modal-sender" class="text-sm text-gray-600 truncate">...</p>
+      </div>
+      <div class="flex-shrink-0">
+        <!-- Qui puoi aggiungere altre azioni come "Preferiti", "Condividi", etc. -->
+      </div>
+    </header>
+
+    <!-- Area Contenuto con Iframe -->
+    <div class="modal-body flex-grow relative">
+      <!-- Spinner di caricamento -->
+      <div id="email-modal-spinner" class="absolute inset-0 flex items-center justify-center bg-white z-10">
+        <div class="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900"></div>
+      </div>
+      <iframe id="email-frame"
+        title="Contenuto Email"
+        class="w-full h-full border-0"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-top-navigation-by-user-activation"
+        referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+
+
+<footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+<nav class="max-w-2xl mx-auto flex justify-around py-2" aria-label="Sezioni app">
+<button data-tab="feed" class="flex flex-col items-center text-gray-900" aria-current="page">
+<span class="material-symbols-outlined">dynamic_feed</span><span class="text-xs">Feed</span>
+</button>
+<button data-tab="favorites" class="flex flex-col items-center text-gray-500">
+<span class="material-symbols-outlined">favorite</span><span class="text-xs">Preferiti</span>
+</button>
+<button data-tab="profile" class="flex flex-col items-center text-gray-500">
+<span class="material-symbols-outlined">person</span><span class="text-xs">Profilo</span>
+</button>
+</nav>
+</footer>
+     <div id="profile-sheet" class="hidden fixed inset-0 z-[120]">
+  <!-- Backdrop per chiudere al click -->
+  <div id="profile-sheet-backdrop" class="absolute inset-0 bg-black/25" aria-hidden="true"></div>
+  
+  <div class="panel absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-2xl bg-white shadow-2xl
+              translate-y-full transition-transform duration-200 will-change-transform
+              max-h-[90dvh] overflow-y-auto overscroll-contain pointer-events-auto">
+    
+    <div class="mx-auto mt-2 h-1.5 w-14 rounded-full bg-gray-300"></div>
+
+    <!-- Header con titolo e pulsante di chiusura -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2">
+      <span class="w-10 h-10"></span> <!-- Spacer per centrare il titolo -->
+      <h3 class="text-lg font-semibold text-gray-900">Profilo e Impostazioni</h3>
+      <button id="close-profile-sheet-btn" type="button"
+              class="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100"
+              aria-label="Chiudi">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="px-4 pb-[max(16px,env(safe-area-inset-bottom))] space-y-4 py-4">
+      <!-- Pulsante Domini / Email nascoste -->
+      <button id="open-hidden-btn" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-100">
+        <span class="material-symbols-outlined">visibility_off</span>
+        Domini / Email nascoste
+      </button>
+
+      <!-- Pulsante Logout -->
+      <button id="logout-btn" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-100">
+        <span class="material-symbols-outlined">logout</span>
+        Logout
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="photo-sheet-backdrop" class="hidden fixed inset-0 z-[110] bg-black/50 opacity-0 transition-opacity duration-200 pointer-events-auto"></div>
+
+<!-- Wrapper sheet: non usa più flexbox -->
+<div id="photo-sheet" class="hidden fixed inset-0 z-[120] pointer-events-none">
+  <div class="panel absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-2xl bg-white shadow-2xl
+              translate-y-full transition-transform duration-200 will-change-transform
+              max-h-[90dvh] overflow-y-auto overscroll-contain pointer-events-auto">
+    
+    <div class="mx-auto mt-2 h-1.5 w-14 rounded-full bg-gray-300"></div>
+
+    <div class="px-5 pt-4 pb-2 text-center">
+      <h3 class="text-lg font-semibold">Scegli un'immagine</h3>
+      <p class="mt-1 text-sm text-gray-500">Personalizza la copertina della tua newsletter.</p>
+    </div>
+
+    <div class="px-4 pb-[max(16px,env(safe-area-inset-bottom))] space-y-3">
+  <!-- Stato corrente (aggiornato via JS) -->
+  <p id="photo-mode-hint" class="text-xs text-gray-500 text-center -mb-1" aria-live="polite"></p>
+
+  <!-- Bottoni neutri; lo “attivo” viene evidenziato via JS -->
+  <button id="sheet-google-btn"
+          class="w-full inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold border-gray-200 bg-gray-50 text-gray-800 hover:bg-gray-100">
+    <span class="material-symbols-outlined">photo_library</span>
+    Usa da Google Foto
+  </button>
+
+  <button id="sheet-random-btn"
+          class="w-full inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold border-gray-200 bg-gray-50 text-gray-800 hover:bg-gray-100">
+    <span class="material-symbols-outlined">auto_awesome</span>
+    Genera foto pertinenti
+  </button>
+
+  <button id="photo-sheet-close"
+        class="w-full inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+  Chiudi
+</button>
+</div>
+  </div>
+</div>
+<div id="hide-menu" class="hidden fixed z-50 w-64 rounded-lg bg-white shadow-xl ring-1 ring-black/5 focus:outline-none">
+  <div class="py-1">
+    <button id="menu-hide-email" class="text-gray-700 group flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100">
+      <span class="material-symbols-outlined text-base">visibility_off</span>
+      Nascondi solo questo thread
+    </button>
+    <button id="menu-hide-domain" class="text-gray-700 group flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100">
+      <span class="material-symbols-outlined text-base">block</span>
+      Nascondi tutti da <strong id="menu-hide-domain-target" class="ml-1">dominio.com</strong>
+    </button>
+  </div>
+</div>
+<div id="gphotos-menu" class="hidden absolute z-50 w-64 rounded-lg bg-white shadow-xl ring-1 ring-black/5 focus:outline-none">
+  <div class="py-1">
+    <button id="menu-open-picker" class="text-gray-700 group flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100">
+      <span class="material-symbols-outlined text-base">add_photo_alternate</span>
+      Scegli altre foto da caricare
+    </button>
+    <button id="menu-import-latest" class="text-gray-700 group flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100">
+      <span class="material-symbols-outlined text-base">history</span>
+      Carica le ultime 50 foto
+    </button>
+    <button id="menu-import-album" class="text-gray-700 group flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100">
+      <span class="material-symbols-outlined text-base">photo_album</span>
+      Scegli un album da caricare
+    </button>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="email-modal-legacy" class="fixed inset-0 z-[100] hidden">
+  <div class="absolute inset-0 bg-black/50" data-close="email-modal"></div>
+  <div class="absolute inset-4 md:inset-8 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <div class="flex items-center justify-between px-4 h-12 border-b">
+      <div class="text-sm text-gray-600">Lettura email</div>
+      <div class="flex items-center gap-2">
+        <a id="open-in-gmail-btn" class="text-sm underline" target="_blank" rel="noopener noreferrer">Apri in Gmail</a>
+        <button class="h-8 w-8 rounded hover:bg-gray-100" aria-label="Chiudi" data-close="email-modal">✕</button>
+      </div>
+    </div>
+    <iframe id="email-frame-legacy"
+        title="Contenuto Email"
+        class="w-full h-full border-0"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+        referrerpolicy="no-referrer"></iframe>
+  </div>
+</div>
+<!-- <script>
+  if ('serviceWorker' in navigator && location.hostname !== '127.0.0.1' && location.hostname !== 'localhost') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then(registration => {
+        console.log('Service Worker registrato con successo:', registration);
+      }).catch(error => {
+        console.log('Registrazione Service Worker fallita:', error);
+      });
+    });
+  }
+</script> -->
+<!-- Backdrop per il nuovo sheet -->
+<div id="hidden-sheet-backdrop" class="hidden fixed inset-0 z-[110] bg-black/40 opacity-0 transition-opacity duration-200 pointer-events-auto"></div>
+
+<!-- Sheet per Domini/Email nascoste -->
+<div id="hidden-sheet" class="hidden fixed inset-0 z-[120] pointer-events-none">
+  <div class="panel absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-2xl bg-white shadow-2xl
+              translate-y-full transition-transform duration-200 will-change-transform
+              max-h-[90dvh] overflow-y-auto overscroll-contain pointer-events-auto">
+    
+    <div class="mx-auto mt-2 h-1.5 w-14 rounded-full bg-gray-300"></div>
+
+    <!-- Header con titolo e pulsante di chiusura -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2">
+      <span class="w-10 h-10"></span> <!-- Spacer -->
+      <h3 class="text-lg font-semibold text-gray-900">Elementi nascosti</h3>
+      <button id="close-hidden-sheet-btn" type="button"
+              class="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100"
+              aria-label="Chiudi">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Contenuto con le liste -->
+    <div class="px-4 pb-[max(16px,env(safe-area-inset-bottom))] space-y-6 py-4">
+      <section>
+        <h4 class="text-sm font-semibold mb-2 text-gray-700">Domini nascosti</h4>
+        <ul id="hidden-domains-list" class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+          <!-- Contenuto generato da JS -->
+        </ul>
+      </section>
+
+      <section>
+        <h4 class="text-sm font-semibold mb-2 text-gray-700">Thread nascosti</h4>
+        <ul id="hidden-threads-list" class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+          <!-- Contenuto generato da JS -->
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+<noscript>
+  <div class="max-w-2xl mx-auto p-4 text-center text-sm text-gray-600">
+    Attiva JavaScript per usare il feed.
+  </div>
+</noscript>
+</body>
+</html>
