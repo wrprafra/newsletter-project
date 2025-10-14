@@ -29,3 +29,11 @@ backend/user_credentials.json
 *.pem
 *.key
 *.p12backend/credentials.json
+
+/worker.txt
+/ingestor.txt
+/backend.txt
+/backend/worker.txt
+/backend/backend.txt
+/backend/ingestor.txt
+
