@@ -1221,8 +1221,22 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
     return Response(content=data, media_type=ctype,
                     headers={"Cache-Control":"public,max-age=31536000,immutable"})
 
-SESSION_DOMAIN = os.getenv("SESSION_DOMAIN") # Es: ".thegist.tech" in produzione
+SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")  # es: ".thegist.tech"
 IS_PROD = bool(SESSION_DOMAIN)
+
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+FRONTEND_ORIGINS = [
+    FRONTEND_ORIGIN,
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").strip().lower() in {"true","1","t","yes","y"}
+
+logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
+logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
+logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
 # ⬇️ middleware DOPO aver creato l’app
 app.add_middleware(
@@ -1230,8 +1244,9 @@ app.add_middleware(
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
     session_cookie="nl_sess",
     same_site="lax",
-    https_only=SESSION_HTTPS_ONLY, # <-- NUOVO VALORE DINAMICO
-    max_age=60*60*8*7
+    https_only=SESSION_HTTPS_ONLY,
+    max_age=60*60*24*7,
+    domain=SESSION_DOMAIN if IS_PROD else None,
 )
 
 FRONTEND_ORIGINS = [
@@ -1243,7 +1258,7 @@ FRONTEND_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN], # <-- NUOVO VALORE DINAMICO
+    allow_origins=FRONTEND_ORIGINS,   # lista già pronta
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1259,13 +1274,6 @@ SCOPES = [
 ]
 PHOTOS_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
 PHOTOS_PICKER_SESSIONS_URL = "https://photospicker.googleapis.com/v1/sessions"
-
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ('true', '1', 't')
-logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
-logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
-logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 logging.info("Configurazione iniziale caricata.")
@@ -1974,10 +1982,11 @@ async def auth_login(request: Request):
     )
 
     pa[nonce] = {
-        "pkce": getattr(flow, "code_verifier", None),
+        "pkce": code_verifier,   # <— salva davvero il verifier
         "auth_url": auth_url,
         "ts": time.time(),
     }
+    _save_pending_auth(request, pa)
 
     # 3. Salva il code_verifier su Redis per il recupero nel callback
     if not redis_client:
@@ -1992,7 +2001,7 @@ async def auth_login(request: Request):
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     # <-- FINE MODIFICA PKCE -->
 
-    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, redirect_uri)
+    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, REDIRECT_URI)
     
     # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})

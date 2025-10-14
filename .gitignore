@@ -24,3 +24,8 @@ Thumbs.db
 
 # File di deploy
 .vercel/
+
+backend/user_credentials.json
+*.pem
+*.key
+*.p12backend/credentials.json
