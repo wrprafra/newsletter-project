@@ -50,7 +50,7 @@ load_dotenv()
 
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ("true", "1", "t")
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").strip().lower() in {"true","1","t","yes","y"}
 SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")
 IS_PROD = bool(SESSION_DOMAIN)
 
@@ -1234,10 +1234,6 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
     data = b64_urlsafe_decode(att.get('data') or '')
     return Response(content=data, media_type=ctype,
                     headers={"Cache-Control":"public,max-age=31536000,immutable"})
-
-
-
-
 
 # --- COSTANTI E VARIABILI GLOBALI ---
 CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
