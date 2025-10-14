@@ -2,7 +2,7 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [ "main" ] # Attivati solo sui push al branch 'main'
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -19,18 +19,43 @@ jobs:
       - name: Add server to known hosts
         run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Sync files to server with Rsync
+      - name: Sync files to server (excluding local resources)
         run: |
           rsync -az --delete \
             --exclude '.git' \
             --exclude '.github' \
             --exclude 'node_modules' \
+            --exclude '.venv/' \
+            --exclude '.env' \
+            --exclude 'backend/newsletter.db' \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/
 
-      - name: Write version file
-        run: ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-          "echo '${{ github.sha }} ' \$(date -u +'%Y-%m-%dT%H:%M:%SZ') > ${{ secrets.SERVER_PATH }}/frontend/version.txt"
+      - name: Install dependencies, restart, and verify service
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
+          set -euo pipefail
 
-      - name: Restart service on server
-        run: ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-          "sudo systemctl restart ${{ secrets.SERVICE_NAME }}"
+          # Vai alla cartella del progetto
+          cd ${{ secrets.SERVER_PATH }}
+
+          # Crea venv se non esiste e installa/aggiorna le dipendenze
+          echo "--- Setting up Python virtual environment and dependencies ---"
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -U pip
+          pip install -r requirements.txt
+          echo "--- Dependencies updated ---"
+
+          # Ricarica systemd e prova a riavviare il servizio
+          echo "--- Restarting service ---"
+          sudo systemctl daemon-reload
+          sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
+            (echo "--- Service restart failed! Dumping logs... ---" && sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200 && exit 1)
+          
+          # Se il riavvio ha successo, verifica lo stato
+          echo "--- Service restarted successfully. Verifying status... ---"
+          sleep 5 # Attendi un attimo che il servizio si stabilizzi
+          systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}
+          systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
+          echo "--- Deploy completed ---"
+          '
