@@ -50,8 +50,7 @@ load_dotenv()
 
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ('true', '1', 't')
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").lower() in ("true", "1", "t")
 SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")
 IS_PROD = bool(SESSION_DOMAIN)
 
@@ -1261,8 +1260,8 @@ app.add_middleware(
     session_cookie="nl_sess",
     same_site="lax",
     https_only=SESSION_HTTPS_ONLY,
-    max_age=60*60*24*7,  # 7 giorni
-    domain=SESSION_DOMAIN if IS_PROD else None
+    max_age=60*60*24*7,
+    domain=SESSION_DOMAIN if IS_PROD else None,
 )
 
 FRONTEND_ORIGINS = [
