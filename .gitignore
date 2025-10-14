@@ -37,3 +37,4 @@ backend/user_credentials.json
 /backend/backend.txt
 /backend/ingestor.txt
 
+"*.log" 
