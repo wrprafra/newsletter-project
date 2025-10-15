@@ -10,12 +10,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Show which workflow file is used
+      - name: Mostra file locali da sincronizzare
         run: |
-          echo "Commit: $GITHUB_SHA"
-          echo "::group::deploy.yml"
-          sed -n '1,200p' .github/workflows/deploy.yml
-          echo "::endgroup::"
+          echo "HEAD: $GITHUB_SHA"
+          ls -l requirements.txt || true
+          echo "--- PRIME RIGHE LOCALI ---"
+          head -n 50 requirements.txt || true
+          echo "--- SHA LOCALE ---"
+          sha256sum requirements.txt || true
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -25,9 +27,9 @@ jobs:
       - name: Add server to known hosts
         run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Sync files to server (excluding local resources)
+      - name: Sync files to server (force overwrite)
         run: |
-          rsync -az --delete \
+          rsync -azv --checksum --itemize-changes --delete \
             --exclude '.git' \
             --exclude '.github' \
             --exclude 'node_modules' \
@@ -35,6 +37,18 @@ jobs:
             --exclude '.env' \
             --exclude 'backend/newsletter.db' \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/
+
+      - name: Verifica file sul server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
+            cd ${{ secrets.SERVER_PATH }}
+            echo "DIR:" $(pwd)
+            ls -l requirements.txt || true
+            echo "--- PRIME RIGHE REMOTE ---"
+            head -n 50 requirements.txt || true
+            echo "--- SHA REMOTA ---"
+            sha256sum requirements.txt || true
+          '
 
       - name: Install dependencies, restart, and verify service
         run: |
@@ -47,15 +61,11 @@ jobs:
             REQ_FILE="$PROJECT_DIR/requirements.txt"
             [ -f "$REQ_FILE" ] || { echo "requirements.txt in root mancante"; exit 1; }
 
-            # venv pulita
             python3 -m venv "$PROJECT_DIR/.venv" || true
             . "$PROJECT_DIR/.venv/bin/activate"
-            pip install -U pip
-
-            # dipendenze progetto
+            pip install -U pip setuptools wheel
             pip install -r "$REQ_FILE"
 
-            # restart servizio
             sudo systemctl daemon-reload
             sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
               (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
