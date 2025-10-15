@@ -1,7 +1,7 @@
 name: Deploy to Server
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   deploy:
@@ -10,10 +10,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Show workflow file used
+      - name: Show which workflow file is used
         run: |
           echo "Commit: $GITHUB_SHA"
+          echo "::group::deploy.yml"
           sed -n '1,200p' .github/workflows/deploy.yml
+          echo "::endgroup::"
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -42,7 +44,6 @@ jobs:
             PROJECT_DIR="${{ secrets.SERVER_PATH }}"
             cd "$PROJECT_DIR"
 
-            # Fallback requirements
             REQ_FILE="$PROJECT_DIR/requirements.txt"
             [ -f "$REQ_FILE" ] || REQ_FILE="$PROJECT_DIR/backend/requirements.txt"
             [ -f "$REQ_FILE" ] || { echo "requirements.txt non trovato"; find "$PROJECT_DIR" -maxdepth 2 -name requirements.txt -ls; exit 1; }
