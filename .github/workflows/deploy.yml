@@ -45,32 +45,20 @@ jobs:
             cd "$PROJECT_DIR"
 
             REQ_FILE="$PROJECT_DIR/requirements.txt"
-            [ -f "$REQ_FILE" ] || REQ_FILE="$PROJECT_DIR/backend/requirements.txt"
-            [ -f "$REQ_FILE" ] || { echo "requirements.txt non trovato"; find "$PROJECT_DIR" -maxdepth 2 -name requirements.txt -ls; exit 1; }
+            [ -f "$REQ_FILE" ] || { echo "requirements.txt in root mancante"; exit 1; }
 
-            sudo apt-get update
-            sudo apt-get install -y \
-              openjdk-17-jdk-headless build-essential python3-dev \
-              libmariadb-dev libmariadb-dev-compat pkg-config
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            export PATH="$JAVA_HOME/bin:$PATH"
-
-
+            # venv pulita
             python3 -m venv "$PROJECT_DIR/.venv" || true
             . "$PROJECT_DIR/.venv/bin/activate"
-            pip install -U pip setuptools wheel cython
+            pip install -U pip
 
-            PIP_NO_BUILD_ISOLATION=1 pip install -r "$REQ_FILE"
+            # dipendenze progetto
+            pip install -r "$REQ_FILE"
 
-            python - <<'PY'
-            import Cython, sys
-            print("Cython OK:", Cython.__version__)
-            import jnius
-            print("jnius OK")
-            PY
-
+            # restart servizio
             sudo systemctl daemon-reload
-            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
+            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
+              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
             sleep 5
             systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
           '
