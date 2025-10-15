@@ -2,7 +2,7 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   deploy:
@@ -33,30 +33,23 @@ jobs:
       - name: Install dependencies, restart, and verify service
         run: |
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
-          set -euo pipefail
+            set -euo pipefail
+            set -x
 
-          # Vai alla cartella del progetto
-          cd ${{ secrets.SERVER_PATH }}
+            PROJECT_DIR="${{ secrets.SERVER_PATH }}"
+            cd "$PROJECT_DIR"
+            ls -l "$PROJECT_DIR/requirements.txt"
 
-          # Crea venv se non esiste e installa/aggiorna le dipendenze
-          echo "--- Setting up Python virtual environment and dependencies ---"
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install -U pip
-          pip install cython
-          pip install -r requirements.txt
-          echo "--- Dependencies updated ---"
+            python3 -m venv "$PROJECT_DIR/.venv" || true
+            . "$PROJECT_DIR/.venv/bin/activate"
+            pip install -U pip
+            pip install cython
+            pip install -r "$PROJECT_DIR/requirements.txt"
 
-          # Ricarica systemd e prova a riavviare il servizio
-          echo "--- Restarting service ---"
-          sudo systemctl daemon-reload
-          sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
-            (echo "--- Service restart failed! Dumping logs... ---" && sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200 && exit 1)
-          
-          # Se il riavvio ha successo, verifica lo stato
-          echo "--- Service restarted successfully. Verifying status... ---"
-          sleep 5 # Attendi un attimo che il servizio si stabilizzi
-          systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}
-          systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
-          echo "--- Deploy completed ---"
+            sudo systemctl daemon-reload
+            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
+              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
+            sleep 5
+            systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}
+            systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
           '
