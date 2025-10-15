@@ -48,13 +48,23 @@ jobs:
             [ -f "$REQ_FILE" ] || REQ_FILE="$PROJECT_DIR/backend/requirements.txt"
             [ -f "$REQ_FILE" ] || { echo "requirements.txt non trovato"; find "$PROJECT_DIR" -maxdepth 2 -name requirements.txt -ls; exit 1; }
 
+            # toolchain per jnius
+            sudo apt-get update
+            sudo apt-get install -y openjdk-17-jdk build-essential python3-dev
+            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+            # venv + tool di build Python
             python3 -m venv "$PROJECT_DIR/.venv" || true
             . "$PROJECT_DIR/.venv/bin/activate"
-            pip install -U pip
+            pip install -U pip setuptools wheel cython
+
+            # deps del progetto
             pip install -r "$REQ_FILE"
 
+            # restart servizio
             sudo systemctl daemon-reload
-            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
+            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
+              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
             sleep 5
             systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
           '
