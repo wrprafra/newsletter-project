@@ -29,6 +29,7 @@ jobs:
 
       - name: Sync files to server (force overwrite)
         run: |
+          echo "Target: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"
           rsync -azv --checksum --itemize-changes --delete \
             --exclude '.git' \
             --exclude '.github' \
@@ -36,7 +37,7 @@ jobs:
             --exclude '.venv/' \
             --exclude '.env' \
             --exclude 'backend/newsletter.db' \
-            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/
+            ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"
 
       - name: Debug remote path and requirements
         run: |
@@ -52,7 +53,7 @@ jobs:
 
       - name: Install dependencies, restart, and verify service
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
+          ssh "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" '
             set -euo pipefail
             set -x
             PROJECT_DIR="${{ secrets.SERVER_PATH }}"
