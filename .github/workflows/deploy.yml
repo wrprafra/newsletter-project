@@ -38,6 +38,37 @@ jobs:
             --exclude 'backend/newsletter.db' \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/
 
+      - name: Install dependencies, restart, and verify service
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
+            set -euo pipefail
+            set -x
+            PROJECT_DIR="${{ secrets.SERVER_PATH }}"
+            cd "$PROJECT_DIR"
+
+            # usa SOLO requirements.txt in root
+            REQ_FILE="$PROJECT_DIR/requirements.txt"
+            [ -f "$REQ_FILE" ] || { echo "requirements.txt in root mancante"; exit 1; }
+
+            # opzionale: rimuovi quello nel backend per evitare confusione
+            rm -f "$PROJECT_DIR/backend/requirements.txt" || true
+
+            # traccia cosa stai installando
+            echo "--- PRIME RIGHE REMOTE ---"; head -n 50 "$REQ_FILE" || true
+            echo "--- SHA REMOTA ---"; sha256sum "$REQ_FILE" || true
+
+            python3 -m venv "$PROJECT_DIR/.venv" || true
+            . "$PROJECT_DIR/.venv/bin/activate"
+            pip install -U pip setuptools wheel
+            pip install -r "$REQ_FILE"
+
+            sudo systemctl daemon-reload
+            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
+              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
+            sleep 5
+            systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
+          '
+
       - name: Verifica file sul server
         run: |
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
