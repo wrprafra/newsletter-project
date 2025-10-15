@@ -38,6 +38,18 @@ jobs:
             --exclude 'backend/newsletter.db' \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/
 
+      - name: Debug remote path and requirements
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
+            set -e
+            cd "${{ secrets.SERVER_PATH }}"
+            echo "PWD:" "$(pwd)"
+            ls -l requirements.txt backend/requirements.txt || true
+            echo "HEAD requirements.txt:"
+            head -n 10 requirements.txt || true
+            echo "SHA:"
+            sha256sum requirements.txt || true
+
       - name: Install dependencies, restart, and verify service
         run: |
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
