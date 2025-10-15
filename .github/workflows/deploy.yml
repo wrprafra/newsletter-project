@@ -35,21 +35,20 @@ jobs:
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
             set -euo pipefail
             set -x
-
             PROJECT_DIR="${{ secrets.SERVER_PATH }}"
             cd "$PROJECT_DIR"
-            ls -l "$PROJECT_DIR/requirements.txt"
+
+            REQ_FILE="$PROJECT_DIR/requirements.txt"
+            [ -f "$REQ_FILE" ] || REQ_FILE="$PROJECT_DIR/backend/requirements.txt"
+            [ -f "$REQ_FILE" ] || { echo "requirements.txt non trovato"; find "$PROJECT_DIR" -maxdepth 2 -name "requirements.txt" -ls; exit 1; }
 
             python3 -m venv "$PROJECT_DIR/.venv" || true
             . "$PROJECT_DIR/.venv/bin/activate"
             pip install -U pip
-            pip install cython
-            pip install -r "$PROJECT_DIR/requirements.txt"
+            pip install -r "$REQ_FILE"
 
             sudo systemctl daemon-reload
-            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
-              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
+            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
             sleep 5
-            systemctl is-active --quiet ${{ secrets.SERVICE_NAME }}
             systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
           '
