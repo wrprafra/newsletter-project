@@ -13,8 +13,8 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from logging_config import setup_logging
-from database import db, Newsletter, initialize_db
+from backend.logging_config import setup_logging
+from backend.database import db, Newsletter, initialize_db
 
 load_dotenv()
 setup_logging("INGESTOR")

@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 import logging
 from fastapi.middleware.gzip import GZipMiddleware
 from google.auth.transport.requests import Request as GoogleAuthRequest
-from database import db, initialize_db, Newsletter, DomainTypeOverride
+from backend.database import db, initialize_db, Newsletter, DomainTypeOverride
 from collections import defaultdict
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -54,7 +54,7 @@ import sys
 import boto3
 from botocore.config import Config as BotoConfig
 from googleapiclient.errors import HttpError
-from processing_utils import (
+from backend.processing_utils import (
     _walk_parts, 
     _decode_body, 
     root_domain_py, 
@@ -219,7 +219,7 @@ if hasattr(sys.stdout, "reconfigure"):
     
 # image_cache: dict[str, tuple[bytes, str]] = {}
 
-from logging_config import setup_logging
+from backend.logging_config import setup_logging
 setup_logging("BACKEND")
 
 logger = logging.getLogger("app")
