@@ -9,7 +9,7 @@ def setup_logging(process_name: str):
     e riscritto da capo.
     """
     # 1. Crea un nome di file univoco basato sul nome del processo.
-    log_filename = f"{process_name.lower()}.txt"
+    log_filename = f"{process_name.lower()}.log"
 
     # 2. Definisci un formato di log.
     log_formatter = logging.Formatter(

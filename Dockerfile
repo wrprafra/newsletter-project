@@ -17,8 +17,9 @@ RUN python -m pip install -U pip setuptools wheel && pip install -r requirements
 COPY . /app
 
 # Non root
-RUN useradd -m appuser
-USER appuser
+RUN useradd -m appuser && \
+    mkdir -p /app/logs && \
+    chown -R appuser:appuser /app/logs
 
 # Uvicorn
 EXPOSE 8000
