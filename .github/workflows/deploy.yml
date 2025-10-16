@@ -1,118 +1,41 @@
-name: Deploy to Server
+name: Deploy
 on:
   push:
-    branches: ["main"]
+    branches: [ main ]
 
 jobs:
-  deploy:
+  prod:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Mostra file locali da sincronizzare
+      - name: Crea artefatto tar.gz
         run: |
-          echo "HEAD: $GITHUB_SHA"
-          ls -l requirements.txt || true
-          echo "--- PRIME RIGHE LOCALI ---"
-          head -n 50 requirements.txt || true
-          echo "--- SHA LOCALE ---"
-          sha256sum requirements.txt || true
+          tar --exclude='.git' \
+              --exclude='.github' \
+              --exclude='.venv' \
+              --exclude='.env' \
+              --exclude='backend/newsletter.db' \
+              -czf build.tar.gz .
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Copia sul server
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "build.tar.gz"
+          target: "/opt/newsletter/upload/"
 
-      - name: Add server to known hosts
-        run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Sync files to server (force overwrite)
-        run: |
-          echo "Target: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"
-          rsync -azv --checksum --itemize-changes --delete \
-            --exclude '.git' \
-            --exclude '.github' \
-            --exclude 'node_modules' \
-            --exclude '.venv/' \
-            --exclude '.env' \
-            --exclude 'backend/newsletter.db' \
-            ./ "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.SERVER_PATH }}/"
-
-      - name: Debug remote path and requirements
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
-            set -e
-            cd "${{ secrets.SERVER_PATH }}"
-            echo "PWD:" "$(pwd)"
-            ls -l requirements.txt backend/requirements.txt || true
-            echo "HEAD requirements.txt:"
-            head -n 10 requirements.txt || true
-            echo "SHA:"
-            sha256sum requirements.txt || true
-
-      - name: Install dependencies, restart, and verify service
-        run: |
-          ssh "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" '
+      - name: Deploy remoto
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
             set -euo pipefail
-            set -x
-            PROJECT_DIR="${{ secrets.SERVER_PATH }}"
-            cd "$PROJECT_DIR"
-
-            # usa SOLO requirements.txt in root
-            REQ_FILE="$PROJECT_DIR/requirements.txt"
-            [ -f "$REQ_FILE" ] || { echo "requirements.txt in root mancante"; exit 1; }
-
-            # opzionale: rimuovi quello nel backend per evitare confusione
-            rm -f "$PROJECT_DIR/backend/requirements.txt" || true
-
-            # traccia cosa stai installando
-            echo "--- PRIME RIGHE REMOTE ---"; head -n 50 "$REQ_FILE" || true
-            echo "--- SHA REMOTA ---"; sha256sum "$REQ_FILE" || true
-
-            python3 -m venv "$PROJECT_DIR/.venv" || true
-            . "$PROJECT_DIR/.venv/bin/activate"
-            pip install -U pip setuptools wheel
-            pip install -r "$REQ_FILE"
-
-            sudo systemctl daemon-reload
-            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
-              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
-            sleep 5
-            systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
-          '
-
-      - name: Verifica file sul server
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
-            cd ${{ secrets.SERVER_PATH }}
-            echo "DIR:" $(pwd)
-            ls -l requirements.txt || true
-            echo "--- PRIME RIGHE REMOTE ---"
-            head -n 50 requirements.txt || true
-            echo "--- SHA REMOTA ---"
-            sha256sum requirements.txt || true
-          '
-
-      - name: Install dependencies, restart, and verify service
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} '
-            set -euo pipefail
-            set -x
-            PROJECT_DIR="${{ secrets.SERVER_PATH }}"
-            cd "$PROJECT_DIR"
-
-            REQ_FILE="$PROJECT_DIR/requirements.txt"
-            [ -f "$REQ_FILE" ] || { echo "requirements.txt in root mancante"; exit 1; }
-
-            python3 -m venv "$PROJECT_DIR/.venv" || true
-            . "$PROJECT_DIR/.venv/bin/activate"
-            pip install -U pip setuptools wheel
-            pip install -r "$REQ_FILE"
-
-            sudo systemctl daemon-reload
-            sudo systemctl restart ${{ secrets.SERVICE_NAME }} || \
-              (sudo journalctl -xeu ${{ secrets.SERVICE_NAME }} --no-pager -n 200; exit 1)
-            sleep 5
-            systemctl --no-pager -l status ${{ secrets.SERVICE_NAME }}
-          '
+            cd /opt/newsletter
+            mkdir -p upload
+            tar -xzf upload/build.tar.gz -C /opt/newsletter
+            bash deploy.sh
