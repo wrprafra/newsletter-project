@@ -11,12 +11,18 @@ jobs:
 
       - name: Crea artefatto tar.gz
         run: |
-          tar --exclude='.git' \
-              --exclude='.github' \
-              --exclude='.venv' \
-              --exclude='.env' \
-              --exclude='backend/newsletter.db' \
-              -czf build.tar.gz .
+          TAR_PATH="${{ runner.temp }}/build.tar.gz"
+          tar --exclude='.git' --exclude='.github' --exclude='.venv' --exclude='.env' --exclude='backend/newsletter.db' \
+              -czf "$TAR_PATH" -C "$GITHUB_WORKSPACE" .
+          ls -lh "$TAR_PATH"
+
+      - name: Ensure upload dir exists
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: mkdir -p /opt/newsletter/upload
 
       - name: Copia sul server
         uses: appleboy/scp-action@v0.1.7
@@ -24,8 +30,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "build.tar.gz"
-          target: "/opt/newsletter/upload/"
+          source: ${{ runner.temp }}/build.tar.gz
+          target: /opt/newsletter/upload/
 
       - name: Deploy remoto
         uses: appleboy/ssh-action@v1.2.0
@@ -35,7 +41,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /opt/newsletter
-            mkdir -p upload
-            tar -xzf upload/build.tar.gz -C /opt/newsletter
-            bash deploy.sh
+            PROJECT_DIR="/opt/newsletter"
+            UPLOAD_DIR="$PROJECT_DIR/upload"
+            ARCHIVE_NAME="build.tar.gz"
+
+            mv "$UPLOAD_DIR/$ARCHIVE_NAME" "$PROJECT_DIR/$ARCHIVE_NAME"
+            tar -xzf "$PROJECT_DIR/$ARCHIVE_NAME" -C "$PROJECT_DIR"
+            chmod +x "$PROJECT_DIR/deploy.sh"
+            bash "$PROJECT_DIR/deploy.sh"
+            rm -f "$PROJECT_DIR/$ARCHIVE_NAME"
