@@ -1,0 +1,16 @@
+# /opt/newsletter/docker-compose.yml
+services:
+  app:
+    # MODIFICA QUESTA RIGA!
+    image: ghcr.io/wrprafra/newsletter-project:latest
+    env_file: /opt/newsletter/.env
+    depends_on: [redis]
+    restart: always
+    ports:
+      - "8000:8000"
+    # Persisti solo il DB file nel punto atteso dall’app
+    volumes:
+      - /var/newsletter/newsletter.db:/app/backend/newsletter.db
+  redis:
+    image: redis:7-alpine
+    restart: always

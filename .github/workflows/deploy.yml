@@ -1,39 +1,44 @@
-name: Deploy
+name: Build & Deploy
 on:
   push:
     branches: [ main ]
 
 jobs:
-  prod:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Build image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:latest"
+          docker build -t "$IMAGE" .
+
+      - name: Push image
+        run: docker push "ghcr.io/${{ github.repository }}:latest"
+
+  deploy:
+    needs: build-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Crea artefatto tar.gz
-        run: |
-          TAR_PATH="${{ runner.temp }}/build.tar.gz"
-          tar --exclude='.git' --exclude='.github' --exclude='.venv' --exclude='.env' --exclude='backend/newsletter.db' \
-              -czf "$TAR_PATH" -C "$GITHUB_WORKSPACE" .
-          ls -lh "$TAR_PATH"
-
-      - name: Ensure upload dir exists
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: mkdir -p /opt/newsletter/upload
-
-      - name: Copia sul server
+      - name: Copy compose to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: ${{ runner.temp }}/build.tar.gz
-          target: /opt/newsletter/upload/
+          source: "docker-compose.yml"
+          target: "/opt/newsletter/"
 
-      - name: Deploy remoto
+      - name: Remote deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -41,12 +46,35 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -euo pipefail
-            PROJECT_DIR="/opt/newsletter"
-            UPLOAD_DIR="$PROJECT_DIR/upload"
-            ARCHIVE_NAME="build.tar.gz"
+            COMPOSE_DIR="/opt/newsletter"
+            cd "$COMPOSE_DIR"
 
-            mv "$UPLOAD_DIR/$ARCHIVE_NAME" "$PROJECT_DIR/$ARCHIVE_NAME"
-            tar -xzf "$PROJECT_DIR/$ARCHIVE_NAME" -C "$PROJECT_DIR"
-            chmod +x "$PROJECT_DIR/deploy.sh"
-            bash "$PROJECT_DIR/deploy.sh"
-            rm -f "$PROJECT_DIR/$ARCHIVE_NAME"
+            # Installa Docker e Docker Compose se non presenti
+            if ! command -v docker >/dev/null; then
+              echo "Docker non trovato, installazione in corso..."
+              curl -fsSL https://get.docker.com | sh
+              sudo usermod -aG docker $USER || true
+              echo "Per favore, esegui di nuovo il workflow."
+              exit 1 # Esce per permettere al gruppo docker di applicarsi
+            fi
+            if ! docker compose version >/dev/null 2>&1; then
+              echo "Docker Compose non trovato, installazione in corso..."
+              DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+              mkdir -p $DOCKER_CONFIG/cli-plugins
+              curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+                -o $DOCKER_CONFIG/cli-plugins/docker-compose
+              chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+            fi
+
+            # Login a GHCR per poter scaricare l'immagine privata
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            # Scarica l'ultima versione dell'immagine e avvia i container
+            docker compose pull
+            docker compose up -d
+
+            # Mostra lo stato e i log recenti
+            echo "--- Stato dei container ---"
+            docker compose ps
+            echo "--- Log recenti dell'app ---"
+            docker compose logs --no-color --tail=100 app || true
