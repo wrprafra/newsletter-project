@@ -14,7 +14,7 @@ from PIL import Image
 import redis
 from fastapi.responses import HTMLResponse
 from bs4 import BeautifulSoup
-import logging
+import logging, httplib2
 from fastapi.middleware.gzip import GZipMiddleware
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from backend.database import db, initialize_db, Newsletter, DomainTypeOverride
@@ -62,6 +62,20 @@ from backend.processing_utils import (
     get_ai_keyword,
     get_pixabay_image_by_query,
 )
+
+# Disabilita il logging HTTP di default, lo attiveremo solo se necessario
+httplib2.debuglevel = 0
+
+def mask(s, keep=6):
+    if not s: return s
+    return s[:keep] + "…" + s[-keep:]
+
+def jdump(d):
+    try: return json.dumps(d, ensure_ascii=False)
+    except Exception: return str(d)
+
+# Ottieni il logger che hai già configurato in logging_config.py
+log = logging.getLogger("BACKEND")
 
 # --- GESTIONE CICLO DI VITA APP ---
 @asynccontextmanager
@@ -1940,15 +1954,16 @@ async def create_photos_picker_session(request: Request, authorization: str = He
 # --- ENDPOINTS ---
 @app.get("/auth/login")
 async def auth_login(request: Request):
+    # ---> [LOG 1] Controlla le variabili di configurazione all'inizio
+    log.info("[AUTH/LOGIN] cfg redirect_uri=%s origin=%s https_only=%s",
+             REDIRECT_URI, FRONTEND_ORIGIN, SESSION_HTTPS_ONLY)
+
     ua = request.headers.get("user-agent","-")
     logging.info("[AUTH/LOGIN] ua=%s scheme=%s host=%s", ua, request.url.scheme, request.url.hostname)
     sid = request.session.get("sid")
     if not sid:
         sid = str(uuid.uuid4())
         request.session["sid"] = sid
-
-    # L'URL di reindirizzamento viene costruito dinamicamente a partire dalla richiesta.
-    # Grazie a --proxy-headers e Caddy, questo genererà https://app.thegist.tech/auth/callback
     
     _cleanup_pending_auth(request)
     pa = _pending_auth(request)
@@ -1965,14 +1980,16 @@ async def auth_login(request: Request):
 
     flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
     
-    # <-- INIZIO MODIFICA PKCE -->
-    # 1. Genera il code_verifier e il code_challenge per PKCE
+    # ---> [LOG 2] Controlla i parametri letti dal file credentials.json
+    ci = flow.client_config.get("client_id")
+    ru = flow.redirect_uri
+    log.info("[AUTH/LOGIN] flow client_id=%s redirect_uri=%s", mask(ci), ru)
+
     code_verifier = secrets.token_urlsafe(96)[:128]
     code_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(code_verifier.encode()).digest()
     ).rstrip(b'=').decode()
 
-    # 2. Genera l'URL di base
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -1983,33 +2000,32 @@ async def auth_login(request: Request):
     )
 
     pa[nonce] = {
-        "pkce": code_verifier,   # <— salva davvero il verifier
+        "pkce": code_verifier,
         "auth_url": auth_url,
         "ts": time.time(),
     }
     _save_pending_auth(request, pa)
 
-    # 3. Salva il code_verifier su Redis per il recupero nel callback
     if not redis_client:
         logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     try:
         entry = {"pkce": code_verifier}
-        # NOTA: Uso redis_client.setex (sincrono), non await redis.setex
         redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
+        
+        # ---> [LOG 3] Conferma che i dati sono stati salvati
+        log.info("[AUTH/LOGIN] saved sid=%s nonce=%s via=%s",
+                 sid, mask(nonce), "redis+session")
+
     except Exception as e:
         logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
-    # <-- FINE MODIFICA PKCE -->
 
-    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, REDIRECT_URI)
-    
-    # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
     response.set_cookie(
         "__Host-nl_pkce",
         value=code_verifier,
-        max_age=600,      # 10 minuti bastano
+        max_age=600,
         path="/",
         secure=True,
         httponly=True,
@@ -2020,6 +2036,12 @@ async def auth_login(request: Request):
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request, bg: BackgroundTasks):
+    # ---> [LOG 1] Logga i parametri in ingresso da Google e i cookie
+    log.info("[AUTH/CALLBACK] qs_state=%s code_present=%s cookies=%s",
+             request.query_params.get("state"),
+             bool(request.query_params.get("code")),
+             list(request.cookies.keys()))
+
     ua = request.headers.get("user-agent","-")
     logging.info("[AUTH/CALLBACK] ua=%s scheme=%s cookies_present=%s", ua, request.url.scheme, bool(request.cookies))
     code = request.query_params.get("code")
@@ -2051,7 +2073,6 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
     if not nonce or not pending_entry:
         logging.warning("[AUTH/CALLBACK] Nonce non valido o scaduto. sid=%s, nonce_fornito=%s, pending_keys=%s", sid_from_session, nonce, list(pa.keys()))
-        # Se le credenziali esistono già, potrebbe essere un doppio callback, lo permettiamo.
         if CREDENTIALS_STORE.get(request.session.get("user_id")):
              logging.info("[AUTH/CALLBACK] Nonce non valido ma utente già loggato. Procedo.")
              return RedirectResponse("/?authenticated=true", status_code=303)
@@ -2064,41 +2085,35 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
 
-        logging.info(
-            "OAUTH: Inizio scambio token.",
-            extra={
-                "redirect_uri": REDIRECT_URI,
-                "state_prefix": state[:8],
-                "has_verifier": bool(pkce_verifier),
-            },
-        )
+        # ---> [LOG 2] Logga un attimo prima della chiamata critica
+        log.info("[AUTH] exchanging code -> token; redirect_uri=%s", flow.redirect_uri)
 
-        # Esegui lo scambio del token
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
+        
+        # ---> [LOG 3] Log di successo dopo aver ricevuto il token
+        log.info("[AUTH] token received scopes=%s expiry=%s",
+                 creds.scopes, getattr(creds, "expiry", None))
 
-        # Ottieni il profilo utente per avere email e user_id
         profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
         profile = profile_service.userinfo().get().execute()
         
+        # ---> [LOG 4] Log di successo dopo aver recuperato il profilo
+        log.info("[AUTH] userinfo ok email=%s id=%s",
+                 profile.get("email"), mask(profile.get("id")))
+        
         email = profile.get("email")
-        user_id = profile.get("id") # L'ID numerico di Google è un identificatore stabile
+        user_id = profile.get("id")
 
         if not email or not user_id:
             raise ValueError("Impossibile recuperare email o ID utente dal profilo Google.")
 
-        # Salva le informazioni corrette nella sessione
         request.session["user_email"] = email
         request.session["user_id"] = user_id
-
-        # Salva le credenziali usando l'ID UTENTE come chiave
         CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
         save_credentials_store()
-        
-        # Pulisci il nonce usato
         pa.pop(nonce, None)
         
-        # Avvia i processi in background se è un nuovo utente
         is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
         if is_new_user:
             logging.info(f"Nuovo utente registrato: {email} (ID: {user_id}). Avvio ingestione iniziale.")
@@ -2109,27 +2124,25 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         logging.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
         return RedirectResponse("/?authenticated=true", status_code=303)
 
-    except InvalidGrantError as e:
-        client_id_from_flow = flow.client_config.get("client_id", "N/A")
-        logging.error(
-            "OAUTH: InvalidGrantError durante lo scambio del token.",
-            extra={
-                "reason": getattr(e, "description", str(e))[:200],
-                "hint": getattr(e, "uri", None),
-                "redirect_uri_usato": REDIRECT_URI,
-                "has_verifier": bool(pkce_verifier),
-                "client_id_tail": client_id_from_flow[-6:],
-            },
-        )
-        # In caso di errore, reindirizza alla pagina di login con un messaggio chiaro
+    except Exception as e:
+        # ---> [LOG 5] Blocco di errore super dettagliato
+        msg = getattr(e, "args", [str(e)])[0]
+        log.error("[AUTH] fetch_token failed: %s", msg, exc_info=True)
+        # Log di diagnostica per l'errore invalid_grant
+        saved_state_from_session = request.session.get("state") # o come lo chiami
+        log.error("[AUTH] diagnostics: state_in_qs=%s state_saved=%s clock=%s",
+                  request.query_params.get("state"),
+                  mask(saved_state_from_session),
+                  datetime.utcnow().isoformat()+"Z")
+        
+        # Rilancia l'eccezione originale se non è InvalidGrantError per un debug più chiaro
+        if not isinstance(e, InvalidGrantError):
+            raise HTTPException(status_code=500, detail=f"Errore imprevisto: {e}")
+
+        # Se è InvalidGrantError, reindirizza con un errore specifico
         return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
 
-    except Exception as e:
-        logging.error(f"[AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: {e}", exc_info=True)
-        return RedirectResponse(f"/?auth_error=unknown_error", status_code=303)
-
     finally:
-        # Pulisci sempre lo stato temporaneo dalla sessione per evitare riutilizzi
         request.session.pop("_code_in_flight", None)
         request.session.pop("_oauth_lock", None)
 

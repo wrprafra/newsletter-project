@@ -7,10 +7,22 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      # QUESTA È LA RIGA DA AGGIUNGERE
       - ./backend/credentials.json:/app/backend/credentials.json:ro
-      # QUESTA RIGA C'ERA GIÀ, LASCIALA
       - /var/newsletter/newsletter.db:/app/backend/newsletter.db
+    
+    # --- BLOCCO DA AGGIUNGERE ---
+    # Questo sovrascrive il comando di avvio del container
+    # per forzare il livello di log a "debug".
+    command:
+      - uvicorn
+      - backend.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --log-level=debug
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    # --- FINE BLOCCO DA AGGIUNGERE ---
+
   redis:
     image: redis:7-alpine
     restart: always
