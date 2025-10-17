@@ -1,5 +1,6 @@
 import logging
 import sys
+from pathlib import Path
 import os # Importiamo os per una piccola modifica
 
 def setup_logging(process_name: str):
@@ -8,6 +9,9 @@ def setup_logging(process_name: str):
     Ogni volta che un processo parte, il suo file di log specifico viene CANCELLATO
     e riscritto da capo.
     """
+    DATA_DIR = Path("/app/data")
+    DATA_DIR.mkdir(parents=True, exist_ok=True) # Assicura che esista
+
     # 1. Crea un nome di file univoco basato sul nome del processo.
     log_filename = f"{process_name.lower()}.log"
 

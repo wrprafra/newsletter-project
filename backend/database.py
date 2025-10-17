@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 from peewee import (
     SqliteDatabase,
     Model,
@@ -11,8 +12,16 @@ from peewee import (
     DateTimeField,
     CompositeKey  # <-- 1. DEVI IMPORTARE CompositeKey
 )
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'newsletter.db')
+
+DATA_DIR = Path("/app/data")
+
+# 2. Assicurati che questa directory esista all'interno del container.
+#    Questo comando è sicuro da eseguire ogni volta.
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# 3. Definisci il percorso completo del file del database.
+DB_PATH = DATA_DIR / "newsletter.db"
+
 print(f"*** Inizializzazione del database in: {DB_PATH} ***")
 
 # Il database viene creato nella cartella principale del progetto

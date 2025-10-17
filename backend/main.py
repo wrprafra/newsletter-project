@@ -1284,7 +1284,7 @@ app.add_middleware(
 )
 
 # --- COSTANTI E VARIABILI GLOBALI ---
-CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
+CLIENT_SECRETS_FILE = "/app/data/credentials.json"
 SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
