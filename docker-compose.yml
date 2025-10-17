@@ -2,17 +2,19 @@ services:
   app:
     image: ghcr.io/wrprafra/newsletter-project:latest
     env_file: /opt/newsletter/.env
-    depends_on: [redis]
+    depends_on:
+      - redis
     restart: always
     ports:
       - "127.0.0.1:8000:8000"
-    volumes:
-      - ./backend/credentials.json:/app/backend/credentials.json:ro
-      - /var/newsletter/newsletter.db:/app/backend/newsletter.db
     
-    # --- BLOCCO DA AGGIUNGERE ---
-    # Questo sovrascrive il comando di avvio del container
-    # per forzare il livello di log a "debug".
+    volumes:
+      # Monta la cartella dati. 'rw' è il default, quindi non serve specificarlo.
+      - /var/newsletter:/app/data
+      
+      # Monta il file dei segreti in sola lettura.
+      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
+
     command:
       - uvicorn
       - backend.main:app
@@ -21,7 +23,6 @@ services:
       - --log-level=debug
       - --proxy-headers
       - --forwarded-allow-ips=*
-    # --- FINE BLOCCO DA AGGIUNGERE ---
 
   redis:
     image: redis:7-alpine
