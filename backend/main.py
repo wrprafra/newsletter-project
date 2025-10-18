@@ -9,6 +9,7 @@ import asyncio
 import httpx
 import json
 import ssl
+from filelock import FileLock, Timeout
 import http.client as http_client
 import io
 from email.utils import parseaddr
@@ -107,18 +108,19 @@ async def lifespan(app: FastAPI):
     logging.info("Evento SHUTDOWN: Spegnimento completato.")
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+# Fidati solo dei reverse proxy noti (es. localhost, IP di Nginx/Caddy)
+TRUSTED_PROXIES = os.getenv("TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=TRUSTED_PROXIES)
+log.info("[CFG] ProxyHeadersMiddleware configurato con trusted_hosts: %s", TRUSTED_PROXIES)
 router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
 router_auth = APIRouter(prefix="/auth", tags=["authentication"])
 router_api = APIRouter(prefix="/api", tags=["api"])
 AUTH_PENDING_TTL = 1800
 
-@app.get("/debug/auth-state")
-def debug_auth_state(request: Request):
-    sid = request.session.get("sid")
-    pa = _load_pending_auth(request)
-    return {"sid": sid, "pending_keys": list(pa.keys()), "has_session_pending": bool(request.session.get("pending_auth"))}
-    
+def _assert_dev():
+    if IS_PROD:
+        raise HTTPException(status_code=404, detail="Endpoint non disponibile in produzione.")
+
 def _get_pending_auth_nonce_key(sid: str, nonce: str) -> str:
     return f"pending_auth:{sid}:{nonce}"
 
@@ -249,6 +251,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 SETTINGS_PATH = "user_settings.json"
 CREDENTIALS_PATH = "user_credentials.json"
+_credentials_lock = FileLock(CREDENTIALS_PATH + ".lock", timeout=5)
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 CREDENTIALS_STORE: Dict[str, dict] = {}
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
@@ -591,29 +594,18 @@ def load_credentials_store():
 
 def save_credentials_store() -> None:
     try:
-        # Definisci il percorso del file temporaneo
-        tmp_path = CREDENTIALS_PATH + ".tmp"
-
-        # 1. Scrivi i dati nel file temporaneo
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(CREDENTIALS_STORE, f, ensure_ascii=False, indent=2)
-
-        # 2. Rinomina atomicamente il file temporaneo a quello definitivo
-        # Questa operazione è molto più veloce e sicura di una scrittura diretta.
-        os.replace(tmp_path, CREDENTIALS_PATH)
-
-        # 3. Tenta di impostare permessi restrittivi (best-effort)
-        try:
-            # Imposta i permessi a lettura/scrittura solo per il proprietario
-            os.chmod(CREDENTIALS_PATH, 0o600)
-        except (OSError, AttributeError):
-            # Ignora l'errore: non è critico se fallisce (es. su Windows
-            # o in ambienti con permessi limitati).
-            pass
-
+        with _credentials_lock:
+            tmp_path = CREDENTIALS_PATH + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(CREDENTIALS_STORE, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, CREDENTIALS_PATH)
+            try:
+                os.chmod(CREDENTIALS_PATH, 0o600)
+            except (OSError, AttributeError):
+                pass
+    except Timeout:
+        logging.error("[CREDENTIALS] Timeout durante il tentativo di acquisire il lock per il salvataggio.")
     except Exception as e:
-        # Se qualcosa va storto durante la scrittura o la rinomina, logga l'errore.
-        # Il file originale non sarà stato toccato.
         logging.error(f"[CREDENTIALS] Salvataggio credenziali fallito: {e}")
 
 def _get_pending_auth_key(sid: str) -> str:
@@ -921,10 +913,16 @@ def load_settings_store():
 
 def save_settings_store():
     try:
-        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        tmp_path = SETTINGS_PATH + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(SETTINGS_STORE, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+        os.replace(tmp_path, SETTINGS_PATH)
+        try:
+            os.chmod(SETTINGS_PATH, 0o600)
+        except (OSError, AttributeError):
+            pass
+    except Exception as e:
+        logging.error(f"[SETTINGS] Salvataggio impostazioni fallito: {e}")
 
 def slugify_kw(s: str) -> str:
     s = re.sub(r"\s+", " ", (s or "").strip().lower())
@@ -1066,16 +1064,15 @@ async def api_img(request: Request, u: str = Query(..., description="URL assolut
 
 async def proxy_image(u: str, request: Request):
     """
-    Proxy per immagini con cache in memoria, retry con backoff esponenziale,
-    e gestione degli header di caching.
+    Proxy per immagini sicuro con allowlist, gestione manuale dei redirect (anti-SSRF),
+    e download in streaming per prevenire attacchi OOM.
     """
     url = unquote(u)
     
-    # Controllo di sicurezza per evitare loop
     if "/api/img" in url:
         raise HTTPException(status_code=400, detail="Loop di proxy rilevato")
 
-    # Controlla prima la cache
+    # Controlla la cache
     cached_item = _cache_get(url)
     if cached_item:
         inm = (request.headers.get("if-none-match") or "").strip()
@@ -1085,76 +1082,87 @@ async def proxy_image(u: str, request: Request):
                 "Cache-Control": "public, max-age=31536000, immutable"
             })
         
+        # --- FIX: Ricostruisci il dizionario 'headers' qui ---
         headers = {
             "Content-Type": cached_item["ct"],
             "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
             "ETag": cached_item.get("etag") or "",
-            "X-Cache-Status": "HIT"
+            "X-Cache-Status": "HIT",
+            "Access-Control-Allow-Origin": "*", # Aggiungi CORS anche qui per coerenza
         }
         return Response(content=cached_item["bytes"], headers=headers)
 
-    # Validazione dell'URL
+    # Validazione e gestione manuale dei redirect
     try:
-        parsed = urlparse(url)
-        if parsed.scheme.lower() not in ("http", "https"):
-            raise HTTPException(status_code=400, detail="Schema non supportato")
-        if not parsed.hostname or _is_private_host(parsed.hostname):
-            raise HTTPException(status_code=400, detail="Host non consentito")
-    except Exception:
-        raise HTTPException(status_code=400, detail="URL non valido")
-
-    # Logica di Retry con Backoff
-    backoffs = [0.2, 0.6, 1.4]  # Secondi di attesa tra i tentativi
-    last_error = None
-
-    for i, wait in enumerate(backoffs):
-        try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
-                r = await client.get(url, headers={"User-Agent": "NewsletterFeedProxy/1.0"})
+        current_url = url
+        max_redirects = 5
+        for _ in range(max_redirects):
+            parsed = urlparse(current_url)
+            if parsed.scheme.lower() not in ("http", "https"):
+                raise HTTPException(status_code=400, detail="Schema non supportato")
             
-            # Se la richiesta ha successo (200 OK)
-            if r.status_code == 200:
-                content = r.content
-                if len(content) > IMG_PROXY_MAX_BYTES:
-                    raise HTTPException(status_code=413, detail="Immagine troppo grande")
+            # --- FIX DI SICUREZZA: CONTROLLO ALLOWLIST ---
+            if not parsed.hostname or _is_private_host(parsed.hostname) or parsed.hostname not in IMG_ALLOWED_HOSTS:
+                raise HTTPException(status_code=400, detail="Host non consentito")
 
-                ct = r.headers.get("content-type", "application/octet-stream").split(";", 1)[0].strip().lower()
-                if not ct.startswith("image/"):
-                    raise HTTPException(status_code=415, detail="Content-Type non supportato")
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+                r = await client.get(current_url, headers={"User-Agent": "NewsletterFeedProxy/1.0"})
 
-                etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
+            if r.is_redirect:
+                loc = r.headers.get("location")
+                if not loc:
+                    raise HTTPException(status_code=502, detail="Redirect non valido dall'upstream")
                 
-                # Salva nella cache in memoria
-                _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
-                
-                # Restituisci la risposta al client
-                response_headers = {
-                    "Content-Type": ct,
-                    "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
-                    "ETag": etag,
-                    "X-Cache-Status": "MISS"
-                }
-                return Response(content=content, headers=response_headers)
-
-            # Se l'errore è temporaneo (429, 5xx), ritenta
-            if r.status_code in {429, 500, 502, 503, 504}:
-                logging.warning(f"[PROXY] Errore temporaneo {r.status_code} per {url}. Riprovo tra {wait:.1f}s...")
-                last_error = f"Upstream error: {r.status_code}"
-                await asyncio.sleep(wait + random.uniform(0, 0.2))
+                current_url = urljoin(current_url, loc)
+                # Il controllo del nuovo host verrà fatto all'inizio del prossimo ciclo
                 continue
             
-            # Se l'errore non è recuperabile (es. 404 Not Found), esci subito
-            last_error = f"Upstream client error: {r.status_code}"
+            # Se non è un redirect, esci dal loop e processa la risposta
             break
+        else:
+            raise HTTPException(status_code=400, detail="Troppi redirect")
 
-        except httpx.RequestError as e:
-            logging.warning(f"[PROXY] Errore di rete per {url}: {e}. Riprovo tra {wait:.1f}s...")
-            last_error = f"Network error: {e}"
-            await asyncio.sleep(wait + random.uniform(0, 0.2))
-    
-    # Se tutti i tentativi falliscono, restituisci un errore 502
-    raise HTTPException(status_code=502, detail=last_error or "Impossibile recuperare l'immagine upstream")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Errore di rete: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"URL non valido o host non consentito: {e}")
 
+    # --- FIX DI SICUREZZA: DOWNLOAD IN STREAMING CON LIMITE ---
+    if r.status_code == 200:
+        total_bytes = 0
+        chunks = []
+        try:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                async with client.stream("GET", current_url, headers={"User-Agent": "NewsletterFeedProxy/1.0"}, follow_redirects=True) as s:
+                    s.raise_for_status()
+                    ct = (s.headers.get("content-type", "application/octet-stream").split(";", 1)[0]).lower()
+                    if not ct.startswith("image/"):
+                        raise HTTPException(415, "Content-Type non supportato")
+                    
+                    async for chunk in s.aiter_bytes():
+                        total_bytes += len(chunk)
+                        if total_bytes > IMG_PROXY_MAX_BYTES:
+                            raise HTTPException(413, "Immagine troppo grande")
+                        chunks.append(chunk)
+            content = b"".join(chunks)
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail="Errore dall'upstream")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Download fallito: {e}")
+
+        etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
+        _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
+        
+        response_headers = {
+            "Content-Type": ct,
+            "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
+            "ETag": etag,
+            "X-Cache-Status": "MISS",
+            "Access-Control-Allow-Origin": "*", # <-- FIX CORS
+        }
+        return Response(content=content, headers=response_headers)
+
+    raise HTTPException(status_code=r.status_code, detail="Impossibile recuperare l'immagine upstream")
 
 @app.get("/api/gmail/messages/{msg_id}/html")
 def gmail_message_html(msg_id: str, request: Request):
@@ -1265,16 +1273,10 @@ FRONTEND_ORIGINS = list(set([
     "http://localhost:8000",
 ]))
 
-# Rimuoviamo la vecchia variabile, ora gestita da COOKIE_SECURE
-# SESSION_HTTPS_ONLY = os.getenv(...) 
-
 log.info("[CFG] APP_ENV: %s (IS_PROD=%s)", APP_ENV, IS_PROD)
 log.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
 log.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
-# Log corretto con i valori dinamici
-log.info("[CFG] Cookie settings: name=%s, secure=%s, samesite=%s", COOKIE_NAME, COOKIE_SECURE, COOKIE_SAMESITE)
-logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
-logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
+# --- FINE CONFIGURAZIONE DINAMICA ---
 
 # Define SESSION_HTTPS_ONLY before use
 SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "0").lower() in ("1", "true", "yes")
@@ -1289,21 +1291,13 @@ app.add_middleware(
     same_site=COOKIE_SAMESITE,
     https_only=COOKIE_SECURE,
     max_age=60*60*24*7,
-    domain=None,  # Corretto: domain deve essere None per i cookie __Host-*
+    domain=None,
 )
-
-# --- NUOVO LOG DI VERIFICA ---
+# Log corretto con i valori dinamici
 log.info(
-    "[CFG] SessionMiddleware configurato con: cookie=%s, samesite=%s, https_only=%s, domain=%s",
-    "__Host-nl_sess", "none", True, None
+    "[CFG] SessionMiddleware configurato con: cookie=%s, samesite=%s, https_only=%s",
+    COOKIE_NAME, COOKIE_SAMESITE, COOKIE_SECURE
 )
-
-FRONTEND_ORIGINS = [
-    os.getenv("FRONTEND_ORIGIN", "https://app.thegist.tech"),
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
 
 app.add_middleware(
     CORSMiddleware,
@@ -2006,8 +2000,7 @@ async def create_photos_picker_session(request: Request, authorization: str = He
 @app.get("/auth/login")
 async def auth_login(request: Request):
     # ---> [LOG 1] Controlla le variabili di configurazione all'inizio
-    log.info("[AUTH/LOGIN] cfg redirect_uri=%s origin=%s https_only=%s",
-             REDIRECT_URI, FRONTEND_ORIGIN, SESSION_HTTPS_ONLY)
+    log.info("[AUTH/LOGIN] cfg redirect_uri=%s origin=%s", REDIRECT_URI, FRONTEND_ORIGIN)
 
     ua = request.headers.get("user-agent","-")
     logging.info("[AUTH/LOGIN] ua=%s scheme=%s host=%s", ua, request.url.scheme, request.url.hostname)
@@ -2046,27 +2039,19 @@ async def auth_login(request: Request):
         logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     try:
-        entry = {"pkce": code_verifier}
-        redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
+        # Lega il PKCE code_verifier direttamente al nonce
+        nonce_key = _get_pending_auth_nonce_key(sid, nonce)
+        redis_client.setex(nonce_key, AUTH_PENDING_TTL, code_verifier)
         
-        # ---> [LOG 3] Conferma che i dati sono stati salvati
-        log.info("[AUTH/LOGIN] saved sid=%s nonce=%s via=%s",
-                 sid, mask(nonce), "redis+session")
+        log.info("[AUTH/LOGIN] PKCE verifier per sid=%s, nonce=%s salvato in Redis.", sid, mask(nonce))
 
     except Exception as e:
-        logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
+        logging.error(f"[AUTH/LOGIN] Salvataggio nonce/PKCE su Redis fallito: {e}")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
 
+    # --- FIX: La creazione della risposta era stata rimossa per errore ---
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
-    response.set_cookie(
-        "__Host-nl_pkce" if IS_PROD else "nl_pkce",
-        value=code_verifier,
-        max_age=600,
-        path="/",
-        secure=COOKIE_SECURE,
-        httponly=True,
-        samesite=COOKIE_SAMESITE,
-    )
+    # --------------------------------------------------------------------
 
     return response
 
@@ -2103,20 +2088,19 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=state_mismatch", status_code=303, headers={"Cache-Control":"no-store"})
 
     pkce_verifier = None
-    nonce_found_in_redis = False
+    nonce_key = _get_pending_auth_nonce_key(sid_from_session, nonce)
     if redis_client and nonce:
         try:
-            raw_entry = redis_client.get(_get_pending_auth_nonce_key(sid_from_session, nonce))
-            if raw_entry:
-                nonce_found_in_redis = True
-                entry = json.loads(raw_entry)
-                pkce_verifier = entry.get("pkce")
+            pkce_verifier = redis_client.get(nonce_key)
         except Exception as e:
-            log.error("[AUTH/CALLBACK] Errore nel recupero del nonce da Redis: %s", e)
-            return RedirectResponse("/?auth_error=store_failure", status_code=303, headers={"Cache-Control":"no-store"})
+            log.error("[AUTH/CALLBACK] Errore nel recupero del PKCE verifier da Redis: %s", e)
+            # Non bloccare, procedi e lascia che il controllo successivo fallisca in modo sicuro
+    
+    if not pkce_verifier:
+        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Potrebbe essere scaduto o già usato.", mask(nonce))
 
-    if not nonce_found_in_redis:
-        log.warning("[AUTH/CALLBACK] Nonce non trovato in Redis. Potrebbe essere scaduto o già usato.")
+    if not pkce_verifier:
+        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Il login potrebbe essere scaduto (>30 min) o già utilizzato.", mask(nonce))
         user_id_in_session = request.session.get("user_id")
         if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
             log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
@@ -2149,7 +2133,8 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=userinfo_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
     # --- LOG 2: Dati utente pronti per essere salvati in sessione ---
-    log.info("[AUTH/CALLBACK] Profilo recuperato. Salvo in sessione: user_id=%s, email=%s", user_id, email)
+    log.info("[AUTH/CALLBACK] Profilo recuperato. Salvo in sessione: user_id=%s, email=%s", 
+             user_id, mask(email, keep=3) if IS_PROD else email)
     request.session["user_email"] = email
     request.session["user_id"] = user_id
     

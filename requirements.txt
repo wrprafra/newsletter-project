@@ -20,3 +20,4 @@ openai==1.51.2
 itsdangerous>=2.1
 python-multipart
 peewee==3.17.6
+filelock
