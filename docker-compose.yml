@@ -1,20 +1,23 @@
+# /opt/newsletter/docker-compose.yml
+
+version: '3.8'
+
 services:
+  # 1. Servizio API (Uvicorn)
   app:
     image: ghcr.io/wrprafra/newsletter-project:latest
-    env_file: /opt/newsletter/.env
+    restart: always
+    env_file:
+      - .env
     depends_on:
       - redis
-    restart: always
     ports:
       - "127.0.0.1:8000:8000"
-    
     volumes:
-      # Monta la cartella dati. 'rw' è il default, quindi non serve specificarlo.
+      # Condivide la cartella dati con gli altri servizi
       - /var/newsletter:/app/data
-      
-      # Monta il file dei segreti in sola lettura.
+      # Monta il file delle credenziali (che si trova in /app/data)
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-
     command:
       - uvicorn
       - backend.main:app
@@ -24,6 +27,45 @@ services:
       - --proxy-headers
       - --forwarded-allow-ips=*
 
+  # 2. Servizio Worker (processa la coda)
+  worker:
+    image: ghcr.io/wrprafra/newsletter-project:latest
+    restart: always
+    depends_on:
+      - redis
+      - app # Opzionale, ma assicura che l'app parta prima
+    env_file:
+      - .env
+    volumes:
+      # DEVE usare gli stessi volumi dell'app per accedere a DB e credenziali
+      - /var/newsletter:/app/data
+      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
+    # Comando per avviare lo script del worker
+    command: python -m backend.worker
+
+  # 3. Servizio Ingestor (popola la coda)
+  ingestor:
+    image: ghcr.io/wrprafra/newsletter-project:latest
+    restart: always
+    depends_on:
+      - redis
+      - app
+    env_file:
+      - .env
+    volumes:
+      # DEVE usare gli stessi volumi dell'app per accedere a DB e credenziali
+      - /var/newsletter:/app/data
+      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
+    # Comando per avviare lo script dell'ingestor
+    command: python -m backend.ingestor
+
+  # 4. Servizio Redis
   redis:
     image: redis:7-alpine
     restart: always
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+    driver: local

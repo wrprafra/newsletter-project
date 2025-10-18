@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 load_dotenv()
-from logging_config import setup_logging
+from backend.logging_config import setup_logging
 import logging
 import redis
 import asyncio
@@ -21,7 +21,7 @@ from googleapiclient.discovery import build
 from email.utils import parsedate_to_datetime, parseaddr
 from datetime import datetime
 
-from database import db, Newsletter, initialize_db, DomainTypeOverride
+from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
             extract_html_from_payload, parse_sender, clean_html, # <-- AGGIUNTA QUI
             get_ai_summary, get_ai_keyword, get_pixabay_image_by_query, extract_dominant_hex, classify_type_and_topic,
