@@ -20,7 +20,7 @@ load_dotenv()
 setup_logging("INGESTOR")
 
 # --- CONFIGURAZIONE ---
-CREDENTIALS_PATH = "user_credentials.json"
+CREDENTIALS_PATH = "/app/data/user_credentials.json"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 POLL_SECONDS = int(os.getenv("INGESTOR_POLL_SECONDS", "60"))
 BACKFILL_PAGES = int(os.getenv("INGESTOR_BACKFILL_PAGES", "8"))

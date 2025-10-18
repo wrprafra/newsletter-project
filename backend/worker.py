@@ -34,7 +34,7 @@ setup_logging("WORKER")
 
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
-CREDENTIALS_PATH = "user_credentials.json"
+CREDENTIALS_PATH = "/app/data/user_credentials.json"
 try:
     with open(CREDENTIALS_PATH, "r") as f:
         ALL_USER_CREDENTIALS = json.load(f)
