@@ -21,6 +21,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from backend.database import db, initialize_db, Newsletter, DomainTypeOverride
 from collections import defaultdict
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Header, BackgroundTasks, Request, HTTPException, Response, APIRouter, Query, FastAPI
@@ -106,6 +107,7 @@ async def lifespan(app: FastAPI):
     logging.info("Evento SHUTDOWN: Spegnimento completato.")
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
 router_auth = APIRouter(prefix="/auth", tags=["authentication"])
 router_api = APIRouter(prefix="/api", tags=["api"])
@@ -1253,14 +1255,24 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN") or (
     "https://app.thegist.tech" if IS_PROD
     else "http://localhost:5173"
 )
-FRONTEND_ORIGINS = [
+
+# Lista delle origini consentite per CORS (definita una sola volta)
+FRONTEND_ORIGINS = list(set([
     FRONTEND_ORIGIN,
+    "https://app.thegist.tech",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
-    "https://app.thegist.tech", # Assicurati che sia sempre presente
-]
+]))
 
+# Rimuoviamo la vecchia variabile, ora gestita da COOKIE_SECURE
+# SESSION_HTTPS_ONLY = os.getenv(...) 
+
+log.info("[CFG] APP_ENV: %s (IS_PROD=%s)", APP_ENV, IS_PROD)
+log.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
+log.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
+# Log corretto con i valori dinamici
+log.info("[CFG] Cookie settings: name=%s, secure=%s, samesite=%s", COOKIE_NAME, COOKIE_SECURE, COOKIE_SAMESITE)
 logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
 logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
 
