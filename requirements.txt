@@ -18,4 +18,4 @@ apsw==3.50.4.0
 tenacity==9.0.0
 openai==1.51.2
 itsdangerous>=2.1
-python-multiparty
+python-multipart
