@@ -110,10 +110,7 @@ async def lifespan(app: FastAPI):
     logging.info("Evento SHUTDOWN: Spegnimento completato.")
 
 app = FastAPI(lifespan=lifespan)
-# Fidati solo dei reverse proxy noti (es. localhost, IP di Nginx/Caddy)
-TRUSTED_PROXIES = os.getenv("TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=TRUSTED_PROXIES)
-log.info("[CFG] ProxyHeadersMiddleware configurato con trusted_hosts: %s", TRUSTED_PROXIES)
+
 router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
 router_auth = APIRouter(prefix="/auth", tags=["authentication"])
 router_api = APIRouter(prefix="/api", tags=["api"])
@@ -1400,6 +1397,10 @@ def update_settings(payload: UserSettingsIn, request: Request):
     SETTINGS_STORE[user_id] = current
     save_settings_store()
     return {"ok": True, "settings": current}
+
+TRUSTED_PROXIES = os.getenv("TRUSTED_PROXIES", "*").split(",")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=TRUSTED_PROXIES)
+log.info("[CFG] ProxyHeadersMiddleware (riordinato) configurato con trusted_hosts: %s", TRUSTED_PROXIES)
     
 app.include_router(router_settings)
 app.include_router(router_auth)
@@ -2166,11 +2167,33 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     await ensure_user_defaults(user_id)
 
     # --- LOG 4: Preparazione della risposta di redirect ---
-    response = RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
     log.info(
-        "[AUTH/CALLBACK] Autenticazione completata. Invio redirect a /?authenticated=true. Headers di risposta: %s",
-        jdump(dict(response.headers))
+        "[AUTH/CALLBACK] Autenticazione completata. Invio risposta 200 OK con meta-refresh per forzare il Set-Cookie."
     )
+    
+    # Questo HTML viene eseguito dal browser e causa il redirect lato client
+    html_content = """
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Redirecting...</title>
+        <meta http-equiv="refresh" content="0;url=/?authenticated=true">
+    </head>
+    <body>
+        <p>Authentication successful, redirecting...</p>
+        <script>
+            // Fallback JS per browser che potrebbero non gestire il meta refresh istantaneamente
+            window.location.replace('/?authenticated=true');
+        </script>
+    </body>
+    </html>
+    """
+    
+    # Creiamo una risposta 200 OK. SessionMiddleware la intercetterà
+    # e aggiungerà l'header Set-Cookie con la sessione aggiornata.
+    response = HTMLResponse(content=html_content, status_code=200, headers={"Cache-Control": "no-store"})
+    
     return response
 
 
