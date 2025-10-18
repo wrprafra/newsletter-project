@@ -1999,7 +1999,7 @@ async def create_photos_picker_session(request: Request, authorization: str = He
 # --- ENDPOINTS ---
 @app.get("/auth/login")
 async def auth_login(request: Request):
-    # ---> [LOG 1] Controlla le variabili di configurazione all'inizio
+    # ---> [LOG 1 - Dalle note] Controlla le variabili di configurazione all'inizio
     log.info("[AUTH/LOGIN] cfg redirect_uri=%s origin=%s", REDIRECT_URI, FRONTEND_ORIGIN)
 
     ua = request.headers.get("user-agent","-")
@@ -2016,7 +2016,7 @@ async def auth_login(request: Request):
 
     flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
     
-    # ---> [LOG 2] Controlla i parametri letti dal file credentials.json
+    # ---> [LOG 2 - Dalle note] Controlla i parametri letti dal file credentials.json
     ci = flow.client_config.get("client_id")
     ru = flow.redirect_uri
     log.info("[AUTH/LOGIN] flow client_id=%s redirect_uri=%s", mask(ci), ru)
@@ -2098,9 +2098,6 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     
     if not pkce_verifier:
         log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Potrebbe essere scaduto o già usato.", mask(nonce))
-
-    if not pkce_verifier:
-        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Il login potrebbe essere scaduto (>30 min) o già utilizzato.", mask(nonce))
         user_id_in_session = request.session.get("user_id")
         if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
             log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
@@ -2170,6 +2167,29 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         jdump(dict(response.headers))
     )
     return response
+
+@router_api.get("/auth/me")
+async def auth_me(request: Request):
+    # --- NUOVO LOG ---
+    log.info(
+        "[AUTH/ME] Richiesta ricevuta. Sessione: sid=%s, user_id=%s. Cookie header: %s",
+        request.session.get('sid'), request.session.get('user_id'), request.headers.get('cookie')
+    )
+    
+    user_id = request.session.get("user_id")
+    email = request.session.get("user_email")
+
+    if not user_id:
+        log.warning("[AUTH/ME] user_id non trovato in sessione. Rispondo 401.")
+        return JSONResponse({"detail": "Utente non autenticato."}, status_code=401)
+
+    response_data = {
+        "user_id": user_id,
+        "email": email,
+        "has_creds": bool(CREDENTIALS_STORE.get(user_id))
+    }
+    log.info("[AUTH/ME] Utente autenticato. Rispondo 200 con: %s", jdump(response_data))
+    return response_data
 
 
 async def get_user_settings(user_id: str) -> dict | None:
