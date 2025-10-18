@@ -1,5 +1,5 @@
-starlette
-fastapi
+starlette==0.36.3
+fastapi==0.110.0
 uvicorn[standard]==0.32.0
 httpx[http2]==0.27.2
 redis==5.0.8
@@ -19,4 +19,4 @@ tenacity==9.0.0
 openai==1.51.2
 itsdangerous>=2.1
 python-multipart
-peewee
+peewee==3.17.6
