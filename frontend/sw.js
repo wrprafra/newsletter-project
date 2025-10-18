@@ -1,6 +1,6 @@
 // sw.js — Progressive runtime caching (safe + fast)
 
-const VERSION = 'v1.8'; // --- FIX: Versione incrementata ---
+const VERSION = 'v1.9'; // --- FIX: Versione incrementata ---
 const C_STATIC = `static-${VERSION}`;
 const C_IMAGES = `images-${VERSION}`;
 const C_API    = `api-${VERSION}`;
@@ -66,16 +66,18 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (url.pathname.startsWith('/auth/')) {
-    return; // Bypassa il Service Worker per il flusso OAuth
-  }
-  // Only same-origin GET handled
-  if (req.method !== 'GET' || !isSameOrigin(url)) return;
 
-  // Bypass SSE and auth endpoints entirely
-  const accept = req.headers.get('accept') || '';
-  if (accept.includes('text/event-stream') || url.pathname.startsWith('/api/ingest/events')) return;
-  if (url.pathname.startsWith('/auth') || url.pathname.startsWith('/api/auth')) return;
+  // --- BLOCCO DI BYPASS UNIFICATO E PULITO ---
+  // Ignora completamente le richieste non-GET e quelle a domini esterni.
+  if (req.method !== 'GET' || !isSameOrigin(url)) {
+    return;
+  }
+
+  // Ignora completamente il flusso di autenticazione e gli eventi SSE.
+  if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/ingest/events')) {
+    return; // Lascia che la richiesta vada direttamente alla rete.
+  }
+  // --- FINE BLOCCO DI BYPASS ---
 
   // 1) IMAGES: cache-first (includes /api/img)
   if (req.destination === 'image' || url.pathname.startsWith('/api/img')) {
@@ -90,7 +92,6 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       } catch {
-        // last-resort: shell fallback image if you add one
         return new Response('', { status: 504 });
       }
     })());
@@ -100,8 +101,7 @@ self.addEventListener('fetch', (event) => {
   // 2) API: stale-while-revalidate for allowlisted endpoints only
   if (url.pathname.startsWith('/api/')) {
     if (!apiCacheable(url.pathname)) {
-      // network-only for sensitive or non-cacheable API calls
-      return; // let default fetch proceed
+      return;
     }
     event.respondWith((async () => {
       const cache = await caches.open(C_API);
@@ -124,7 +124,6 @@ self.addEventListener('fetch', (event) => {
         const preload = 'preloadResponse' in event ? await event.preloadResponse : null;
         if (preload) return preload;
         const res = await fetch(req);
-        // Optionally refresh cached shell if index requested
         if (url.pathname === '/' || url.pathname === '/index.html') {
           try { (await caches.open(C_STATIC)).put(req, res.clone()); } catch {}
         }
@@ -152,6 +151,4 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
-  // default: pass-through
 });

@@ -2042,7 +2042,6 @@ async def auth_login(request: Request):
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request, bg: BackgroundTasks):
-    # --- 1. VALIDAZIONE INIZIALE E RECUPERO DELLO STATO ---
     log.info("[AUTH/CALLBACK] Ricevuta richiesta da Google. QS=%s", str(request.query_params))
     
     code = request.query_params.get("code")
@@ -2050,66 +2049,76 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
     if not code or not state_from_qs:
         log.error("[AUTH/CALLBACK] Parametri 'code' o 'state' mancanti.")
-        return RedirectResponse("/?auth_error=missing_params", status_code=303)
+        return RedirectResponse("/?auth_error=missing_params", status_code=303, headers={"Cache-Control":"no-store"})
+
+    # --- INIZIO PATCH IDEMPOTENZA 1: Controllo stato già usato ---
+    used_key = f"auth:state:used:{state_from_qs}"
+    if redis_client and redis_client.get(used_key):
+        log.info("[AUTH/CALLBACK] Stato già processato. Ignoro doppio callback.")
+        return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
+    # --- FINE PATCH IDEMPOTENZA 1 ---
 
     sid_from_state, nonce = (state_from_qs.split(".", 1) if "." in state_from_qs else (None, None))
     sid_from_session = request.session.get("sid")
 
     if not sid_from_session:
         log.error("[AUTH/CALLBACK] Sessione persa. Impossibile verificare lo stato.")
-        return RedirectResponse("/?auth_error=session_lost", status_code=303)
+        return RedirectResponse("/?auth_error=session_lost", status_code=303, headers={"Cache-Control":"no-store"})
 
     if sid_from_session != sid_from_state:
-        log.warning("[AUTH/CALLBACK] Mismatch di SID: sessione=%s, state=%s. Potenziale CSRF.", sid_from_session, sid_from_state)
-        return RedirectResponse("/?auth_error=state_mismatch", status_code=303)
+        log.warning("[AUTH/CALLBACK] Mismatch di SID: sessione=%s, state=%s.", sid_from_session, sid_from_state)
+        return RedirectResponse("/?auth_error=state_mismatch", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # Carica il code_verifier salvato su Redis
     pkce_verifier = None
+    nonce_found_in_redis = False
     if redis_client and nonce:
         try:
             raw_entry = redis_client.get(_get_pending_auth_nonce_key(sid_from_session, nonce))
             if raw_entry:
+                nonce_found_in_redis = True
                 entry = json.loads(raw_entry)
                 pkce_verifier = entry.get("pkce")
-                # IMPORTANTE: Il nonce è monouso. Cancellalo subito.
-                redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
-            else:
-                log.warning("[AUTH/CALLBACK] Nonce non trovato in Redis. Potrebbe essere scaduto o già usato.")
-                # Non bloccare subito, potrebbe essere un doppio callback di un login già riuscito.
+                # Non cancelliamo subito il nonce, lo facciamo solo dopo il successo
         except Exception as e:
             log.error("[AUTH/CALLBACK] Errore nel recupero del nonce da Redis: %s", e)
-            return RedirectResponse("/?auth_error=store_failure", status_code=303)
+            return RedirectResponse("/?auth_error=store_failure", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- 2. SCAMBIO DEL CODICE PER IL TOKEN ---
+    # --- INIZIO PATCH IDEMPOTENZA 2: Gestione nonce mancante ---
+    if not nonce_found_in_redis:
+        log.warning("[AUTH/CALLBACK] Nonce non trovato in Redis. Potrebbe essere scaduto o già usato.")
+        user_id_in_session = request.session.get("user_id")
+        if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
+            log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
+            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
+        else:
+            log.error("[AUTH/CALLBACK] Nonce non valido e nessun utente in sessione. Blocco.")
+            return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
+    # --- FINE PATCH IDEMPOTENZA 2 ---
+
     try:
         flow = Flow.from_client_secrets_file(
             CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI
         )
         
-        # Se usiamo PKCE, dobbiamo fornire il verifier
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
         
         log.info("[AUTH] Inizio fetch_token. redirect_uri=%s, pkce_present=%s", flow.redirect_uri, bool(pkce_verifier))
 
-        # Questa è la chiamata critica. Usa 'authorization_response' per passare l'URL completo.
         flow.fetch_token(authorization_response=str(request.url))
         
         creds = flow.credentials
-        log.info("[AUTH] fetch_token completato con successo. Scopes ottenuti: %s", creds.scopes)
+        log.info("[AUTH] fetch_token completato con successo. Scopes: %s", creds.scopes)
 
     except InvalidGrantError as e:
-        # Logga l'errore specifico fornito da Google
         error_details = getattr(e, "oauth2_error", {})
         error_description = error_details.get("error_description", str(e))
         log.error("[AUTH] InvalidGrantError: %s. Dettagli: %s", error_description, error_details)
-        log.error("[AUTH] Diagnostica: redirect_uri_usato=%s, pkce_usato=%s", REDIRECT_URI, bool(pkce_verifier))
-        return RedirectResponse(f"/?auth_error=invalid_grant&reason={quote(error_description)}", status_code=303)
+        return RedirectResponse(f"/?auth_error=invalid_grant&reason={quote(error_description)}", status_code=303, headers={"Cache-Control":"no-store"})
     except Exception as e:
         log.error("[AUTH] Errore imprevisto durante fetch_token: %s", e, exc_info=True)
-        return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303)
+        return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- 3. USO DELLE CREDENZIALI PER OTTENERE IL PROFILO UTENTE ---
     try:
         profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
         profile = profile_service.userinfo().get().execute()
@@ -2120,28 +2129,38 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         if not email or not user_id:
             raise ValueError("Email o ID utente non presenti nel profilo Google.")
         
-        log.info("[AUTH] Profilo utente recuperato con successo per %s (ID: %s)", email, user_id)
+        log.info("[AUTH] Profilo utente recuperato con successo per %s", email)
 
     except Exception as e:
         log.error("[AUTH] Errore durante la chiamata a userinfo: %s", e, exc_info=True)
-        return RedirectResponse("/?auth_error=userinfo_failed", status_code=303)
+        return RedirectResponse("/?auth_error=userinfo_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- 4. SALVATAGGIO DELLA SESSIONE E DEI DATI UTENTE ---
     request.session["user_email"] = email
     request.session["user_id"] = user_id
     CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
     save_credentials_store()
     
-    # Avvia i processi in background se è un nuovo utente
+    # --- INIZIO PATCH IDEMPOTENZA 3: Marca lo stato come usato ---
+    if redis_client:
+        try:
+            redis_client.setex(used_key, 600, "1")  # Marca come usato per 10 minuti
+            # Pulisci il nonce solo dopo il successo
+            redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
+        except Exception as e:
+            log.warning("[AUTH] Impossibile marcare lo stato come usato: %s", e)
+    
+    _clear_pending_auth(request) # Rimuove i dati temporanei dal cookie di sessione
+    # --- FINE PATCH IDEMPOTENZA 3 ---
+    
     is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
     if is_new_user:
-        log.info(f"Nuovo utente: {email}. Avvio ingestione iniziale in background.")
+        log.info(f"Nuovo utente: {email}. Avvio ingestione iniziale.")
         bg.add_task(kickstart_initial_ingestion, user_id)
     
     await ensure_user_defaults(user_id)
 
     log.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
-    return RedirectResponse("/?authenticated=true", status_code=303)
+    return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
 
 async def get_user_settings(user_id: str) -> dict | None:
     # usa lo store già esistente su file (SETTINGS_STORE)
