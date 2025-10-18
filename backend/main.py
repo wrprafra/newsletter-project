@@ -21,7 +21,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from backend.database import db, initialize_db, Newsletter, DomainTypeOverride
 from collections import defaultdict
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Header, BackgroundTasks, Request, HTTPException, Response, APIRouter, Query, FastAPI
