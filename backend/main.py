@@ -52,6 +52,8 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
+import logging
+logging.info(f"[BOOT] SESSION_SECRET loaded: '{os.getenv('SESSION_SECRET')}'")
 import openai
 from html import escape as html_escape
 import sys
@@ -2098,6 +2100,9 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     
     if not pkce_verifier:
         log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Potrebbe essere scaduto o già usato.", mask(nonce))
+
+    if not pkce_verifier:
+        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Il login potrebbe essere scaduto (>30 min) o già utilizzato.", mask(nonce))
         user_id_in_session = request.session.get("user_id")
         if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
             log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
@@ -2167,29 +2172,6 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         jdump(dict(response.headers))
     )
     return response
-
-@router_api.get("/auth/me")
-async def auth_me(request: Request):
-    # --- NUOVO LOG ---
-    log.info(
-        "[AUTH/ME] Richiesta ricevuta. Sessione: sid=%s, user_id=%s. Cookie header: %s",
-        request.session.get('sid'), request.session.get('user_id'), request.headers.get('cookie')
-    )
-    
-    user_id = request.session.get("user_id")
-    email = request.session.get("user_email")
-
-    if not user_id:
-        log.warning("[AUTH/ME] user_id non trovato in sessione. Rispondo 401.")
-        return JSONResponse({"detail": "Utente non autenticato."}, status_code=401)
-
-    response_data = {
-        "user_id": user_id,
-        "email": email,
-        "has_creds": bool(CREDENTIALS_STORE.get(user_id))
-    }
-    log.info("[AUTH/ME] Utente autenticato. Rispondo 200 con: %s", jdump(response_data))
-    return response_data
 
 
 async def get_user_settings(user_id: str) -> dict | None:
