@@ -132,9 +132,8 @@ def _load_pending_auth(request: Request) -> dict:
                 return d
         except Exception as e:
             logging.warning(f"[AUTH] redis get failed: {e}")
-    d = request.session.get("pending_auth") or {}
-    logging.info(f"[AUTH] load_pending_auth(session) sid={sid} keys={list(d.keys())}")
-    return d
+    # Rimuovi il fallback alla sessione, restituisci un dizionario vuoto se Redis fallisce.
+    return {}
 
 def _clear_pending_auth(request: Request) -> None:
     sid = request.session.get("sid")
@@ -631,16 +630,15 @@ def _pending_auth(request: Request) -> dict:
 def _save_pending_auth(request: Request, data: dict):
     sid = request.session.get("sid")
     if not sid: return
-    ok = False
     if redis_client:
         try:
             redis_client.set(_get_pending_auth_key(sid), json.dumps(data), ex=AUTH_PENDING_TTL)
-            ok = True
+            logging.info(f"[AUTH] save_pending_auth sid={sid} via=redis keys={list(data.keys())}")
         except Exception as e:
             logging.error(f"[AUTH] redis set failed: {e}")
-    # fallback sempre
-    request.session["pending_auth"] = data
-    logging.info(f"[AUTH] save_pending_auth sid={sid} via={'redis+session' if ok else 'session-only'} keys={list(data.keys())}")
+    else:
+        # Se Redis non è disponibile, logga un errore grave perché l'autenticazione fallirà.
+        logging.error("[AUTH] save_pending_auth failed: Redis client not available.")
 
 def _cleanup_pending_auth(request: Request):
     """
@@ -1260,11 +1258,11 @@ logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
-    session_cookie="nl_sess",
-    same_site="lax",
-    https_only=SESSION_HTTPS_ONLY,
+    session_cookie="__Host-nl_sess",  # Prefisso per cookie host-only
+    same_site="none",                  # Invia sempre, necessario per redirect OAuth
+    https_only=True,                   # Obbligatorio con SameSite=None
     max_age=60*60*24*7,
-    domain=SESSION_DOMAIN if IS_PROD else None,
+    domain=None,                       # Rimuovi il dominio per i cookie __Host-*
 )
 
 FRONTEND_ORIGINS = [
@@ -1305,15 +1303,19 @@ class UserSettingsIn(BaseModel):
     preferred_image_source: t.Optional[str] = Field(default=None, description="pixabay | google_photos")
     hidden_domains: t.Optional[list[str]] = Field(default=None, description="lista domini da nascondere")
 
-@router_api.get("/auth/me")  # Spostato su router_api per mantenere il prefisso /api
+@router_api.get("/auth/me")
 async def auth_me(request: Request):
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
 
-    if not user_id or user_id not in CREDENTIALS_STORE:
-        return JSONResponse({"email": None, "logged_in": False}, status_code=401)
+    if not user_id:
+        return JSONResponse({"detail": "Utente non autenticato."}, status_code=401)
 
-    return {"email": email, "logged_in": True}
+    return {
+        "user_id": user_id,
+        "email": email,
+        "has_creds": bool(CREDENTIALS_STORE.get(user_id))
+    }
 
 @router_settings.get("")
 def get_settings(request: Request):
@@ -1971,15 +1973,7 @@ async def auth_login(request: Request):
         sid = str(uuid.uuid4())
         request.session["sid"] = sid
     
-    _cleanup_pending_auth(request)
-    pa = _pending_auth(request)
-
-    if pa:
-        existing_nonce, data = next(reversed(list(pa.items())))
-        auth_url = data.get("auth_url")
-        if auth_url:
-            logging.info("[AUTH/LOGIN] Riutilizzo auth in sospeso per sid=%s", sid)
-            return RedirectResponse(auth_url, status_code=302)
+    request.session.pop("pending_auth", None)
 
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
@@ -2004,13 +1998,6 @@ async def auth_login(request: Request):
         code_challenge=code_challenge,
         code_challenge_method="S256"
     )
-
-    pa[nonce] = {
-        "pkce": code_verifier,
-        "auth_url": auth_url,
-        "ts": time.time(),
-    }
-    _save_pending_auth(request, pa)
 
     if not redis_client:
         logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
@@ -2158,6 +2145,8 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         bg.add_task(kickstart_initial_ingestion, user_id)
     
     await ensure_user_defaults(user_id)
+
+    _clear_pending_auth(request)
 
     log.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
     return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
