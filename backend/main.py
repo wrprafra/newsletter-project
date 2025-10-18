@@ -1,12 +1,11 @@
 import os
 import base64
 import re
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+
 import secrets
 import time
 import asyncio
-
-# Forza rebuild
-
 import httpx
 import json
 import ssl
