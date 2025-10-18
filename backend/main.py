@@ -1263,6 +1263,10 @@ FRONTEND_ORIGINS = [
 
 logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
 logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
+
+# Define SESSION_HTTPS_ONLY before use
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "0").lower() in ("1", "true", "yes")
+
 logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
 # ⬇️ middleware DOPO aver creato l’app
