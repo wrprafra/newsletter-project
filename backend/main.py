@@ -1236,18 +1236,30 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
     return Response(content=data, media_type=ctype,
                     headers={"Cache-Control":"public,max-age=31536000,immutable"})
 
-SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")  # es: ".thegist.tech"
-IS_PROD = bool(SESSION_DOMAIN)
+APP_ENV = os.getenv("APP_ENV", "dev").lower()
+IS_PROD = APP_ENV == "prod"
 
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+# Impostazioni dei cookie basate sull'ambiente
+COOKIE_NAME = "__Host-nl_sess" if IS_PROD else "nl_sess"
+COOKIE_SECURE = IS_PROD
+COOKIE_SAMESITE = "none" if IS_PROD else "lax"
+
+# Impostazioni URI basate sull'ambiente
+REDIRECT_URI = os.getenv("REDIRECT_URI") or (
+    "https://app.thegist.tech/auth/callback" if IS_PROD
+    else "http://localhost:8000/auth/callback"
+)
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN") or (
+    "https://app.thegist.tech" if IS_PROD
+    else "http://localhost:5173"
+)
 FRONTEND_ORIGINS = [
     FRONTEND_ORIGIN,
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
+    "https://app.thegist.tech", # Assicurati che sia sempre presente
 ]
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").strip().lower() in {"true","1","t","yes","y"}
 
 logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
 logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
@@ -1257,11 +1269,11 @@ logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
-    session_cookie="__Host-nl_sess",  # Prefisso per cookie host-only
-    same_site="none",                  # Invia sempre, necessario per redirect OAuth
-    https_only=True,                   # Obbligatorio con SameSite=None
+    session_cookie=COOKIE_NAME,
+    same_site=COOKIE_SAMESITE,
+    https_only=COOKIE_SECURE,
     max_age=60*60*24*7,
-    domain=None,                       # Rimuovi il dominio per i cookie __Host-*
+    domain=None,  # Corretto: domain deve essere None per i cookie __Host-*
 )
 
 # --- NUOVO LOG DI VERIFICA ---
@@ -2031,13 +2043,13 @@ async def auth_login(request: Request):
 
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
     response.set_cookie(
-        "__Host-nl_pkce",
+        "__Host-nl_pkce" if IS_PROD else "nl_pkce",
         value=code_verifier,
         max_age=600,
         path="/",
-        secure=True,
+        secure=COOKIE_SECURE,
         httponly=True,
-        samesite="none",
+        samesite=COOKIE_SAMESITE,
     )
 
     return response
