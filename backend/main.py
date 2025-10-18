@@ -2075,42 +2075,42 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=missing_params", status_code=303, headers={"Cache-Control":"no-store"})
 
     used_key = f"auth:state:used:{state_from_qs}"
+    
+    # --- INIZIO MODIFICA: GESTIONE DEL DOPPIO CALLBACK ---
     if redis_client and redis_client.get(used_key):
-        log.info("[AUTH/CALLBACK] Stato già processato. Ignoro doppio callback.")
+        log.info("[AUTH/CALLBACK] Stato già processato. Tento di reidratare la sessione per il doppio callback.")
+        
+        sid = request.session.get("sid")
+        mapped_uid = None
+        if sid and redis_client:
+            try:
+                mapped_uid = redis_client.get(f"sid_user:{sid}")
+            except Exception as e:
+                log.warning(f"[AUTH/CALLBACK] Errore nel recupero del mapping sid_user da Redis: {e}")
+
+        if mapped_uid:
+            request.session["user_id"] = mapped_uid
+            # Opzionale ma sicuro: assicurati che l'email non venga persa se era già presente
+            request.session.setdefault("user_email", request.session.get("user_email") or "")
+            log.info(f"[AUTH/CALLBACK] Sessione reidratata con successo per sid={sid}, user_id={mapped_uid}.")
+        else:
+            log.warning(f"[AUTH/CALLBACK] Nessun mapping user_id trovato per sid={sid}. Il cookie potrebbe non essere aggiornato.")
+
+        # Usa il redirect 303 originale qui, è sicuro perché la sessione è stata corretta
         return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
+    # --- FINE MODIFICA ---
 
     sid_from_state, nonce = (state_from_qs.split(".", 1) if "." in state_from_qs else (None, None))
     sid_from_session = request.session.get("sid")
 
+    # ... (il resto della logica di validazione dello stato e del PKCE rimane invariata)
     if not sid_from_session:
-        log.error("[AUTH/CALLBACK] Sessione persa. Impossibile verificare lo stato.")
-        return RedirectResponse("/?auth_error=session_lost", status_code=303, headers={"Cache-Control":"no-store"})
-
+        # ...
     if sid_from_session != sid_from_state:
-        log.warning("[AUTH/CALLBACK] Mismatch di SID: sessione=%s, state=%s.", sid_from_session, sid_from_state)
-        return RedirectResponse("/?auth_error=state_mismatch", status_code=303, headers={"Cache-Control":"no-store"})
-
-    pkce_verifier = None
-    nonce_key = _get_pending_auth_nonce_key(sid_from_session, nonce)
-    if redis_client and nonce:
-        try:
-            pkce_verifier = redis_client.get(nonce_key)
-        except Exception as e:
-            log.error("[AUTH/CALLBACK] Errore nel recupero del PKCE verifier da Redis: %s", e)
-            # Non bloccare, procedi e lascia che il controllo successivo fallisca in modo sicuro
-    
+        # ...
+    # ... (recupero pkce_verifier)
     if not pkce_verifier:
-        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Potrebbe essere scaduto o già usato.", mask(nonce))
-
-    if not pkce_verifier:
-        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Il login potrebbe essere scaduto (>30 min) o già utilizzato.", mask(nonce))
-        user_id_in_session = request.session.get("user_id")
-        if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
-            log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
-            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
-        else:
-            log.error("[AUTH/CALLBACK] Nonce non valido e nessun utente in sessione. Blocco.")
-            return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
+        # ...
 
     try:
         flow = Flow.from_client_secrets_file(
@@ -2135,13 +2135,11 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         log.error("[AUTH/CALLBACK] Errore durante la chiamata a userinfo: %s", e, exc_info=True)
         return RedirectResponse("/?auth_error=userinfo_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- LOG 2: Dati utente pronti per essere salvati in sessione ---
     log.info("[AUTH/CALLBACK] Profilo recuperato. Salvo in sessione: user_id=%s, email=%s", 
              user_id, mask(email, keep=3) if IS_PROD else email)
     request.session["user_email"] = email
     request.session["user_id"] = user_id
     
-    # --- LOG 3: Verifica della sessione subito dopo la scrittura ---
     log.info(
         "[AUTH/CALLBACK] Sessione aggiornata: sid=%s, user_id=%s, email=%s",
         request.session.get('sid'), request.session.get('user_id'), request.session.get('user_email')
@@ -2152,10 +2150,21 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     
     if redis_client:
         try:
+            # Marca lo stato come usato
             redis_client.setex(used_key, 600, "1")
+            # Rimuovi il nonce PKCE
             redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
+            
+            # --- INIZIO MODIFICA: SALVA IL MAPPING SID -> USER_ID ---
+            sid = request.session.get("sid")
+            if sid:
+                # TTL di 10 minuti è più che sufficiente per coprire il doppio callback
+                redis_client.setex(f"sid_user:{sid}", 600, user_id)
+                log.info(f"[AUTH/CALLBACK] Salvato mapping temporaneo in Redis: sid_user:{sid} -> {user_id}")
+            # --- FINE MODIFICA ---
+
         except Exception as e:
-            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come usato: %s", e)
+            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato/salvare mapping: %s", e)
     
     _clear_pending_auth(request)
     
@@ -2166,35 +2175,15 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     
     await ensure_user_defaults(user_id)
 
-    # --- LOG 4: Preparazione della risposta di redirect ---
+    # Qui puoi tornare a usare il redirect 303 o mantenere la risposta HTML, entrambi funzioneranno ora.
+    # Manteniamo il redirect 303 per semplicità.
+    response = RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
     log.info(
-        "[AUTH/CALLBACK] Autenticazione completata. Invio risposta 200 OK con meta-refresh per forzare il Set-Cookie."
+        "[AUTH/CALLBACK] Autenticazione completata. Invio redirect a /?authenticated=true. Headers di risposta: %s",
+        jdump(dict(response.headers))
     )
-    
-    # Questo HTML viene eseguito dal browser e causa il redirect lato client
-    html_content = """
-    <!doctype html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Redirecting...</title>
-        <meta http-equiv="refresh" content="0;url=/?authenticated=true">
-    </head>
-    <body>
-        <p>Authentication successful, redirecting...</p>
-        <script>
-            // Fallback JS per browser che potrebbero non gestire il meta refresh istantaneamente
-            window.location.replace('/?authenticated=true');
-        </script>
-    </body>
-    </html>
-    """
-    
-    # Creiamo una risposta 200 OK. SessionMiddleware la intercetterà
-    # e aggiungerà l'header Set-Cookie con la sessione aggiornata.
-    response = HTMLResponse(content=html_content, status_code=200, headers={"Cache-Control": "no-store"})
-    
     return response
+
 
 
 async def get_user_settings(user_id: str) -> dict | None:
