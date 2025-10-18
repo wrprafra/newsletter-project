@@ -1265,6 +1265,12 @@ app.add_middleware(
     domain=None,                       # Rimuovi il dominio per i cookie __Host-*
 )
 
+# --- NUOVO LOG DI VERIFICA ---
+log.info(
+    "[CFG] SessionMiddleware configurato con: cookie=%s, samesite=%s, https_only=%s, domain=%s",
+    "__Host-nl_sess", "none", True, None
+)
+
 FRONTEND_ORIGINS = [
     os.getenv("FRONTEND_ORIGIN", "https://app.thegist.tech"),
     "http://localhost:5173",
@@ -1305,17 +1311,27 @@ class UserSettingsIn(BaseModel):
 
 @router_api.get("/auth/me")
 async def auth_me(request: Request):
+    # --- NUOVO LOG ---
+    log.info(
+        "[AUTH/ME] Richiesta ricevuta. Sessione: sid=%s, user_id=%s. Cookie header: %s",
+        request.session.get('sid'), request.session.get('user_id'), request.headers.get('cookie')
+    )
+    
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
 
     if not user_id:
+        log.warning("[AUTH/ME] user_id non trovato in sessione. Rispondo 401.")
         return JSONResponse({"detail": "Utente non autenticato."}, status_code=401)
 
-    return {
+    response_data = {
         "user_id": user_id,
         "email": email,
         "has_creds": bool(CREDENTIALS_STORE.get(user_id))
     }
+    log.info("[AUTH/ME] Utente autenticato. Rispondo 200 con: %s", jdump(response_data))
+    return response_data
+
 
 @router_settings.get("")
 def get_settings(request: Request):
@@ -2029,8 +2045,13 @@ async def auth_login(request: Request):
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request, bg: BackgroundTasks):
-    log.info("[AUTH/CALLBACK] Ricevuta richiesta da Google. QS=%s", str(request.query_params))
-    
+    # --- LOG 1: Stato iniziale al callback ---
+    log.info(
+        "[AUTH/CALLBACK] Inizio. Sessione iniziale: sid=%s, user_id=%s. Headers: %s",
+        request.session.get('sid'), request.session.get('user_id'),
+        jdump({"cookie": request.headers.get("cookie"), "referer": request.headers.get("referer")})
+    )
+
     code = request.query_params.get("code")
     state_from_qs = request.query_params.get("state")
 
@@ -2038,12 +2059,10 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         log.error("[AUTH/CALLBACK] Parametri 'code' o 'state' mancanti.")
         return RedirectResponse("/?auth_error=missing_params", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- INIZIO PATCH IDEMPOTENZA 1: Controllo stato già usato ---
     used_key = f"auth:state:used:{state_from_qs}"
     if redis_client and redis_client.get(used_key):
         log.info("[AUTH/CALLBACK] Stato già processato. Ignoro doppio callback.")
         return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
-    # --- FINE PATCH IDEMPOTENZA 1 ---
 
     sid_from_state, nonce = (state_from_qs.split(".", 1) if "." in state_from_qs else (None, None))
     sid_from_session = request.session.get("sid")
@@ -2065,12 +2084,10 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
                 nonce_found_in_redis = True
                 entry = json.loads(raw_entry)
                 pkce_verifier = entry.get("pkce")
-                # Non cancelliamo subito il nonce, lo facciamo solo dopo il successo
         except Exception as e:
             log.error("[AUTH/CALLBACK] Errore nel recupero del nonce da Redis: %s", e)
             return RedirectResponse("/?auth_error=store_failure", status_code=303, headers={"Cache-Control":"no-store"})
 
-    # --- INIZIO PATCH IDEMPOTENZA 2: Gestione nonce mancante ---
     if not nonce_found_in_redis:
         log.warning("[AUTH/CALLBACK] Nonce non trovato in Redis. Potrebbe essere scaduto o già usato.")
         user_id_in_session = request.session.get("user_id")
@@ -2080,76 +2097,68 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         else:
             log.error("[AUTH/CALLBACK] Nonce non valido e nessun utente in sessione. Blocco.")
             return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
-    # --- FINE PATCH IDEMPOTENZA 2 ---
 
     try:
         flow = Flow.from_client_secrets_file(
             CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI
         )
-        
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
-        
-        log.info("[AUTH] Inizio fetch_token. redirect_uri=%s, pkce_present=%s", flow.redirect_uri, bool(pkce_verifier))
-
         flow.fetch_token(authorization_response=str(request.url))
-        
         creds = flow.credentials
-        log.info("[AUTH] fetch_token completato con successo. Scopes: %s", creds.scopes)
-
-    except InvalidGrantError as e:
-        error_details = getattr(e, "oauth2_error", {})
-        error_description = error_details.get("error_description", str(e))
-        log.error("[AUTH] InvalidGrantError: %s. Dettagli: %s", error_description, error_details)
-        return RedirectResponse(f"/?auth_error=invalid_grant&reason={quote(error_description)}", status_code=303, headers={"Cache-Control":"no-store"})
     except Exception as e:
-        log.error("[AUTH] Errore imprevisto durante fetch_token: %s", e, exc_info=True)
+        log.error("[AUTH/CALLBACK] Errore durante fetch_token: %s", e, exc_info=True)
         return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
     try:
         profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
         profile = profile_service.userinfo().get().execute()
-        
         email = profile.get("email")
         user_id = profile.get("id")
-
         if not email or not user_id:
             raise ValueError("Email o ID utente non presenti nel profilo Google.")
-        
-        log.info("[AUTH] Profilo utente recuperato con successo per %s", email)
-
     except Exception as e:
-        log.error("[AUTH] Errore durante la chiamata a userinfo: %s", e, exc_info=True)
+        log.error("[AUTH/CALLBACK] Errore durante la chiamata a userinfo: %s", e, exc_info=True)
         return RedirectResponse("/?auth_error=userinfo_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
+    # --- LOG 2: Dati utente pronti per essere salvati in sessione ---
+    log.info("[AUTH/CALLBACK] Profilo recuperato. Salvo in sessione: user_id=%s, email=%s", user_id, email)
     request.session["user_email"] = email
     request.session["user_id"] = user_id
+    
+    # --- LOG 3: Verifica della sessione subito dopo la scrittura ---
+    log.info(
+        "[AUTH/CALLBACK] Sessione aggiornata: sid=%s, user_id=%s, email=%s",
+        request.session.get('sid'), request.session.get('user_id'), request.session.get('user_email')
+    )
+
     CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
     save_credentials_store()
     
-    # --- INIZIO PATCH IDEMPOTENZA 3: Marca lo stato come usato ---
     if redis_client:
         try:
-            redis_client.setex(used_key, 600, "1")  # Marca come usato per 10 minuti
-            # Pulisci il nonce solo dopo il successo
+            redis_client.setex(used_key, 600, "1")
             redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
         except Exception as e:
-            log.warning("[AUTH] Impossibile marcare lo stato come usato: %s", e)
+            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come usato: %s", e)
     
-    _clear_pending_auth(request) # Rimuove i dati temporanei dal cookie di sessione
-    # --- FINE PATCH IDEMPOTENZA 3 ---
+    _clear_pending_auth(request)
     
     is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
     if is_new_user:
-        log.info(f"Nuovo utente: {email}. Avvio ingestione iniziale.")
+        log.info(f"[AUTH/CALLBACK] Nuovo utente: {email}. Avvio ingestione iniziale.")
         bg.add_task(kickstart_initial_ingestion, user_id)
     
     await ensure_user_defaults(user_id)
 
-    _clear_pending_auth(request)
+    # --- LOG 4: Preparazione della risposta di redirect ---
+    response = RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
+    log.info(
+        "[AUTH/CALLBACK] Autenticazione completata. Invio redirect a /?authenticated=true. Headers di risposta: %s",
+        jdump(dict(response.headers))
+    )
+    return response
 
-    log.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
-    return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
 
 async def get_user_settings(user_id: str) -> dict | None:
     # usa lo store già esistente su file (SETTINGS_STORE)
