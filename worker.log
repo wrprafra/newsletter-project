@@ -2215,3 +2215,370 @@
 [2025-10-19 18:47:41] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19911a7f5e43af2d"}
 [2025-10-19 18:47:41] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19911a7f5e43af2d", "dur_ms": 253151}
 [2025-10-19 18:47:41] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:42] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Conversion%20Rate&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:43] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:43] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:44] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:44] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1992486f0be66871", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:44] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1992486f0be66871"}
+[2025-10-19 18:47:44] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1992486f0be66871", "dur_ms": 256268}
+[2025-10-19 18:47:44] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:44] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=illustrated%20stories&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:45] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1992f3bee8ccc2de", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:45] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1992f3bee8ccc2de"}
+[2025-10-19 18:47:45] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1992f3bee8ccc2de", "dur_ms": 257879}
+[2025-10-19 18:47:46] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:46] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Upcoming%20Events&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:46] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:47] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:47] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1991e59fea2abbb6", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:47] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1991e59fea2abbb6"}
+[2025-10-19 18:47:47] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1991e59fea2abbb6", "dur_ms": 259378}
+[2025-10-19 18:47:48] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Data%20Usage&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:48] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:48] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19910eac27e31f4a", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:48] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19910eac27e31f4a"}
+[2025-10-19 18:47:48] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19910eac27e31f4a", "dur_ms": 260657}
+[2025-10-19 18:47:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:50] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:50] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:50] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:51] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=global%20population&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:52] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:52] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1990ad7bbcc70003", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:52] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1990ad7bbcc70003"}
+[2025-10-19 18:47:52] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1990ad7bbcc70003", "dur_ms": 263715}
+[2025-10-19 18:47:52] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Urban%20Growth&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:53] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:53] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "199152414c607640", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:53] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "199152414c607640"}
+[2025-10-19 18:47:53] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "199152414c607640", "dur_ms": 265273}
+[2025-10-19 18:47:53] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=click%20statistics&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:53] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:54] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:54] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "199038f2aab4f7a1", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:54] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "199038f2aab4f7a1"}
+[2025-10-19 18:47:54] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "199038f2aab4f7a1", "dur_ms": 266008}
+[2025-10-19 18:47:54] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:54] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:55] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:56] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Merchant%20API&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:56] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:56] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:57] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Terms%20Update&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:57] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:57] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1990ae0344eded40", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:57] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1990ae0344eded40"}
+[2025-10-19 18:47:57] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1990ae0344eded40", "dur_ms": 269117}
+[2025-10-19 18:47:58] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:58] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1990c6d79e625db8", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:58] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1990c6d79e625db8"}
+[2025-10-19 18:47:58] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1990c6d79e625db8", "dur_ms": 269858}
+[2025-10-19 18:47:58] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Error%20Tracking&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:58] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:59] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:59] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:59] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:59] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198fb0c358f82041", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:59] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198fb0c358f82041"}
+[2025-10-19 18:47:59] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198fb0c358f82041", "dur_ms": 271100}
+[2025-10-19 18:48:00] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:00] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:00] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1990e5989be8615b", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:00] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1990e5989be8615b"}
+[2025-10-19 18:48:00] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1990e5989be8615b", "dur_ms": 272424}
+[2025-10-19 18:48:00] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Horse%20Racing%20Insights&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:01] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:01] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19904cc09e9f8ac1", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:01] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19904cc09e9f8ac1"}
+[2025-10-19 18:48:01] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19904cc09e9f8ac1", "dur_ms": 273209}
+[2025-10-19 18:48:01] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:02] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:02] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:02] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:02] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:02] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Misleading%20Averages&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:03] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Student%20Discount&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:03] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:03] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19900aa5d087ab79", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19900aa5d087ab79"}
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19900aa5d087ab79", "dur_ms": 275121}
+[2025-10-19 18:48:03] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19905dae3d2a8240", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19905dae3d2a8240"}
+[2025-10-19 18:48:03] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19905dae3d2a8240", "dur_ms": 275369}
+[2025-10-19 18:48:03] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=fast%20file%20transfers&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:04] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:04] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f7b860c1da5ac", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:04] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f7b860c1da5ac"}
+[2025-10-19 18:48:04] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f7b860c1da5ac", "dur_ms": 275798}
+[2025-10-19 18:48:05] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:05] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:06] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:06] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:06] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Smooth%20Scrolling&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:06] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Old%20Reports%20Transition&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:06] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:07] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f829869b78254", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f829869b78254"}
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f829869b78254", "dur_ms": 278584}
+[2025-10-19 18:48:07] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f669773af6398", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f669773af6398"}
+[2025-10-19 18:48:07] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f669773af6398", "dur_ms": 278456}
+[2025-10-19 18:48:07] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:07] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Gaming%20Profile%20Update&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:08] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:08] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f427a23d0ad34", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:08] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f427a23d0ad34"}
+[2025-10-19 18:48:08] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f427a23d0ad34", "dur_ms": 279725}
+[2025-10-19 18:48:08] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:09] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:09] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:09] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:09] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Logs%20product&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:10] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=AI%20design%20tool&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:10] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:10] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:10] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f34d31f968e92", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:10] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f34d31f968e92"}
+[2025-10-19 18:48:10] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f34d31f968e92", "dur_ms": 281315}
+[2025-10-19 18:48:10] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:11] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f146a859744e0", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:11] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f146a859744e0"}
+[2025-10-19 18:48:11] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f146a859744e0", "dur_ms": 281458}
+[2025-10-19 18:48:11] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:11] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=creative%20controls&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:12] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:12] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f1feaba5145de", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:12] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f1feaba5145de"}
+[2025-10-19 18:48:12] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f1feaba5145de", "dur_ms": 282755}
+[2025-10-19 18:48:12] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:12] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:13] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:13] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:13] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Viral%20Billboard&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:13] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=financial%20trading&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:14] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:14] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f13b90d5c1a75", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f13b90d5c1a75"}
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f13b90d5c1a75", "dur_ms": 284689}
+[2025-10-19 18:48:14] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198f0348fb7fe717", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198f0348fb7fe717"}
+[2025-10-19 18:48:14] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198f0348fb7fe717", "dur_ms": 284784}
+[2025-10-19 18:48:14] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:15] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Smart%20Navigation&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:15] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:16] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:16] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198ebd7426baffe9", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:16] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198ebd7426baffe9"}
+[2025-10-19 18:48:16] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198ebd7426baffe9", "dur_ms": 286391}
+[2025-10-19 18:48:16] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:16] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:16] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=availability%20map&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:16] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:17] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=data%20protection&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:17] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:17] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e6cd7b5b25b10", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:17] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e6cd7b5b25b10"}
+[2025-10-19 18:48:17] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e6cd7b5b25b10", "dur_ms": 287599}
+[2025-10-19 18:48:17] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:17] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:18] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198eb0cf4c6b9316", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:18] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198eb0cf4c6b9316"}
+[2025-10-19 18:48:18] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198eb0cf4c6b9316", "dur_ms": 288365}
+[2025-10-19 18:48:18] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:18] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:18] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=cookie%20consent&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:18] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:19] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:19] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:19] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Horse%20Weight%20Data&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:19] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198eb7919e9da09b", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:19] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198eb7919e9da09b"}
+[2025-10-19 18:48:19] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198eb7919e9da09b", "dur_ms": 290055}
+[2025-10-19 18:48:19] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:20] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:20] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e32c8e6392b61", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:20] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e32c8e6392b61"}
+[2025-10-19 18:48:20] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e32c8e6392b61", "dur_ms": 290709}
+[2025-10-19 18:48:21] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:22] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198eb0e7fea34f52", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:22] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198eb0e7fea34f52"}
+[2025-10-19 18:48:22] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198eb0e7fea34f52", "dur_ms": 292461}
+[2025-10-19 18:48:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:22] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:22] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Password%20Reset&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e32be5bb1dd11", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e32be5bb1dd11"}
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e32be5bb1dd11", "dur_ms": 293363}
+[2025-10-19 18:48:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:23] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e4f957ce0b85d", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e4f957ce0b85d"}
+[2025-10-19 18:48:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e4f957ce0b85d", "dur_ms": 293963}
+[2025-10-19 18:48:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:24] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Credit%20Card%20Charge&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e31806bf3693f", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e31806bf3693f"}
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e31806bf3693f", "dur_ms": 295132}
+[2025-10-19 18:48:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e2f0d1100ead7", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e2f0d1100ead7"}
+[2025-10-19 18:48:25] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e2f0d1100ead7", "dur_ms": 295067}
+[2025-10-19 18:48:26] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:26] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Lago%20d%27Orta%20Trek&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:27] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:27] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:27] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e1c676d802f13", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:27] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e1c676d802f13"}
+[2025-10-19 18:48:27] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e1c676d802f13", "dur_ms": 296582}
+[2025-10-19 18:48:27] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:28] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:28] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:28] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=API%20Upgrade&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:28] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=horse%20racing%20API&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:28] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:29] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e0ab79c3f7c7b", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e0ab79c3f7c7b"}
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e0ab79c3f7c7b", "dur_ms": 297496}
+[2025-10-19 18:48:29] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198e0c2bf6e3e557", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198e0c2bf6e3e557"}
+[2025-10-19 18:48:29] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198e0c2bf6e3e557", "dur_ms": 297951}
+[2025-10-19 18:48:29] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:29] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=effective%20prompts&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:30] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:30] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:30] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198dcad2b2383e8b", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:30] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198dcad2b2383e8b"}
+[2025-10-19 18:48:30] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198dcad2b2383e8b", "dur_ms": 298926}
+[2025-10-19 18:48:30] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:31] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:31] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Application%20Latency&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:31] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:31] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Rate%20Limit%20Error&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:32] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198dc6cbe548f26d", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198dc6cbe548f26d"}
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198dc6cbe548f26d", "dur_ms": 300452}
+[2025-10-19 18:48:32] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:32] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db72bebbcefe4", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db72bebbcefe4"}
+[2025-10-19 18:48:32] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db72bebbcefe4", "dur_ms": 300649}
+[2025-10-19 18:48:33] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:33] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Data%20Restructure&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:33] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:33] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:34] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:34] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:34] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db916fb00972a", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:34] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db916fb00972a"}
+[2025-10-19 18:48:34] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db916fb00972a", "dur_ms": 302612}
+[2025-10-19 18:48:34] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:35] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Performance%20Tracking&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:35] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:36] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:36] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:36] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db6c93cdad837", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:36] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db6c93cdad837"}
+[2025-10-19 18:48:36] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db6c93cdad837", "dur_ms": 304391}
+[2025-10-19 18:48:37] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Alert%20Notification&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:37] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:37] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:37] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db10213ffc5a5", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:37] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db10213ffc5a5"}
+[2025-10-19 18:48:37] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db10213ffc5a5", "dur_ms": 305548}
+[2025-10-19 18:48:38] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Alert%20Setup&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:38] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:38] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:38] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db160b5ef2f64", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:38] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db160b5ef2f64"}
+[2025-10-19 18:48:38] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db160b5ef2f64", "dur_ms": 306421}
+[2025-10-19 18:48:39] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:39] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Track%20Latency&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:39] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:40] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198db09ce8e7d771", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198db09ce8e7d771"}
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198db09ce8e7d771", "dur_ms": 307962}
+[2025-10-19 18:48:40] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d8f862210135a", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d8f862210135a"}
+[2025-10-19 18:48:40] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d8f862210135a", "dur_ms": 308142}
+[2025-10-19 18:48:41] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:41] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:42] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:43] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d73c5b4eb7e71", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d73c5b4eb7e71"}
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d73c5b4eb7e71", "dur_ms": 309945}
+[2025-10-19 18:48:43] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d8f2f2afeb149", "updated_rows": 1, "is_complete": false}
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d8f2f2afeb149"}
+[2025-10-19 18:48:43] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d8f2f2afeb149", "dur_ms": 310333}
+[2025-10-19 18:48:44] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Error%20Notification&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:44] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:45] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d7421e9550793", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:45] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d7421e9550793"}
+[2025-10-19 18:48:45] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d7421e9550793", "dur_ms": 311923}
+[2025-10-19 18:48:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:45] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d75c229fd4d04", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d75c229fd4d04"}
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d75c229fd4d04", "dur_ms": 313061}
+[2025-10-19 18:48:46] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:46] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:46] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d75711b166375", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d75711b166375"}
+[2025-10-19 18:48:46] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d75711b166375", "dur_ms": 313909}
+[2025-10-19 18:48:47] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:48] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:48] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:48] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Project%20Errors&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:48] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d6fe2846ac5e8", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d6fe2846ac5e8"}
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d6fe2846ac5e8", "dur_ms": 315987}
+[2025-10-19 18:48:49] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198ce9bf01cc579b", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198ce9bf01cc579b"}
+[2025-10-19 18:48:49] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198ce9bf01cc579b", "dur_ms": 316495}
+[2025-10-19 18:48:50] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Workspace%20Setup&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:48:50] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:51] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198d5cdccf6a3385", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198d5cdccf6a3385"}
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198d5cdccf6a3385", "dur_ms": 317634}
+[2025-10-19 18:48:51] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:51] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:48:51] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "198ce7cef6af54c3", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "198ce7cef6af54c3"}
+[2025-10-19 18:48:51] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "198ce7cef6af54c3", "dur_ms": 317871}
+[2025-10-19 18:48:52] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
