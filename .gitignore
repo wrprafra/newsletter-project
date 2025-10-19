@@ -40,3 +40,7 @@ backend/user_credentials.json
 /backend/ingestor.txt
 
 *.log
+# secrets
+/data/
+credentials.json
+user_credentials.json
