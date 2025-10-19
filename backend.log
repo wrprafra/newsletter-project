@@ -1495,3 +1495,14 @@
 [2025-10-19 18:46:58] [INFO] [BACKEND] {"type": "http_request", "rid": "1d40ff677f68", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 4}
 [2025-10-19 18:46:58] [INFO] [BACKEND] [{"jobId":"e2408cd3ed564d45ad4f4251841a33b4"}]
 [2025-10-19 18:46:58] [INFO] [BACKEND] {"type": "http_request", "rid": "22ab1a3a1737", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 42}
+[2025-10-19 18:47:03] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "http_request", "rid": "8aebcc5a19ce", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "feed", "rid": "b532d498-bec", "stage": "in", "user_id": "115319619943606682038", "before": "2025-10-14T04:55:49Z|199e113197d79f03", "limit": 20}
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "feed", "rid": "b532d498-bec", "stage": "out", "has_more": true, "page_len": 20, "dur_ms": 98, "db_ms": 95}
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "http_request", "rid": "b532d498-bec", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-14T04%3A55%3A49Z%7C199e113197d79f03", "status": 200, "dur_ms": 103}
+[2025-10-19 18:47:03] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "http_request", "rid": "dd895edaa9dc", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 108}
+[2025-10-19 18:47:03] [INFO] [BACKEND] ["[feed.fetch.ms]",142,"db;dur=96"]
+[2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f5a663ea0cdd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-19 18:47:04] [INFO] [BACKEND] [{"jobId":"e2408cd3ed564d45ad4f4251841a33b4"}]
+[2025-10-19 18:47:04] [INFO] [BACKEND] {"type": "http_request", "rid": "f6bb83f8c334", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 40}
