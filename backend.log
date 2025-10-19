@@ -1506,3 +1506,25 @@
 [2025-10-19 18:47:03] [INFO] [BACKEND] {"type": "http_request", "rid": "f5a663ea0cdd", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
 [2025-10-19 18:47:04] [INFO] [BACKEND] [{"jobId":"e2408cd3ed564d45ad4f4251841a33b4"}]
 [2025-10-19 18:47:04] [INFO] [BACKEND] {"type": "http_request", "rid": "f6bb83f8c334", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 40}
+[2025-10-19 18:47:09] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-19 18:47:09] [INFO] [BACKEND] {"type": "http_request", "rid": "3d982075145a", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-19 18:47:09] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-19 18:47:09] [INFO] [BACKEND] {"type": "http_request", "rid": "af369448ec88", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 3}
+[2025-10-19 18:47:09] [INFO] [BACKEND] {"type": "feed", "rid": "34de201d-829", "stage": "in", "user_id": "115319619943606682038", "before": "2025-10-11T07:04:42Z|199d2160aadd5710", "limit": 20}
+[2025-10-19 18:47:10] [INFO] [BACKEND] {"type": "feed", "rid": "34de201d-829", "stage": "out", "has_more": true, "page_len": 20, "dur_ms": 169, "db_ms": 168}
+[2025-10-19 18:47:10] [INFO] [BACKEND] {"type": "http_request", "rid": "34de201d-829", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-11T07%3A04%3A42Z%7C199d2160aadd5710", "status": 200, "dur_ms": 179}
+[2025-10-19 18:47:10] [INFO] [BACKEND] ["[feed.fetch.ms]",238,"db;dur=169"]
+[2025-10-19 18:47:10] [INFO] [BACKEND] {"type": "http_request", "rid": "37eb6270139f", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-19 18:47:10] [INFO] [BACKEND] [{"jobId":"e2408cd3ed564d45ad4f4251841a33b4"}]
+[2025-10-19 18:47:10] [INFO] [BACKEND] {"type": "http_request", "rid": "fa9cfb8940aa", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 41}
+[2025-10-19 18:47:15] [INFO] [BACKEND] ["Controllo aggiornamenti in background..."]
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "http_request", "rid": "9552aa2638f5", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 2}
+[2025-10-19 18:47:15] [INFO] [BACKEND] [{"reset":false,"cursor":null,"force":false,"inFlight":false,"isIngesting":true}]
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "feed", "rid": "8039b6f4-977", "stage": "in", "user_id": "115319619943606682038", "before": "2025-10-08T22:38:54Z|199c5fa3d4197f99", "limit": 20}
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "feed", "rid": "8039b6f4-977", "stage": "out", "has_more": true, "page_len": 20, "dur_ms": 59, "db_ms": 59}
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "http_request", "rid": "9c610b4b63c1", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 65}
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "http_request", "rid": "8039b6f4-977", "method": "GET", "path": "/api/feed", "query": "page_size=20&before=2025-10-08T22%3A38%3A54Z%7C199c5fa3d4197f99", "status": 200, "dur_ms": 62}
+[2025-10-19 18:47:15] [INFO] [BACKEND] ["[feed.fetch.ms]",79,"db;dur=59"]
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "http_request", "rid": "de552cbacf4d", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 1}
+[2025-10-19 18:47:15] [INFO] [BACKEND] [{"jobId":"e2408cd3ed564d45ad4f4251841a33b4"}]
+[2025-10-19 18:47:15] [INFO] [BACKEND] {"type": "http_request", "rid": "98437d60c387", "method": "POST", "path": "/api/log", "query": "", "status": 204, "dur_ms": 40}
