@@ -2347,6 +2347,47 @@ def get_ingestion_state(user_id: str) -> dict:
     )
     return {"running": bool(active_job), "job_id": active_job}
 
+@router_api.get("/feed/_debug/stats")
+async def feed_debug_stats(request: Request):
+    """
+    Restituisce statistiche di diagnostica sul feed dell'utente corrente.
+    """
+    uid = _current_user_id(request)
+    total = Newsletter.select().where(Newsletter.user_id == uid).count()
+    
+    visible_query = (Newsletter
+                     .select()
+                     .where((Newsletter.user_id == uid) &
+                            (Newsletter.is_complete == True) &
+                            (Newsletter.is_deleted == False)))
+    visible = visible_query.count()
+    
+    unseen_query = (Newsletter
+                    .select()
+                    .where((Newsletter.user_id == uid) &
+                           (Newsletter.enriched == True) &
+                           (Newsletter.is_complete == False) &
+                           (Newsletter.is_deleted == False)))
+    unseen = unseen_query.count()
+    
+    # Trova i thread con duplicati visibili
+    dup_query = (Newsletter
+                 .select(Newsletter.thread_id, fn.COUNT(Newsletter.id).alias("c"))
+                 .where((Newsletter.user_id == uid) & (Newsletter.is_deleted == False))
+                 .group_by(Newsletter.thread_id)
+                 .having(fn.COUNT(Newsletter.id) > 1))
+    
+    dup_threads = [r.thread_id for r in dup_query]
+    
+    return {
+        "user_id": uid,
+        "total_records": total,
+        "visible_in_feed": visible,
+        "enriched_but_not_visible": unseen,
+        "threads_with_visible_duplicates": dup_threads,
+        "count_threads_with_duplicates": len(dup_threads)
+    }
+
 @app.get("/api/feed")
 async def get_feed(
     request: Request,

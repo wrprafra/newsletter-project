@@ -9,14 +9,17 @@ services:
     restart: always
     env_file:
       - .env
+    # --- INIZIO MODIFICA ---
+    environment:
+      # Imposta il feature flag per disattivare la deduplicazione dei thread
+      - THREAD_DEDUP_MODE=off
+    # --- FINE MODIFICA ---
     depends_on:
       - redis
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      # Condivide la cartella dati con gli altri servizi
       - /var/newsletter:/app/data
-      # Monta il file delle credenziali (che si trova in /app/data)
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command:
       - uvicorn
@@ -33,14 +36,17 @@ services:
     restart: always
     depends_on:
       - redis
-      - app # Opzionale, ma assicura che l'app parta prima
+      - app
     env_file:
       - .env
+    # --- INIZIO MODIFICA ---
+    environment:
+      # Il worker deve conoscere la stessa modalità per gestire correttamente i duplicati
+      - THREAD_DEDUP_MODE=off
+    # --- FINE MODIFICA ---
     volumes:
-      # DEVE usare gli stessi volumi dell'app per accedere a DB e credenziali
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-    # Comando per avviare lo script del worker
     command: python -m backend.worker
 
   # 3. Servizio Ingestor (popola la coda)
@@ -52,11 +58,17 @@ services:
       - app
     env_file:
       - .env
+    # --- INIZIO MODIFICA ---
+    environment:
+      # L'ingestor deve sapere se saltare o meno i thread esistenti
+      - THREAD_DEDUP_MODE=off
+      # Aumentiamo i limiti per il backfill in produzione
+      - INGESTOR_BACKFILL_PAGES=25
+      - INGESTOR_BACKFILL_TARGET=1000
+    # --- FINE MODIFICA ---
     volumes:
-      # DEVE usare gli stessi volumi dell'app per accedere a DB e credenziali
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-    # Comando per avviare lo script dell'ingestor
     command: python -m backend.ingestor
 
   # 4. Servizio Redis

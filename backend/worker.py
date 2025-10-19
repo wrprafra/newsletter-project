@@ -32,6 +32,9 @@ from backend.processing_utils import (
 # --- CONFIGURAZIONE ---
 setup_logging("WORKER")
 
+THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
+logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
+
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
 CREDENTIALS_PATH = "/app/data/user_credentials.json"
@@ -180,7 +183,7 @@ async def process_job(job_payload: dict):
         
         # MODIFICA: Evita futuri conflitti di thread_id
         tid = message.get("threadId")
-        if tid:
+        if tid and THREAD_DEDUP_MODE == "skip":
             dup = await asyncio.to_thread(
                 Newsletter.get_or_none,
                 (Newsletter.user_id == user_id) & (Newsletter.thread_id == tid) & (Newsletter.email_id != email_id)
@@ -295,6 +298,8 @@ async def process_job(job_payload: dict):
             logw("enrichment_error", user_id=user_id, email_id=email_id, error=str(e), exc_info=True)
         
         finally:
+            feed_visible = bool(update_data.get("is_complete"))
+            logw("about_to_save", email_id=email_id, thread_id=tid, will_be_visible=feed_visible)
             (Newsletter
                .update(**update_data)
                .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))

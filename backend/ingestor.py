@@ -19,6 +19,9 @@ from backend.database import db, Newsletter, initialize_db
 load_dotenv()
 setup_logging("INGESTOR")
 
+THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
+logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
+
 # --- CONFIGURAZIONE ---
 CREDENTIALS_PATH = "/app/data/user_credentials.json"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -98,6 +101,7 @@ def _gmail_list(gmail, page_token=None):
     backoff = 0.5
     # Aggiunge il filtro per escludere spam e cestino direttamente nella query
     query = f"-in:spam -in:trash ({SEARCH_Q_BASE}) {LABEL_Q}".strip()
+    logging.info(json.dumps({"type":"ingestor","stage":"gmail_list","q":query,"batch":GMAIL_BATCH}))
     for _ in range(6):
         try:
             return gmail.users().messages().list(
@@ -162,19 +166,45 @@ def get_new_emails_for_user(user_id: str, creds_dict: dict) -> list[str]:
             if not msgs:
                 break
 
+            # --- INIZIO MODIFICA: LOG DETTAGLIATI PER PAGINA ---
+            sk_thread = sk_id = 0
+            # --- FINE MODIFICA ---
+
             for m in msgs:
                 mid = m.get("id")
                 tid = m.get("threadId")
 
-                # Se il thread esiste già per questo utente, salta il messaggio.
-                if _exists_thread(user_id, tid):
+                # --- INIZIO MODIFICA: CONTROLLO CON FEATURE FLAG ---
+                if THREAD_DEDUP_MODE == "skip" and _exists_thread(user_id, tid):
+                    sk_thread += 1
+                    logging.info(json.dumps({"type":"ingestor","stage":"skip_thread","user":_scrub(user_id),"thread":tid}))
                     continue
+                # --- FINE MODIFICA ---
                 
-                # Altrimenti, procedi con il controllo sull'ID del messaggio.
                 if mid and not _exists_in_db(user_id, mid):
                     new_ids.append(mid)
+                else:
+                    # --- INIZIO MODIFICA: CONTEGGIO ID SALTATI ---
+                    # Questo ramo viene eseguito se il messaggio non ha un ID
+                    # o se l'ID esiste già nel DB (ma il thread non esisteva, se la flag è off)
+                    sk_id += 1
+                    # --- FINE MODIFICA ---
+
                     if len(new_ids) >= BACKFILL_TARGET:
                         break
+            
+            # --- INIZIO MODIFICA: LOG DI RIEPILOGO PAGINA ---
+            logging.info(json.dumps({
+                "type": "ingestor",
+                "stage": "page_summary",
+                "user": _scrub(user_id),
+                "page": pages + 1,
+                "msgs": len(msgs),
+                "skipped_thread": sk_thread,
+                "skipped_id": sk_id,
+                "queued_so_far": len(new_ids)
+            }))
+            # --- FINE MODIFICA ---
 
             page_token = resp.get('nextPageToken')
             pages += 1
