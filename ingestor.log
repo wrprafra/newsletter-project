@@ -1,0 +1,9 @@
+[2025-10-19 18:42:40] [INFO] [INGESTOR] Logging configurato. L'output verrà scritto da capo su 'ingestor.log'.
+[2025-10-19 18:42:40] [INFO] [INGESTOR] Connesso a Redis.
+[2025-10-19 18:42:40] [INFO] [INGESTOR] DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...
+[2025-10-19 18:42:40] [INFO] [INGESTOR] DB: Assicuro la presenza degli indici...
+[2025-10-19 18:42:40] [INFO] [INGESTOR] DB: Inizializzazione e migrazione completate.
+[2025-10-19 18:42:40] [INFO] [INGESTOR] Ingestor avviato. Tento di acquisire il lock...
+[2025-10-19 18:42:40] [ERROR] [INGESTOR] Un'altra istanza dell'ingestor è già attiva. Chiusura.
+[2025-10-19 18:42:40] [INFO] [INGESTOR] Lock rilasciato.
+[2025-10-19 18:42:40] [INFO] [INGESTOR] Ingestor fermato.

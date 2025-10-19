@@ -3,6 +3,7 @@ venv/
 .venv/
 env/
 .env
+.env.dev
 
 # File di configurazione locale
 credentials.json

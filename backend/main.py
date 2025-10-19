@@ -2,7 +2,7 @@ import os
 import base64
 import re
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
-
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 import secrets
 import time
 import asyncio
@@ -88,8 +88,6 @@ log = logging.getLogger("BACKEND")
 async def lifespan(app: FastAPI):
     logging.info("Evento STARTUP: Inizio avvio applicazione...")
     load_settings_store()
-    # --- INIZIO MODIFICA ---
-    # Assicurati che questa riga sia presente. È il pezzo mancante.
     load_credentials_store()
     # --- FINE MODIFICA ---
     if db.is_closed():
@@ -2576,6 +2574,7 @@ async def run_ingest_job(job_id: str, user_id: str, batch: int, image_source: st
         if not redis_client:
             raise RuntimeError("Redis non disponibile")
 
+        load_credentials_store() # Questa funzione già esiste e fa il lavoro
         creds_dict = CREDENTIALS_STORE.get(user_id)
         if not creds_dict:
             raise RuntimeError(f"Credenziali mancanti per user_id={user_id}")

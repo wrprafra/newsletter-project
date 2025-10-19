@@ -23,7 +23,7 @@ from datetime import datetime
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
-            extract_html_from_payload, parse_sender, clean_html, # <-- AGGIUNTA QUI
+            extract_html_from_payload, parse_sender, clean_html,
             get_ai_summary, get_ai_keyword, get_pixabay_image_by_query, extract_dominant_hex, classify_type_and_topic,
             root_domain_py, extract_domain_from_from_header,
             SHARED_HTTP_CLIENT
@@ -52,7 +52,16 @@ except redis.exceptions.ConnectionError as e:
     exit()
 
 # Limita il numero di elaborazioni pesanti in parallelo per non sovraccaricare il sistema
-ENRICH_SEM = asyncio.Semaphore(10)
+# MODIFICA: Ridotta concorrenza come richiesto
+ENRICH_SEM = asyncio.Semaphore(3)
+
+# Aggiungi configurazione e semaforo dedicato a Pixabay
+PIXABAY_MAX_CONC = int(os.getenv("PIXABAY_MAX_CONC", "1"))  # 1 è prudente
+PIXABAY_RPM = int(os.getenv("PIXABAY_RPM", "25"))           # rate conservativo
+PIXABAY_CACHE_TTL = int(os.getenv("PIXABAY_CACHE_TTL", "604800"))  # 7 giorni
+PIXABAY_BLOCK_SEC = int(os.getenv("PIXABAY_BLOCK_SEC", "900"))     # 15 minuti
+PIXABAY_SEM = asyncio.Semaphore(PIXABAY_MAX_CONC)
+
 
 # --- FUNZIONI HELPER PER OPERAZIONI BLOCCANTI ---
 
@@ -75,6 +84,25 @@ def _refresh_credentials(creds_dict):
         creds.refresh(GoogleAuthRequest())
         return json.loads(creds.to_json())
     return None # Nessun refresh necessario
+
+# Aggiungi un semplice gate di rate e cache usando Redis
+def _pixabay_cache_key(kw: str) -> str:
+    return f"pixabay:img:{(kw or '').strip().lower()}"
+
+async def _pixabay_rate_gate():
+    # circuit breaker
+    block_until = redis_client.get("pixabay:block_until_epoch")
+    if block_until and time.time() < float(block_until):
+        raise RuntimeError("pixabay_temporarily_blocked")
+
+    # finestra fissa 60s
+    now_min = int(time.time() // 60)
+    cnt_key = f"pixabay:rpm:{now_min}"
+    cnt = redis_client.incr(cnt_key)
+    if cnt == 1:
+        redis_client.expire(cnt_key, 120)
+    if cnt > PIXABAY_RPM:
+        await asyncio.sleep(1.0)  # breve attesa quando si eccede
 
 # --- LOGICA PRINCIPALE DEL WORKER ---
 
@@ -131,11 +159,39 @@ async def process_job(job_payload: dict):
             logw("already_enriched_and_tagged", user_id=user_id, email_id=email_id)
             return
 
-        creds_dict = ALL_USER_CREDENTIALS.get(user_id)
+        # --- INIZIO FIX CORRETTO ---
+        # Ricarica le credenziali dal file ogni volta
+        try:
+            with open(CREDENTIALS_PATH, "r") as f:
+                all_creds = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            all_creds = {}
+        creds_dict = all_creds.get(user_id)
+
+        if not creds_dict:
+            logw("missing_credentials", user_id=user_id, email_id=email_id)
+            return
+        # --- FINE FIX CORRETTO ---
+
         creds = Credentials.from_authorized_user_info(creds_dict)
         gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
         
         message = await _gmail_get_message_with_retries(gmail, email_id)
+        
+        # MODIFICA: Evita futuri conflitti di thread_id
+        tid = message.get("threadId")
+        if tid:
+            dup = await asyncio.to_thread(
+                Newsletter.get_or_none,
+                (Newsletter.user_id == user_id) & (Newsletter.thread_id == tid) & (Newsletter.email_id != email_id)
+            )
+            if dup:
+                logw("skip_due_to_thread_duplicate", user_id=user_id, email_id=email_id, thread_id=tid)
+                (Newsletter
+                    .update(enriched=True, is_complete=False)
+                    .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
+                    .execute())
+                return
         
         label_ids = set(message.get('labelIds', []))
         if 'SPAM' in label_ids or 'TRASH' in label_ids:
@@ -180,12 +236,38 @@ async def process_job(job_payload: dict):
             async with ENRICH_SEM:
                 ai_summary = await get_ai_summary(content_for_ai, SHARED_HTTP_CLIENT)
                 ai_keyword = await get_ai_keyword(content_for_ai, SHARED_HTTP_CLIENT)
-                image_url = await get_pixabay_image_by_query(SHARED_HTTP_CLIENT, ai_keyword)
                 
+                # Usa cache + semaforo + gestione 429/403 attorno alla chiamata
+                image_url = None
+                kw = (ai_keyword or "").strip()
+                cache_key = _pixabay_cache_key(kw)
+                cached = redis_client.get(cache_key)
+                if cached:
+                    image_url = cached
+                else:
+                    async with PIXABAY_SEM:
+                        await _pixabay_rate_gate()
+                        try:
+                            image_url = await get_pixabay_image_by_query(SHARED_HTTP_CLIENT, kw)
+                        except httpx.HTTPStatusError as e:
+                            sc = e.response.status_code
+                            if sc == 429:
+                                ra = e.response.headers.get("Retry-After")
+                                delay = int(ra) if ra and ra.isdigit() else 5
+                                await asyncio.sleep(delay)
+                                await _pixabay_rate_gate()
+                                image_url = await get_pixabay_image_by_query(SHARED_HTTP_CLIENT, kw)
+                            elif sc == 403:
+                                # blocca per un po' per evitare martellamento
+                                until = int(time.time()) + PIXABAY_BLOCK_SEC
+                                redis_client.setex("pixabay:block_until_epoch", PIXABAY_BLOCK_SEC, until)
+                                image_url = None
+                        if image_url:
+                            redis_client.setex(cache_key, PIXABAY_CACHE_TTL, image_url)
+
                 meta = f"FROM: {header_map.get('from','')}\nSUBJECT: {header_map.get('subject','')}\n\n"
                 tags = await classify_type_and_topic(meta + content_for_ai, SHARED_HTTP_CLIENT)
 
-            # --- INIZIO FIX ---
             sender_email = parseaddr(header_map.get('from',''))[1].lower()
             sender_domain = (sender_email.split('@')[-1]).lower()
             
@@ -238,6 +320,7 @@ async def process_job(job_payload: dict):
         logw("critical_error", user_id=user_id, email_id=email_id, error=str(e), exc_info=True)
     finally:
         logw("end", user_id=user_id, email_id=email_id, dur_ms=int((time.perf_counter() - t0) * 1000))
+
 
 async def main_worker_loop():
     logging.info("Worker avviato. In attesa di lavoro...")
