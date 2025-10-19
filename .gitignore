@@ -28,6 +28,7 @@ Thumbs.db
 .vercel/
 
 backend/user_credentials.json
+data/user_credentials.json
 *.pem
 *.key
 *.p12backend/credentials.json
