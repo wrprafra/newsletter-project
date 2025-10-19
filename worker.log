@@ -2129,3 +2129,24 @@
 [2025-10-19 18:47:23] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "199665f42ecf8685", "updated_rows": 1, "is_complete": true}
 [2025-10-19 18:47:23] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "199665f42ecf8685"}
 [2025-10-19 18:47:23] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "199665f42ecf8685", "dur_ms": 236706}
+[2025-10-19 18:47:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:24] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+[2025-10-19 18:47:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:25] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:25] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=fitness%20community&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:26] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=market%20growth&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:26] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:26] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:26] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19962bd58a94aea9", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:26] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19962bd58a94aea9"}
+[2025-10-19 18:47:26] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19962bd58a94aea9", "dur_ms": 239695}
+[2025-10-19 18:47:26] [INFO] [WORKER] HTTP Request: GET https://pixabay.com/api/?key=52834517-a0d468592c0d5e0ffddccf11b&q=Wealth%20Distribution&image_type=photo&orientation=horizontal&safesearch=true&order=popular&per_page=10 "HTTP/1.1 200 OK"
+[2025-10-19 18:47:27] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "1995d9758846115a", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "1995d9758846115a"}
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "1995d9758846115a", "dur_ms": 240332}
+[2025-10-19 18:47:27] [INFO] [WORKER] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "saved", "user_id": "115319619943606682038", "email_id": "19976fc5c31871ea", "updated_rows": 1, "is_complete": true}
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "redis_notify_ok", "job_id": "e2408cd3ed564d45ad4f4251841a33b4", "email_id": "19976fc5c31871ea"}
+[2025-10-19 18:47:27] [INFO] [WORKER] {"type": "worker", "stage": "end", "user_id": "115319619943606682038", "email_id": "19976fc5c31871ea", "dur_ms": 240737}
