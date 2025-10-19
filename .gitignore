@@ -4,6 +4,7 @@ venv/
 env/
 .env
 .env.dev
+*.log 
 
 # File di configurazione locale
 credentials.json
@@ -38,4 +39,4 @@ backend/user_credentials.json
 /backend/backend.txt
 /backend/ingestor.txt
 
-"*.log" 
+*.log
