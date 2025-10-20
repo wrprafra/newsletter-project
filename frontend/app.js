@@ -1236,7 +1236,7 @@ function startBackgroundUpdates() {
   backgroundUpdateInterval = setInterval(async () => {
     console.log("Controllo aggiornamenti in background...");
     // Questa chiamata è corretta, non ha reset:true
-    await fetchFeed({ _fromWatcher: true });
+    await fetchFeed({ cursor: __cursor, _fromWatcher: true });
 
     updateCount++;
     const sseGone = (__ingestSSE == null);
@@ -1249,7 +1249,7 @@ function startBackgroundUpdates() {
       // --- INIZIO MODIFICA ---
       // La chiamata finale deve anch'essa essere reset: false per evitare il lampeggio.
       if (sseGone) {
-        await fetchFeed({ reset: false, _fromWatcher: true });
+        await fetchFeed({ cursor: __cursor, _fromWatcher: true });
       }
       // --- FINE MODIFICA ---
     }
@@ -3761,12 +3761,16 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
   }
 
   const prepend = !reset && !cursor && hasCards();
-  const append = !!cursor;
+  const append = !!cursor || (cursor === null && !hasCards()); // Aggiungi anche al primo caricamento
 
   const size = __firstPaintDone ? __PAGE_SIZE : FIRST_PAINT_COUNT;
   const params = new URLSearchParams({ page_size: String(size) });
-  const currentCursor = cursor || __cursor;
-  if (currentCursor) params.set('before', currentCursor);
+  
+  // Il cursore viene usato solo per la paginazione verso il basso (append).
+  const currentCursor = append ? (cursor || __cursor) : null;
+  if (currentCursor) {
+    params.set('before', currentCursor);
+  }
 
   const url = `${API_URL}/feed?${params.toString()}`;
   if (__feedAbort) { try { __feedAbort.abort(); } catch {} }
@@ -3827,7 +3831,9 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     }
     applyViewFilter();
 
-    __cursor = data.next_cursor ?? null;
+    if (append) {
+      __cursor = data.next_cursor ?? null;
+    }
     __hasMore = Boolean(data.has_more);
 
     if (!__hasMore && !__didBackfillOnce) {
@@ -4313,6 +4319,24 @@ async function mainAppStart() {
     console.log(`[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: ${isLogged}`);
 
     EVER_KEY = EVER_KEY_PREFIX + (me?.email || 'anonymous');
+    const FEED_STATE_VERSION = '2'; // Incrementa questo numero se fai modifiche future allo stato
+    try {
+      const savedVersion = localStorage.getItem('feedStateVersion');
+      if (savedVersion !== FEED_STATE_VERSION) {
+        console.warn(`[RESET] Versione stato feed obsoleta (salvata: ${savedVersion}, richiesta: ${FEED_STATE_VERSION}). Eseguo pulizia.`);
+        // Rimuovi le chiavi che potrebbero contenere un cursore non valido o dati vecchi.
+        // Adatta queste chiavi se ne usi altre.
+        localStorage.removeItem(`activeTypes:${EVER_KEY}`);
+        localStorage.removeItem(readFilterKey());
+        // La cosa più importante è che il vecchio cursore non venga letto.
+        // Poiché __cursor è in memoria, un refresh della pagina lo azzera.
+        // Forzare un reset=true al primo caricamento è garantito dalla logica sottostante.
+        localStorage.setItem('feedStateVersion', FEED_STATE_VERSION);
+      }
+    } catch (e) {
+      console.error('[RESET] Errore durante il controllo della versione dello stato.', e);
+    }
+
     try{
       const saved = JSON.parse(localStorage.getItem(readFilterKey()) || '["read","unread"]');
       const s = new Set(saved.filter(v => READ_STATES.includes(v)));

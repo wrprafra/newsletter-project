@@ -116,27 +116,26 @@ def initialize_db():
             logging.info("DB: Aggiungo colonna 'is_deleted'...")
             db.execute_sql('ALTER TABLE newsletter ADD COLUMN is_deleted BOOLEAN DEFAULT 0;')
 
+        logging.info("DB: Assicuro la presenza degli indici ottimizzati...")
 
-        # Creazione indici ottimizzati
-        logging.info("DB: Assicuro la presenza degli indici...")
+        # 1. Indice principale per la paginazione del feed (sostituisce idx_feed e altri).
         db.execute_sql("""
-            CREATE INDEX IF NOT EXISTS idx_news_user_complete_date_id
-            ON newsletter(user_id, is_complete, received_date DESC, email_id DESC);
-        """)
-        db.execute_sql("""
-            CREATE INDEX IF NOT EXISTS idx_news_user_fav
-            ON newsletter(user_id, is_favorite);
-        """)
-        db.execute_sql("""
-            CREATE INDEX IF NOT EXISTS idx_news_user_complete_domain_date
-            ON newsletter(user_id, is_complete, source_domain, received_date DESC, email_id DESC);
-        """)
-        
-        # Indice ottimizzato per il feed principale
-        db.execute_sql("""
-            CREATE INDEX IF NOT EXISTS idx_feed
+            CREATE INDEX IF NOT EXISTS idx_feed_seek
             ON newsletter(user_id, is_complete, is_deleted, received_date DESC, email_id DESC);
         """)
+
+        # 2. Indice ottimizzato per la vista "Preferiti".
+        db.execute_sql("""
+            CREATE INDEX IF NOT EXISTS idx_feed_favorites
+            ON newsletter(user_id, is_favorite, received_date DESC, email_id DESC);
+        """)
+        
+        # 3. Pulizia una tantum dei vecchi indici ridondanti.
+        #    Questi comandi sono sicuri e non fanno nulla se gli indici non esistono.
+        db.execute_sql("DROP INDEX IF EXISTS idx_news_user_complete_date_id;")
+        db.execute_sql("DROP INDEX IF EXISTS idx_feed;")
+        db.execute_sql("DROP INDEX IF EXISTS idx_news_user_fav;")
+        db.execute_sql("DROP INDEX IF EXISTS idx_news_user_complete_domain_date;")
 
         logging.info("DB: Inizializzazione e migrazione completate.")
     except Exception as e:

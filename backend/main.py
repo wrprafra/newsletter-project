@@ -2406,17 +2406,9 @@ async def get_feed(
     settings = SETTINGS_STORE.get(user_id, {"hidden_domains": []})
     hidden = set(settings.get("hidden_domains", []))
 
+    # 1. La query al database è stabile, con ordinamento corretto e filtro "seek"
     base_q = (Newsletter
-        .select(
-            Newsletter.email_id, Newsletter.user_id,
-            Newsletter.sender_name, Newsletter.sender_email,
-            Newsletter.original_subject, Newsletter.ai_title, Newsletter.ai_summary_markdown,
-            Newsletter.image_url, Newsletter.received_date,
-            Newsletter.is_favorite, Newsletter.accent_hex,
-            Newsletter.tag, Newsletter.type_tag, Newsletter.topic_tag,
-            Newsletter.source_domain, Newsletter.thread_id, Newsletter.rfc822_message_id,
-            Newsletter.is_complete    
-        )
+        .select()
         .where(
             (Newsletter.user_id == user_id) &
             (Newsletter.is_complete == True) &
@@ -2430,11 +2422,11 @@ async def get_feed(
         base_q = base_q.where(~(Newsletter.source_domain.in_(list(hidden))))
 
     if before:
-        last_dt, last_email = _parse_cursor(before)
-        if last_dt and last_email:
+        last_dt, last_email_id = _parse_cursor(before)
+        if last_dt and last_email_id:
             base_q = base_q.where(
                 (Newsletter.received_date < last_dt) |
-                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_email))
+                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_email_id))
             )
 
     t0_db = time.perf_counter()
@@ -2442,12 +2434,13 @@ async def get_feed(
     t_db_ms = (time.perf_counter() - t0_db) * 1000
 
     has_more = len(rows) > page_size
-    # 1. Definisci page_raw con i dati della pagina corrente (prima della deduplica)
     page_raw = rows[:page_size]
     
-    # 2. Esegui la deduplica partendo da page_raw
+    # --- INIZIO BLOCCO CORRETTO E RIORDINATO ---
+
+    # 2. Esegui la deduplicazione dei thread per ottenere la pagina effettiva da inviare al client
     seen_threads = set()
-    page = [] # Questa sarà la lista finale e pulita
+    page = []
     for item in page_raw:
         tid = item.get("thread_id")
         if tid and tid in seen_threads:
@@ -2457,16 +2450,18 @@ async def get_feed(
             seen_threads.add(tid)
         page.append(item)
     
-    # 3. Calcola il cursore basandoti sull'ultimo elemento di page_raw
+    # 3. Calcola il cursore per la pagina SUCCESSIVA basandoti sull'ultimo elemento PRIMA della deduplica.
+    #    Questo garantisce che la paginazione continui dal punto giusto anche se tutti gli elementi vengono filtrati.
     next_cursor = None
-    if has_more:
-        # Usiamo l'ultimo elemento *prima* della deduplica per garantire una paginazione corretta
+    if page_raw and has_more:
         last_item_for_cursor = page_raw[-1]
         next_cursor = f"{_iso_utc(last_item_for_cursor['received_date'])}|{last_item_for_cursor['email_id']}"
 
-    # 4. Prepara la pagina finale per la risposta JSON
+    # --- FINE BLOCCO CORRETTO E RIORDINATO ---
+
+    # 4. Prepara la pagina finale (già deduplicata) per la risposta JSON
     final_page = []
-    for item in page: # Itera sulla lista 'page' già deduplicata
+    for item in page:
         item["received_date"] = _iso_utc(item.get("received_date"))
         item = _add_gmail_deep_link_fields(item)
         final_page.append(item)
