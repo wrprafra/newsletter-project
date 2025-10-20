@@ -523,7 +523,9 @@ async def get_ai_keyword(content: str, client: httpx.AsyncClient) -> str:
         return _cheap_fallback_keyword_from_text(base)
 
 async def get_pixabay_image_by_query(client: httpx.AsyncClient, keyword: str, **kwargs) -> str:
-    """Cerca un'immagine su Pixabay con un meccanismo di retry."""
+    """
+    Cerca un'immagine su Pixabay, scartando gli URL protetti e usando un meccanismo di retry.
+    """
     if not PIXABAY_KEY:
         return ""
     params = {
@@ -542,9 +544,23 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, keyword: str, **
             hits = r.json().get("hits", [])
             if not hits:
                 return ""
+
+            # Ordina i risultati per qualità (likes e dimensione)
             hits.sort(key=lambda h: ((h.get("likes") or 0), (h.get("imageWidth") or 0) * (h.get("imageHeight") or 0)), reverse=True)
-            best = hits[0]
-            return best.get("largeImageURL") or best.get("webformatURL") or ""
+
+            # --- INIZIO MODIFICA CHIAVE ---
+            # Itera sui risultati per trovare il primo URL valido (non protetto)
+            for hit in hits:
+                url = hit.get("largeImageURL") or hit.get("webformatURL")
+                # Se l'URL esiste e NON è un link di download temporaneo, usalo.
+                if url and "/get/" not in url:
+                    return url
+            
+            # Se il loop finisce, significa che tutti gli URL erano protetti.
+            logging.warning(f"Nessun URL pubblico trovato per la query '{keyword}' su Pixabay.")
+            return ""
+            # --- FINE MODIFICA CHIAVE ---
+
         except httpx.HTTPError:
             if i == len(backoffs) - 1:
                 logging.exception("La richiesta a Pixabay per '%s' è fallita dopo multipli tentativi.", keyword)
