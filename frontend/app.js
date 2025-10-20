@@ -82,6 +82,8 @@ let __feedAbort = null;
 let __feedCursor = null;
 let __lastIngestAt = 0;
 let __sseOpen = false;
+let __sseUpdateQueue = [];
+let __sseProcessTimer = null;
 let __didBackfillOnce = false;
 const FIRST_PAINT_COUNT = 4;
 let __firstPaintDone = false;
@@ -141,6 +143,53 @@ const originalConsole = window.__rawConsole || {
   warn: console.warn.bind(console),
   error: console.error.bind(console),
 };
+
+async function processSseUpdateQueue() {
+  if (__sseUpdateQueue.length === 0) return;
+
+  // Dedup e svuota la coda in modo atomico
+  const idsToProcess = [...new Set(__sseUpdateQueue)];
+  __sseUpdateQueue = [];
+
+  feLog('info', 'sse.batch.process', { count: idsToProcess.length });
+
+  // Fetch di tutti gli item in parallelo
+  const results = await Promise.allSettled(
+    idsToProcess.map(id =>
+      fetch(`${API_URL}/feed/item/${id}`, { credentials: 'include', cache: 'no-store' })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error(`fetch_failed_${r.status}`)))
+    )
+  );
+
+  const newItems = results
+    .filter(r => r.status === 'fulfilled' && r.value && !__mountedIds.has(r.value.email_id))
+    .map(r => r.value);
+
+  // Ordina i nuovi item dal meno recente al più recente per un inserimento corretto
+  newItems.sort((a, b) => new Date(a.received_date) - new Date(b.received_date));
+
+  if (newItems.length > 0) {
+    // Usa la stessa logica di upsertFeedItems per prependere e idratare
+    await upsertFeedItems(newItems, { prepend: true });
+    mergeFeedMemory(newItems);
+    applyViewFilter();
+    
+    // --- INIZIO MODIFICA ---
+    // Riattiva il sentinel per l'infinite scroll.
+    clearSentinel();
+    // --- FINE MODIFICA ---
+  }
+}
+
+function scheduleSseUpdate(emailId) {
+  if (!__sseUpdateQueue.includes(emailId)) {
+    __sseUpdateQueue.push(emailId);
+  }
+
+  // Usa un debounce/throttle manuale con setTimeout
+  if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
+  __sseProcessTimer = setTimeout(processSseUpdateQueue, 800); // Raggruppa update entro 800ms
+}
 
 function formatDate(isoLike) {
   if (!isoLike) return '';
@@ -1247,7 +1296,7 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
   let sseHadActivity = false;
   let finished = false;
 
-  const cleanup = () => {
+    const cleanup = () => {
     aborted = true;
     try { ctrl.abort(); } catch {}
     if (backgroundUpdateInterval) {
@@ -1258,8 +1307,17 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     if (es) es.close();
     __ingestSSE = null;
     if (updateBtn) { updateBtn.disabled = false; updateBtn.classList.remove('opacity-50','cursor-not-allowed'); }
+    
+    // --- INIZIO MODIFICA ---
+    // Azzera la coda e il timer degli aggiornamenti SSE per evitare flush tardivi.
+    __sseUpdateQueue = [];
+    if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
+    __sseProcessTimer = null;
+    // --- FINE MODIFICA ---
+
     feLog('info', 'sse.closed', { jobId });
   };
+
 
   const finish = (isSuccess, meta) => {
     if (finished) return;
@@ -1319,24 +1377,8 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     if (ev.type === 'update') sseHadActivity = true;
 
     if (ev.type === 'update' && st.email_id && !aborted) {
-      try {
-        const res = await fetch(`${API_URL}/feed/item/${st.email_id}`, {
-          credentials: 'include', signal: ctrl.signal, cache: 'no-store'
-        });
-        if (!res.ok || aborted) return;
-        const item = await res.json();
-        const ph = getOrCreatePlaceholder(item.email_id);
-        await prepareAndMountCard(item, ph);
-        __hasMore = true;
-        toggleEndOfFeed(false);
-        clearSentinel();
-      } catch (err) {
-        if (err?.name === 'AbortError' || String(err).includes('Failed to fetch')) {
-          feLog('warn','sse.update.fetch.aborted',{ email_id: st.email_id });
-          return;
-        }
-        console.warn('[SSE] update fetch/render failed', err);
-      }
+      // Invece di processare subito, accoda l'ID per il batching.
+      scheduleSseUpdate(st.email_id);
     }
 
     if (st.state === "done") {
@@ -3362,6 +3404,7 @@ function renderFeedCard(item, opts = {}) {
   const cardEl = document.createElement('article');
   cardEl.className = 'feed-card opacity-0';
   cardEl.dataset.emailId = item.email_id;
+  cardEl.dataset.received = item.received_date || '';
   __cardRenderCount++;
   const isFav = !!item.is_favorite;
   const title = item.ai_title || item.original_subject || '';
@@ -3630,11 +3673,11 @@ function applyViewFilter() {
     renderWithFilters();
 }
 
-async function upsertFeedItems(items, { append = false } = {}) {
+async function upsertFeedItems(items, { append = false, prepend = false } = {}) {
   if (!feedContainer) return;
   if (!Array.isArray(items) || items.length === 0) return;
 
-  if (!append && __firstPaintDone) {
+  if (!append && !prepend && __firstPaintDone) {
     document.querySelectorAll('.skeleton-card[data-boot="1"]').forEach(n => n.remove());
     document.getElementById('feed-loading-indicator')?.remove();
   }
@@ -3645,6 +3688,9 @@ async function upsertFeedItems(items, { append = false } = {}) {
     newItems.push(it);
   }
   if (newItems.length === 0) return;
+
+  const firstCard = feedContainer.querySelector('.feed-card:not(.hidden)');
+  const topBefore = firstCard ? firstCard.getBoundingClientRect().top : 0;
 
   const fragment = document.createDocumentFragment();
   const placeholders = [];
@@ -3657,20 +3703,27 @@ async function upsertFeedItems(items, { append = false } = {}) {
     placeholders.push([item, ph]);
   }
   
-  feedContainer.appendChild(fragment);
+  // --- INIZIO MODIFICA ---
+  // Inserisce gli scheletri in cima se è un prepend, altrimenti in fondo.
+  if (prepend) {
+    feedContainer.insertBefore(fragment, feedContainer.firstChild);
+  } else {
+    feedContainer.appendChild(fragment);
+  }
 
-  const allPlaceholders = placeholders;
+  // Determina l'ordine di caricamento: invertito per il prepend per ridurre i salti.
+  const loadOrder = prepend ? placeholders.slice().reverse() : placeholders;
+  // --- FINE MODIFICA ---
+
   if (!__firstPaintDone) {
-    const firstBatch = allPlaceholders.slice(0, FIRST_PAINT_COUNT);
-    const restBatch  = allPlaceholders.slice(FIRST_PAINT_COUNT);
+    // --- INIZIO MODIFICA (usa loadOrder) ---
+    const firstBatch = loadOrder.slice(0, FIRST_PAINT_COUNT);
+    const restBatch  = loadOrder.slice(FIRST_PAINT_COUNT);
+    // --- FINE MODIFICA ---
 
     const t0 = performance.now();
-    // --- INIZIO MODIFICA ---
-    // Usa la versione non bloccante per il primo batch.
-    // La UI appare subito, le immagini caricano in background.
     await mapLimit(firstBatch, 4, ([it, ph]) => prepareAndMountCard(it, ph));
     console.log('[first.paint.ready]', {count: firstBatch.length, ms: Math.round(performance.now()-t0)});
-    // --- FINE MODIFICA ---
 
     document.querySelectorAll('.skeleton-card[data-boot="1"]').forEach(n => n.remove());
     document.getElementById('feed-loading-indicator')?.remove();
@@ -3680,7 +3733,13 @@ async function upsertFeedItems(items, { append = false } = {}) {
       await mapLimit(restBatch, 6, ([it, ph]) => prepareAndMountCard(it, ph));
     }
   } else {
-    await mapLimit(allPlaceholders, 6, ([it, ph]) => prepareAndMountCard(it, ph));
+    // --- INIZIO MODIFICA (usa loadOrder) ---
+    await mapLimit(loadOrder, 6, ([it, ph]) => prepareAndMountCard(it, ph));
+    // --- FINE MODIFICA ---
+  }
+  if (prepend && firstCard && topBefore) {
+    const topAfter = firstCard.getBoundingClientRect().top;
+    window.scrollBy(0, topAfter - topBefore);
   }
 }
 
@@ -3700,6 +3759,9 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     toggleEndOfFeed(false);
     __endStreak = 0;
   }
+
+  const prepend = !reset && !cursor && hasCards();
+  const append = !!cursor;
 
   const size = __firstPaintDone ? __PAGE_SIZE : FIRST_PAINT_COUNT;
   const params = new URLSearchParams({ page_size: String(size) });
@@ -3759,7 +3821,10 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     // --- FINE PATCH ---
 
     mergeFeedMemory(page);
-    await upsertFeedItems(page, { append: !reset });
+    await upsertFeedItems(page, { append, prepend });
+    if (prepend) {
+      clearSentinel();
+    }
     applyViewFilter();
 
     __cursor = data.next_cursor ?? null;
