@@ -508,9 +508,6 @@ function initTypeMenu() {
   console.log("[TypeMenu] Inizializzazione completata correttamente.");
 }
 
-
-
-
 document.addEventListener('click', (e) => {
   // Gestione dei filtri per topic e sender
   const topicBtn = e.target.closest('.js-topic');
@@ -534,7 +531,7 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     closeEmailModal();
   }
-
+  
   // Gestione chiusura menu a tendina (se si clicca fuori da essi)
   const typeMenu = document.getElementById('type-menu');
   if (typeMenu && !typeMenu.classList.contains('hidden') && !typeMenu.contains(e.target) && !e.target.closest('#btnTypeFilter')) {
@@ -545,6 +542,27 @@ document.addEventListener('click', (e) => {
   if (overrideMenu && !overrideMenu.classList.contains('hidden') && !overrideMenu.contains(e.target) && !e.target.closest('.js-type-edit')) {
     overrideMenu.classList.add('hidden');
   }
+});
+
+// Listener #2: Gestisce specificamente la chiusura del menu "nascondi"
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('hide-menu');
+  if (!menu || menu.classList.contains('hidden')) return;
+  // Ignora i click sul bottone che apre il menu e dentro il menu stesso
+  if (e.target.closest('[data-action="hide"]')) return;
+  if (!menu.contains(e.target)) {
+    menu.classList.add('hidden');
+  }
+}, { capture: true });
+
+const closeTypeOverride = () =>
+  document.getElementById('type-override-menu')?.classList.add('hidden');
+
+['scroll','wheel','touchmove','resize'].forEach(ev =>
+  window.addEventListener(ev, closeTypeOverride, { passive: true })
+);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeTypeOverride();
 });
 
 
@@ -922,6 +940,11 @@ window.hidePickerHintBar = hidePickerHintBar;
 function clearFeed(reason = 'unknown') {
   console.warn(`[FEED][CLEAR] Motivo: ${reason}`);
   if (!feedContainer) return;
+  if (__readObserver) {
+    document.querySelectorAll('#feed-container .feed-card').forEach(n => {
+      try { __readObserver.unobserve(n); } catch {}
+    });
+  }
 
   // --- INIZIO MODIFICA: Pulizia dei Blob URL ---
   for (const u of __IMG_CACHE.values()) {
@@ -1406,7 +1429,7 @@ function setCardImage(imgEl, url, isInternal) {
   if (!imgEl || !url) return;
 
   const currentEffectiveSrc = imgEl.currentSrc || imgEl.src;
-  if (currentEffectiveSrc && currentEffectiveSrc.split('?')[0] === url.split('?')[0]) {
+  if (currentEffectiveSrc === url) {
     return;
   }
 
@@ -1429,14 +1452,12 @@ function setCardImage(imgEl, url, isInternal) {
   }
 
   try {
-    if (!isInternal) {
-      imgEl.setAttribute('crossorigin', 'anonymous');
-      imgEl.crossOrigin = 'anonymous';
-      imgEl.setAttribute('referrerpolicy', 'no-referrer');
-    } else {
+    if (isInternal) {
       imgEl.removeAttribute('crossorigin');
       imgEl.removeAttribute('referrerpolicy');
-      // imgEl.crossOrigin = null;
+    } else {
+      imgEl.setAttribute('crossorigin', 'anonymous');
+      imgEl.setAttribute('referrerpolicy', 'no-referrer');
     }
   } catch (e) {}
 
@@ -1892,7 +1913,12 @@ document.addEventListener('DOMContentLoaded', () => {
         saveHiddenIds();
         const root = feedContainer || document;
         const card = root.querySelector(`.feed-card[data-email-id="${emailId}"]`);
-        if (card) card.remove();
+        if (card) {
+            if (__readObserver) {
+                try { __readObserver.unobserve(card); } catch {}
+            }
+            card.remove();
+        }
         
         // --- INIZIO PATCH: Libera il blob dalla cache ---
         const cachedUrl = __IMG_CACHE.get(emailId);
@@ -1905,12 +1931,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Thread nascosto', 'ok');
     }
 
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('hide-menu');
-      if (!menu || menu.classList.contains('hidden')) return;
-      if (e.target.closest('[data-action="hide"]')) return;          // click sul bottone: ignora
-      if (!menu.contains(e.target)) closeHideMenu();                  // click fuori: chiudi
-    }, { capture: true });
 
     if (hideDomainBtn && domain) {
       feLog('info', 'hide.save_domain.try', { domain });

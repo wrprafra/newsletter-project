@@ -69,6 +69,13 @@ from backend.processing_utils import (
     get_pixabay_image_by_query,
 )
 
+# Ottieni il logger che hai già configurato in logging_config.py
+log = logging.getLogger("BACKEND")
+
+THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "on").lower()
+DEDUP_THREADS = THREAD_DEDUP_MODE not in ("off", "0", "false")
+log.info(f"[CFG] Deduplicazione thread nel feed: {'ATTIVA' if DEDUP_THREADS else 'DISATTIVATA'}")
+
 # Disabilita il logging HTTP di default, lo attiveremo solo se necessario
 httplib2.debuglevel = 0
 
@@ -79,9 +86,6 @@ def mask(s, keep=6):
 def jdump(d):
     try: return json.dumps(d, ensure_ascii=False)
     except Exception: return str(d)
-
-# Ottieni il logger che hai già configurato in logging_config.py
-log = logging.getLogger("BACKEND")
 
 # --- GESTIONE CICLO DI VITA APP ---
 @asynccontextmanager
@@ -2439,22 +2443,25 @@ async def get_feed(
     # --- INIZIO BLOCCO CORRETTO E RIORDINATO ---
 
     # 2. Esegui la deduplicazione dei thread per ottenere la pagina effettiva da inviare al client
-    seen_threads = set()
-    page = []
-    for item in page_raw:
-        tid = item.get("thread_id")
-        if tid and tid in seen_threads:
-            continue
-        
-        if tid:
-            seen_threads.add(tid)
-        page.append(item)
+    if DEDUP_THREADS:
+        seen_threads = set()
+        page = []
+        for item in page_raw:
+            tid = item.get("thread_id")
+            if tid and tid in seen_threads:
+                continue
+            if tid:
+                seen_threads.add(tid)
+            page.append(item)
+    else:
+        # Se la deduplicazione è disattivata, la pagina finale è semplicemente la pagina grezza
+        page = page_raw
     
     # 3. Calcola il cursore per la pagina SUCCESSIVA basandoti sull'ultimo elemento PRIMA della deduplica.
     #    Questo garantisce che la paginazione continui dal punto giusto anche se tutti gli elementi vengono filtrati.
     next_cursor = None
     if page_raw and has_more:
-        last_item_for_cursor = page_raw[-1]
+        last_item_for_cursor = rows[page_size] # L'elemento page_size+1
         next_cursor = f"{_iso_utc(last_item_for_cursor['received_date'])}|{last_item_for_cursor['email_id']}"
 
     # --- FINE BLOCCO CORRETTO E RIORDINATO ---

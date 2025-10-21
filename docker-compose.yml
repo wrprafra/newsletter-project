@@ -1,5 +1,3 @@
-# /opt/newsletter/docker-compose.yml
-
 version: '3.8'
 
 services:
@@ -9,11 +7,12 @@ services:
     restart: always
     env_file:
       - .env
-    # --- INIZIO MODIFICA ---
     environment:
       # Imposta il feature flag per disattivare la deduplicazione dei thread
       - THREAD_DEDUP_MODE=off
-    # --- FINE MODIFICA ---
+      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
+      - REDIS_URL=redis://redis:6379/0
+      # --- FINE MODIFICA ---
     depends_on:
       - redis
     ports:
@@ -39,11 +38,12 @@ services:
       - app
     env_file:
       - .env
-    # --- INIZIO MODIFICA ---
     environment:
       # Il worker deve conoscere la stessa modalità per gestire correttamente i duplicati
       - THREAD_DEDUP_MODE=off
-    # --- FINE MODIFICA ---
+      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
+      - REDIS_URL=redis://redis:6379/0
+      # --- FINE MODIFICA ---
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
@@ -58,14 +58,15 @@ services:
       - app
     env_file:
       - .env
-    # --- INIZIO MODIFICA ---
     environment:
       # L'ingestor deve sapere se saltare o meno i thread esistenti
       - THREAD_DEDUP_MODE=off
       # Aumentiamo i limiti per il backfill in produzione
       - INGESTOR_BACKFILL_PAGES=25
       - INGESTOR_BACKFILL_TARGET=1000
-    # --- FINE MODIFICA ---
+      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
+      - REDIS_URL=redis://redis:6379/0
+      # --- FINE MODIFICA ---
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
