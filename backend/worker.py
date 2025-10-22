@@ -19,7 +19,6 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from email.utils import parsedate_to_datetime, parseaddr
-from datetime import datetime
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
@@ -67,6 +66,19 @@ PIXABAY_SEM = asyncio.Semaphore(PIXABAY_MAX_CONC)
 
 
 # --- FUNZIONI HELPER PER OPERAZIONI BLOCCANTI ---
+def _save_credentials_all(creds_all: dict):
+    """Salva il dizionario completo delle credenziali in modo atomico e sicuro."""
+    try:
+        tmp_path = CREDENTIALS_PATH + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(creds_all, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, CREDENTIALS_PATH)
+        try:
+            os.chmod(CREDENTIALS_PATH, 0o600)
+        except (OSError, AttributeError):
+            pass
+    except Exception as e:
+        logging.error(f"Salvataggio credenziali fallito: {e}")
 
 def _db_get_newsletter(email_id, user_id):
     """Funzione sincrona per ottenere la newsletter dal DB."""
@@ -120,6 +132,7 @@ async def _gmail_get_message_with_retries(gmail, msg_id: str, max_attempts: int 
             )
         except (HttpError, http_client.IncompleteRead, ssl.SSLError, socket.timeout, ConnectionResetError) as e:
             last_exc = e
+            logw("gmail_get_retry", msg_id=msg_id, attempt=attempt, error=str(e))
             logging.warning(f"[{msg_id}] transient gmail get error (attempt {attempt}/{max_attempts}): {e}")
             await asyncio.sleep(backoff)
             backoff *= 2
@@ -181,6 +194,13 @@ async def process_job(job_payload: dict):
             logw("missing_credentials", user_id=user_id, email_id=email_id)
             return
         # --- FINE FIX CORRETTO ---
+        refreshed_creds = await asyncio.to_thread(_refresh_credentials, creds_dict)
+        if refreshed_creds:
+            logw("creds_refreshed", user_id=user_id)
+            all_creds[user_id] = refreshed_creds
+            # Salva le nuove credenziali per tutti i processi futuri
+            await asyncio.to_thread(_save_credentials_all, all_creds)
+            creds_dict = refreshed_creds
 
         creds = Credentials.from_authorized_user_info(creds_dict)
         gmail = build('gmail', 'v1', credentials=creds, cache_discovery=False)
@@ -235,8 +255,11 @@ async def process_job(job_payload: dict):
         update_data = {"enriched": True, "is_complete": False}
 
         try:
-            content_for_ai = html_content
-            if not clean_html(content_for_ai):
+            # --- INIZIO FIX: USARE L'HTML PULITO ---
+            cleaned_content = clean_html(html_content)
+            content_for_ai = cleaned_content  # Usa sempre il contenuto pulito
+
+            if not content_for_ai:
                 subj = header_map.get('subject', '')
                 snip = message.get('snippet', '')
                 content_for_ai = f"Oggetto: {subj}\n\nAnteprima: {snip}"
@@ -325,6 +348,7 @@ async def process_job(job_payload: dict):
         
         finally:
             feed_visible = bool(update_data.get("is_complete"))
+            logw("db_update_fields", email_id=email_id, keys=list(update_data.keys()))
             logw("about_to_save", email_id=email_id, thread_id=tid, will_be_visible=feed_visible)
             (Newsletter
                .update(**update_data)
