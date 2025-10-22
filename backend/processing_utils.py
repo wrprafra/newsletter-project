@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from collections import Counter
 from email.utils import parseaddr
 from html import escape as html_escape
+import random
 
 
 # --- CONFIGURAZIONE ---
@@ -522,51 +523,58 @@ async def get_ai_keyword(content: str, client: httpx.AsyncClient) -> str:
         logging.error(f"Errore in get_ai_keyword (OpenAI): {e}", exc_info=True)
         return _cheap_fallback_keyword_from_text(base)
 
-async def get_pixabay_image_by_query(client: httpx.AsyncClient, keyword: str, **kwargs) -> str:
+async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> str | None:
     """
-    Cerca un'immagine su Pixabay, scartando gli URL protetti e usando un meccanismo di retry.
+    Interroga l'API di Pixabay e restituisce l'URL della migliore immagine trovata.
+    Versione corretta e robusta.
     """
     if not PIXABAY_KEY:
-        return ""
+        logging.warning("PIXABAY_KEY non è impostata, impossibile cercare immagini.")
+        return None
+
+    # Pulisce e prepara la query
+    q = (query or "newsletter").strip()
+    
     params = {
-        "key": PIXABAY_KEY, "q": keyword, "image_type": "photo",
-        "orientation": "horizontal", "safesearch": "true",
-        "order": "popular", "per_page": 10,
+        "key": PIXABAY_KEY,
+        "q": q,
+        "image_type": "photo",
+        "orientation": "horizontal",
+        "safesearch": "true",
+        "order": "popular",
+        "per_page": 10,
     }
-    backoffs = (0.2, 0.6, 1.2)
-    for i, backoff_delay in enumerate(backoffs):
-        try:
-            r = await client.get("https://pixabay.com/api/", params=params, timeout=15.0)
-            if r.status_code == 429 and i < len(backoffs) - 1:
-                await asyncio.sleep(backoff_delay)
-                continue
-            r.raise_for_status()
-            hits = r.json().get("hits", [])
-            if not hits:
-                return ""
 
-            # Ordina i risultati per qualità (likes e dimensione)
-            hits.sort(key=lambda h: ((h.get("likes") or 0), (h.get("imageWidth") or 0) * (h.get("imageHeight") or 0)), reverse=True)
+    try:
+        r = await client.get("https://pixabay.com/api/", params=params, timeout=15.0)
+        r.raise_for_status()
+        data = r.json()
+        
+        hits = data.get("hits", [])
+        
+        if not hits:
+            logging.warning(f"Nessun risultato da Pixabay per la query: '{q}'")
+            return None
 
-            # --- INIZIO MODIFICA CHIAVE ---
-            # Itera sui risultati per trovare il primo URL valido (non protetto)
-            for hit in hits:
-                url = hit.get("largeImageURL") or hit.get("webformatURL")
-                # Se l'URL esiste e NON è un link di download temporaneo, usalo.
-                if url and "/get/" not in url:
-                    return url
+        # Scegli un'immagine a caso tra i primi risultati per avere più varietà
+        best_hit = random.choice(hits)
+        
+        # Estrai l'URL, con fallback
+        image_url = best_hit.get("largeImageURL") or best_hit.get("webformatURL")
+
+        if not image_url:
+            logging.error(f"Trovato risultato da Pixabay per '{q}', ma manca 'largeImageURL'. Dati: {best_hit}")
+            return None
             
-            # Se il loop finisce, significa che tutti gli URL erano protetti.
-            logging.warning(f"Nessun URL pubblico trovato per la query '{keyword}' su Pixabay.")
-            return ""
-            # --- FINE MODIFICA CHIAVE ---
+        logging.info(f"Trovato URL da Pixabay per '{q}': {image_url}")
+        return image_url
 
-        except httpx.HTTPError:
-            if i == len(backoffs) - 1:
-                logging.exception("La richiesta a Pixabay per '%s' è fallita dopo multipli tentativi.", keyword)
-                return ""
-            await asyncio.sleep(backoff_delay)
-    return ""
+    except httpx.HTTPStatusError as e:
+        logging.error(f"Errore HTTP da Pixabay per query '{q}': {e.response.status_code} - {e.response.text}")
+        return None
+    except Exception as e:
+        logging.error(f"Errore imprevisto durante la ricerca su Pixabay per '{q}': {e}", exc_info=True)
+        return None
 
 def extract_dominant_hex(img_bytes: bytes) -> str:
     try:
