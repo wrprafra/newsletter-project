@@ -1,20 +1,18 @@
-version: '3.8'
-
 services:
-  # 1. Servizio API (Uvicorn)
   app:
     image: ghcr.io/wrprafra/newsletter-project:latest
     restart: always
     env_file:
       - .env
     environment:
-      # Imposta il feature flag per disattivare la deduplicazione dei thread
       - THREAD_DEDUP_MODE=off
-      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
       - REDIS_URL=redis://redis:6379/0
-      # --- FINE MODIFICA ---
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - SQLALCHEMY_ECHO=1
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -26,56 +24,62 @@ services:
       - --host=0.0.0.0
       - --port=8000
       - --log-level=debug
+      - --access-log
       - --proxy-headers
       - --forwarded-allow-ips=*
 
-  # 2. Servizio Worker (processa la coda)
   worker:
     image: ghcr.io/wrprafra/newsletter-project:latest
     restart: always
     depends_on:
-      - redis
-      - app
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
     env_file:
       - .env
     environment:
-      # Il worker deve conoscere la stessa modalità per gestire correttamente i duplicati
       - THREAD_DEDUP_MODE=off
-      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
       - REDIS_URL=redis://redis:6379/0
-      # --- FINE MODIFICA ---
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - SQLALCHEMY_ECHO=1
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.worker
 
-  # 3. Servizio Ingestor (popola la coda)
   ingestor:
     image: ghcr.io/wrprafra/newsletter-project:latest
     restart: always
     depends_on:
-      - redis
-      - app
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
     env_file:
       - .env
     environment:
-      # L'ingestor deve sapere se saltare o meno i thread esistenti
       - THREAD_DEDUP_MODE=off
-      # Aumentiamo i limiti per il backfill in produzione
       - INGESTOR_BACKFILL_PAGES=25
       - INGESTOR_BACKFILL_TARGET=1000
-      # --- INIZIO MODIFICA: AGGIUNGI URL DI REDIS ---
       - REDIS_URL=redis://redis:6379/0
-      # --- FINE MODIFICA ---
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - SQLALCHEMY_ECHO=1
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.ingestor
 
-  # 4. Servizio Redis
   redis:
     image: redis:7-alpine
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     volumes:
       - redis_data:/data
 
