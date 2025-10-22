@@ -3817,6 +3817,13 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
 
     const data = await res.json();
     const page = Array.isArray(data?.feed) ? data.feed : [];
+
+    console.debug("[FEED] fetched", {
+        count: page.length, 
+        has_more: data.has_more, 
+        next_cursor: data.next_cursor,
+        ingest_running: data?.ingest?.running 
+    });
     
     // --- INIZIO PATCH ---
     if (page.length === 0 && !reset) {
@@ -3912,6 +3919,11 @@ const updateImages = async (overrideSource = null) => {
     console.log("-> [updateImages] Avvio processo...");
 
     const imageSource = overrideSource || window.PREFERRED_IMAGE_SOURCE || 'pixabay';
+    console.debug("[IMG] updateImages request", {
+        source: imageSource, 
+        only_empty: (imageSource === 'pixabay') 
+    });
+
     const cards = document.querySelectorAll('.feed-card');
     if (cards.length === 0) {
         console.warn("[updateImages] WARN: Nessuna card da aggiornare.");

@@ -163,6 +163,8 @@ def get_new_emails_for_user(user_id: str, creds_dict: dict) -> list[str]:
         while len(new_ids) < BACKFILL_TARGET and pages < BACKFILL_PAGES and _run:
             resp = _gmail_list(gmail, page_token=page_token)
             msgs = resp.get('messages', []) or []
+            logging.info(f"[GMAIL] user={_scrub(user_id)} page={pages+1} found_msgs={len(msgs)}")
+
             if not msgs:
                 break
 
@@ -260,6 +262,7 @@ def main_loop():
                     # Deduplicazione a livello utente E globale
                     if redis_client.sadd(user_key, email_id) and redis_client.sadd(global_key, email_id):
                         job_payload = json.dumps({"email_id": email_id, "user_id": user_id})
+                        logging.debug(f"[ENQ] rpush email_queue user={_scrub(user_id)} email_id={email_id}")
                         if _rpush_safe("email_queue", job_payload):
                             jobs_created += 1
 

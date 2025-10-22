@@ -68,6 +68,10 @@ from backend.processing_utils import (
     get_pixabay_image_by_query,
 )
 
+if not logging.getLogger().hasHandlers():
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(),
+                        format="%(asctime)s [BACKEND] %(levelname)s %(message)s")
+
 # Ottieni il logger che hai già configurato in logging_config.py
 log = logging.getLogger("BACKEND")
 
@@ -2391,6 +2395,50 @@ async def feed_debug_stats(request: Request):
         "count_threads_with_duplicates": len(dup_threads)
     }
 
+@router_api.get("/debug/snapshot")
+async def debug_snapshot(request: Request):
+    """Endpoint di diagnostica protetto per uno snapshot rapido dello stato del sistema."""
+    user_id = _current_user_id(request)
+    
+    try:
+        # Conteggi dal Database
+        inc_q = Newsletter.select().where((Newsletter.user_id == user_id) & (Newsletter.is_complete == False))
+        cmp_q = Newsletter.select().where((Newsletter.user_id == user_id) & (Newsletter.is_complete == True))
+        noimg_q = Newsletter.select().where((Newsletter.user_id == user_id) & ((Newsletter.image_url.is_null(True)) | (Newsletter.image_url == '')))
+        
+        incomplete_count = inc_q.count()
+        complete_count = cmp_q.count()
+        missing_image_count = noimg_q.count()
+
+        # Dati da Redis
+        qlen = redis_client.llen("email_queue") if redis_client else -1
+        block_until_raw = redis_client.get("pixabay:block_until_epoch") if redis_client else None
+        block_until = int(block_until_raw) if block_until_raw else 0
+        heartbeat_raw = redis_client.get("worker:heartbeat") if redis_client else None
+        heartbeat = int(heartbeat_raw) if heartbeat_raw else None
+
+        # Impostazioni utente
+        settings = SETTINGS_STORE.get(user_id, {})
+        preferred_source = settings.get("preferred_image_source", "pixabay")
+
+        snap = {
+            "user_id": user_id,
+            "db": {"incomplete": incomplete_count, "complete": complete_count, "missing_image": missing_image_count},
+            "queue": {"email_queue_len": qlen},
+            "pixabay": {
+                "key_present": bool(os.getenv("PIXABAY_KEY")),
+                "blocked_until_epoch": block_until,
+                "seconds_until_unblocked": max(0, block_until - int(time.time()))
+            },
+            "worker": {"last_heartbeat_epoch": heartbeat},
+            "settings": {"preferred_image_source": preferred_source}
+        }
+        logging.info(f"[SNAPSHOT] User {user_id}: {json.dumps(snap)}")
+        return JSONResponse(snap)
+    except Exception as e:
+        logging.error(f"Errore durante la creazione dello snapshot: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Errore interno durante la creazione dello snapshot.")
+    
 @app.get("/api/feed")
 async def get_feed(
     request: Request,
@@ -2435,6 +2483,7 @@ async def get_feed(
     t0_db = time.perf_counter()
     rows = list(base_q.limit(page_size + 1).dicts())
     t_db_ms = (time.perf_counter() - t0_db) * 1000
+    log_feed(rid, "db_result", user_id=user_id, found_rows=len(rows), db_ms=int(t_db_ms))
 
     has_more = len(rows) > page_size
     page_raw = rows[:page_size]

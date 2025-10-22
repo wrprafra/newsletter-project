@@ -154,6 +154,12 @@ async def process_job(job_payload: dict):
         return
 
     try:
+        q_len = redis_client.llen("email_queue")
+        logw("job_info", user_id=user_id, email_id=email_id, job_id=job_id, queue_len=q_len)
+    except Exception as e:
+        logw("redis_llen_failed", error=str(e))
+
+    try:
         n = await asyncio.to_thread(Newsletter.get_or_none, (Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
         if not n:
             logw("missing_record", user_id=user_id, email_id=email_id)
@@ -239,6 +245,12 @@ async def process_job(job_payload: dict):
             async with ENRICH_SEM:
                 ai_summary = await get_ai_summary(content_for_ai, SHARED_HTTP_CLIENT)
                 ai_keyword = await get_ai_keyword(content_for_ai, SHARED_HTTP_CLIENT)
+
+                logw("ai_results", 
+                 email_id=email_id, 
+                 title_chars=len(ai_summary.get('title','')), 
+                 summary_chars=len(ai_summary.get('summary_markdown','')),
+                 keyword=ai_keyword)
                 
                 # Usa cache + semaforo + gestione 429/403 attorno alla chiamata
                 image_url = None
@@ -254,6 +266,7 @@ async def process_job(job_payload: dict):
                     async with PIXABAY_SEM:
                         await _pixabay_rate_gate()
                         try:
+                            logw("pixabay_fetch", email_id=email_id, keyword=kw)
                             image_url = await get_pixabay_image_by_query(SHARED_HTTP_CLIENT, kw)
                         except httpx.HTTPStatusError as e:
                             sc = e.response.status_code
@@ -270,6 +283,9 @@ async def process_job(job_payload: dict):
                                 image_url = None
                         if image_url:
                             redis_client.setex(cache_key, PIXABAY_CACHE_TTL, image_url)
+                            logw("pixabay_hit", email_id=email_id, image_url=image_url)
+                        else:
+                            logw("pixabay_miss", email_id=email_id, keyword=kw, reason="API returned no results or error occurred")
 
                 meta = f"FROM: {header_map.get('from','')}\nSUBJECT: {header_map.get('subject','')}\n\n"
                 tags = await classify_type_and_topic(meta + content_for_ai, SHARED_HTTP_CLIENT)
@@ -284,6 +300,13 @@ async def process_job(job_payload: dict):
                     logw("type_override_applied", domain=sender_domain, new_type=override.type_tag)
             
             is_complete = bool(ai_summary.get('title') and ai_summary.get('summary_markdown') and image_url)
+
+            logw("completeness_check", 
+             email_id=email_id, 
+             is_complete=is_complete,
+             has_title=bool(ai_summary.get('title')),
+             has_summary=bool(ai_summary.get('summary_markdown')),
+             has_image=bool(image_url))
 
             update_data.update({
                 "ai_title": ai_summary.get('title'),
