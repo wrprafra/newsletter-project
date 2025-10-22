@@ -14,7 +14,9 @@ from collections import Counter
 from email.utils import parseaddr
 from html import escape as html_escape
 import random
+import httpx
 
+SHARED_HTTP_CLIENT = httpx.AsyncClient(timeout=30.0)
 
 # --- CONFIGURAZIONE ---
 MODEL_SUMMARY = "gpt-5-nano"
@@ -22,6 +24,7 @@ MODEL_JSON = "gpt-4o-mini"
 MODEL_CLASSIFY = "gpt-4o-mini"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
+MODEL_SUMMARY = "gpt-5-nano"
 
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
 TOPIC_VOCAB = [
