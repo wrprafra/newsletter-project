@@ -56,7 +56,7 @@ except redis.exceptions.ConnectionError as e:
 
 # Limita il numero di elaborazioni pesanti in parallelo per non sovraccaricare il sistema
 # MODIFICA: Ridotta concorrenza come richiesto
-ENRICH_SEM = asyncio.Semaphore(3)
+ENRICH_SEM = asyncio.Semaphore(1)
 
 # Aggiungi configurazione e semaforo dedicato a Pixabay
 PIXABAY_MAX_CONC = int(os.getenv("PIXABAY_MAX_CONC", "1"))  # 1 è prudente

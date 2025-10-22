@@ -3863,10 +3863,10 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     }
     __hasMore = Boolean(data.has_more);
 
-    if (!__hasMore && !__didBackfillOnce) {
-      __didBackfillOnce = true;
-      autoIngestAndLoad({ batch: 100, pages: 8, target: 400, reason: 'one-time-backfill' });
-    }
+    // if (!__hasMore && !__didBackfillOnce) {
+    //   __didBackfillOnce = true;
+    //   autoIngestAndLoad({ batch: 100, pages: 8, target: 400, reason: 'one-time-backfill' });
+    // }
 
     if (data?.ingest?.running && data.ingest.job_id) {
       __isIngesting = true;
@@ -4387,10 +4387,33 @@ async function mainAppStart() {
       await fetchFeed({ reset: true });
 
       setTimeout(() => {
-        if (!window.__isIngesting && !window.__autoIngesting) {
-          window.__lastIngestAt = Date.now();
-          autoIngestAndLoad({ reason: 'on-enter', batch: 25, pages: 3, target: 75 });
+        // Guardia: non eseguire in background o offline.
+        if (document.visibilityState !== 'visible' || !navigator.onLine) {
+          console.log("[on-enter] Sync saltata (pagina non visibile o offline).");
+          return;
         }
+
+        // Guardia: rispetta un cooldown tra sessioni diverse (5 min).
+        const SYNC_COOLDOWN = 5 * 60 * 1000;
+        const lastSync = parseInt(localStorage.getItem('lastSyncAt') || '0', 10);
+        if (Date.now() - lastSync < SYNC_COOLDOWN) {
+          console.log("[on-enter] Sync saltata (cooldown tra sessioni attivo).");
+          return;
+        }
+
+        // Guardia: non eseguire se un'altra operazione è già in corso.
+        if (window.__isIngesting || window.__autoIngesting) {
+          console.log("[on-enter] Sync saltata (ingestione già in corso).");
+          return;
+        }
+
+        console.log("[on-enter] Avvio controllo leggero all'atterraggio.");
+        localStorage.setItem('lastSyncAt', String(Date.now()));
+        window.__lastIngestAt = Date.now();
+        
+        // Payload "leggero" per scaricare solo le novità recenti.
+        autoIngestAndLoad({ reason: 'on-enter', batch: 10, pages: 1, target: 30 });
+
       }, 250);
 
       // Pulisce l'URL dal parametro di autenticazione dopo il primo caricamento

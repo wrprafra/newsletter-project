@@ -23,14 +23,6 @@ MODEL_CLASSIFY = "gpt-4o-mini"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 
-# --- INIZIO PATCH: Client HTTP/2 condiviso e robusto ---
-_limits = httpx.Limits(max_connections=100, max_keepalive_connections=50)
-_timeout = httpx.Timeout(connect=10.0, read=60.0, write=20.0, pool=60.0)
-# Aggiungiamo un transport con retry per gestire errori di rete transienti
-_transport = httpx.AsyncHTTPTransport(retries=3)
-SHARED_HTTP_CLIENT = httpx.AsyncClient(http2=True, limits=_limits, timeout=_timeout, transport=_transport)
-# --- FINE PATCH ---```
-
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
 TOPIC_VOCAB = [
     "tecnologia", "ai", "coding", "design", "marketing", "ecommerce", "finanza",
