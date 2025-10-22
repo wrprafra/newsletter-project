@@ -243,6 +243,9 @@ async def process_job(job_payload: dict):
                 # Usa cache + semaforo + gestione 429/403 attorno alla chiamata
                 image_url = None
                 kw = (ai_keyword or "").strip()
+                if not kw:
+                    subj = header_map.get('subject') or ''
+                    kw = ' '.join(subj.split()[:6]) or 'newsletter'
                 cache_key = _pixabay_cache_key(kw)
                 cached = redis_client.get(cache_key)
                 if cached:

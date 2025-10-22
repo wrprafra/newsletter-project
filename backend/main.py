@@ -49,9 +49,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=False)
 import logging
 logging.info(f"[BOOT] SESSION_SECRET loaded: '{os.getenv('SESSION_SECRET')}'")
 import openai
@@ -2853,7 +2852,8 @@ async def update_images(body: UpdateImagesRequest, request: Request):
                             new_image_url = f"{base}/api/photos/proxy/{photo_id}?w=1600&h=900&mode=no"
                     else:  # Pixabay
                         image_query = await get_ai_keyword(n.full_content_html or "", client)
-                        new_image_url = await get_pixabay_image_by_query(client, image_query, bypass_cache=True)
+                        if not image_query:
+                            image_query = (n.ai_title or n.original_subject or n.source_domain or "newsletter")
 
                     if not new_image_url:
                         failed_items.append({"email_id": email_id, "error": "no_image_found"})

@@ -45,3 +45,5 @@ data/user_credentials.json
 /data/
 credentials.json
 user_credentials.json
+.env old
+.env*
