@@ -4680,3 +4680,30 @@ if (document.readyState === 'loading') {
   }, { passive: true });
 })();
 
+(function focusRefresh(){
+  const COOLDOWN = 5 * 60 * 1000; // 5 minuti
+  let last = 0;
+  
+  const trySync = (reason) => {
+    // Esegui solo se la scheda è visibile e c'è connessione
+    if (document.visibilityState !== 'visible' || !navigator.onLine) return;
+    
+    // Non fare nulla se una sincronizzazione è già in corso
+    if (window.__isIngesting || window.__autoIngesting) return;
+    
+    const now = Date.now();
+    // Rispetta il cooldown per evitare chiamate troppo frequenti
+    if (now - last < COOLDOWN) return;
+    
+    console.log(`[FocusRefresh] Avvio sync soft (reason: ${reason})`);
+    last = now;
+    window.__lastIngestAt = now;
+    
+    // Usa lo stesso payload "leggero"
+    autoIngestAndLoad({ reason, batch: 10, pages: 1, target: 30 });
+  };
+
+  // Ascolta sia il focus della finestra che il cambio di visibilità della scheda
+  window.addEventListener('focus', () => trySync('focus'));
+  document.addEventListener('visibilitychange', () => trySync('visibility'));
+})();
