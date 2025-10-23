@@ -5,6 +5,7 @@ import base64
 import re
 import json
 import logging
+from typing import Optional, Mapping, Any
 import httpx
 import io
 import asyncio
@@ -191,34 +192,51 @@ def _extract_json_from_string(text: str) -> str:
                 return text[start:i + 1]
     return ""
 
-def _extract_output_text(d: dict) -> str | None:
-    try:
-        for item in d.get("output", []):
-            if item.get("type") == "message":
-                for content_part in item.get("content", []):
-                    if content_part.get("type") == "output_text":
-                        text = content_part.get("text")
-                        if isinstance(text, str) and text.strip(): return text
-    except (TypeError, AttributeError): pass
-    if isinstance(d.get("text"), str) and d.get("text").strip(): return d.get("text")
+def _extract_output_text(d: Mapping[str, Any] | None) -> Optional[str]:
+    if not isinstance(d, dict):
+        return None
+
+    out = d.get("output")
+    outputs = out if isinstance(out, list) else ([out] if isinstance(out, dict) else [])
+
+    for item in outputs:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            content = item.get("content")
+            parts = content if isinstance(content, list) else ([content] if isinstance(content, dict) else [])
+            for part in parts:
+                if not isinstance(part, dict):
+                    continue
+                t = part.get("type")
+                txt = part.get("text")
+                if t in ("output_text", "text") and isinstance(txt, str) and txt.strip():
+                    return txt
+
+    txt = d.get("text")
+    if isinstance(txt, str) and txt.strip():
+        return txt
+
     ch = d.get("choices")
     if isinstance(ch, list) and ch:
-        msg = (ch[0] or {}).get("message") or {}
-        if isinstance(msg.get("content"), str): return msg["content"]
+        msg = ch[0]["message"] if isinstance(ch[0], dict) and isinstance(ch[0].get("message"), dict) else {}
+        content = msg.get("content")
+        if isinstance(content, str):
+            return content
+
     return None
 
-def extract_domain_from_from_header(h: str) -> str:
-    """Estrae in modo sicuro il dominio da un header 'From' o da un indirizzo email."""
+
+def extract_domain_from_from_header(h: Optional[str]) -> str:
+    """Estrae in modo sicuro il dominio da un header 'From' o indirizzo email."""
     if not h:
         return ""
-    # Usa parseaddr per gestire correttamente formati come "Nome <user@dominio.com>"
     _, addr = parseaddr(h)
-    # Lavora sull'indirizzo estratto, o sull'intera stringa se parseaddr fallisce
-    s = addr or h
-    # Prendi la parte dopo '@' se presente
-    host = s.split('@')[-1]
-    # Pulisci in modo aggressivo i caratteri spuri, specialmente '>'
-    return host.strip().strip('>').lower()
+    s = (addr or h or "").strip().strip("<>").strip()
+    if not s:
+        return ""
+    host = s.split("@", 1)[1] if "@" in s else s
+    return (host or "").strip().strip(">").lower()
     
 # --- FUNZIONI DI ARRICCHIMENTO (AI E IMMAGINI) ---
 
@@ -575,10 +593,16 @@ def extract_dominant_hex(img_bytes: bytes) -> str:
     try:
         im = Image.open(io.BytesIO(img_bytes)).convert("RGBA").resize((64, 64))
         pal = im.convert("P", palette=Image.Palette.ADAPTIVE, colors=8)
-        palette = pal.getpalette()
-        counts = sorted(pal.getcolors(), reverse=True)
+        palette = pal.getpalette() or []
+        counts = pal.getcolors() or []
+        counts = sorted(counts, reverse=True)
+        if not counts or not palette:
+            return "#374151"
         for _, idx in counts:
-            r, g, b = palette[idx*3: idx*3+3]
+            base = idx * 3
+            if base + 2 >= len(palette):
+                continue
+            r, g, b = palette[base: base+3]
             if (0.299*r + 0.587*g + 0.114*b) < 20: continue
             dark_r, dark_g, dark_b = int(r*0.7), int(g*0.7), int(b*0.7)
             if 25 <= (0.299*dark_r + 0.587*dark_g + 0.114*dark_b) <= 120:

@@ -38,13 +38,6 @@ class BaseModel(Model):
     class Meta:
         database = db
 
-# --- INIZIO MODIFICHE ---
-
-# 2. QUESTA CLASSE Meta ERA FUORI POSTO E VA CANCELLATA
-# class Meta:
-#         database = db
-#         primary_key = CompositeKey('email_id', 'user_id')
-
 class Newsletter(BaseModel):
     # 3. RIMUOVI unique=True DA QUI
     # email_id = CharField(unique=True)
@@ -71,21 +64,21 @@ class Newsletter(BaseModel):
     rfc822_message_id = CharField(null=True) # Rimosso index=True se non necessario per query
 
     # 4. LA CLASSE Meta VA MESSA QUI, DENTRO la classe Newsletter
-    class Meta:
-        database = db
-        primary_key = CompositeKey('email_id', 'user_id')
+    class Meta(BaseModel.Meta):
+        table_name = "newsletter" # Buona pratica per definire esplicitamente il nome della tabella
+        primary_key = CompositeKey("email_id", "user_id")
         indexes = (
-            # Indice UNICO per prevenire duplicati di thread per utente
-            (('user_id', 'thread_id'), True),
+            (("user_id", "thread_id"), False), # Rimosso 'True' se l'unicità non è strettamente richiesta qui
         )
 
 class DomainTypeOverride(BaseModel):
     user_id = CharField(index=True)
     domain = CharField()
     type_tag = CharField(max_length=24)
+    class Meta(BaseModel.Meta):
+            table_name = "domain_type_override" # Buona pratica
+            primary_key = CompositeKey('user_id', 'domain')
 
-    class Meta:
-        primary_key = CompositeKey('user_id', 'domain')
 
 # --- FINE MODIFICHE ---
 
