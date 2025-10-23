@@ -1,6 +1,6 @@
 // sw.js — Progressive runtime caching (safe + fast)
 
-const VERSION = 'v1.9'; // --- FIX: Versione incrementata ---
+const VERSION = 'v2.1'; // Versione incrementata per forzare l'aggiornamento
 const C_STATIC = `static-${VERSION}`;
 const C_IMAGES = `images-${VERSION}`;
 const C_API    = `api-${VERSION}`;
@@ -9,7 +9,11 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/app.js',
+  '/feed-api.js',
+  '/feed-store.js',
+  '/feed-view.js',
   '/style.css',
+  '/manifest.json', // <-- FIX 1: Aggiunto manifest.json
   '/img/the-gist-icon.png',
   '/img/loading.gif',
   '/favicon.png',
@@ -21,14 +25,14 @@ const APP_SHELL = [
 const isSameOrigin = (u) => new URL(u, self.location.href).origin === self.location.origin;
 
 const shouldCacheResponse = (res) => {
-  if (!res || !res.ok) return false;
+  if (!res) return false; // Non `res.ok` perché vogliamo poter fare SWR anche su errori temporanei
   const cc = (res.headers.get('Cache-Control') || '').toLowerCase();
-  return !cc.includes('no-store'); // be conservative; allow SWR on others
+  return !cc.includes('no-store');
 };
 
 const apiCacheable = (pathname) => [
-  /^\/api\/img(?:$|\/)/,       // image proxy
-  /^\/api\/gmail\/messages\/[^/]+\/view$/ // reader HTML
+  /^\/api\/img(?:$|\/)/,
+  /^\/api\/gmail\/messages\/[^/]+\/view$/
 ].some(rx => rx.test(pathname));
 
 /* ---------- install ---------- */
@@ -42,12 +46,10 @@ self.addEventListener('install', (event) => {
 /* ---------- activate ---------- */
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // clean old caches
     const keep = new Set([C_STATIC, C_IMAGES, C_API]);
     for (const name of await caches.keys()) {
       if (!keep.has(name)) await caches.delete(name);
     }
-    // opt-in: navigation preload (if supported)
     if ('navigationPreload' in self.registration) {
       try { await self.registration.navigationPreload.enable(); } catch {}
     }
@@ -55,7 +57,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-/* ---------- messaging (optional: let UI trigger update) ---------- */
+/* ---------- messaging ---------- */
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -67,19 +69,13 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // --- BLOCCO DI BYPASS UNIFICATO E PULITO ---
-  // Ignora completamente le richieste non-GET e quelle a domini esterni.
-  if (req.method !== 'GET' || !isSameOrigin(url)) {
-    return;
-  }
+  // --- BLOCCO DI BYPASS UNIFICATO E RAFFORZATO ---
+  if (req.method !== 'GET' || !isSameOrigin(url)) return;
+  if (req.cache === 'only-if-cached' && req.mode !== 'same-origin') return; // <-- FIX 3
+  if (req.headers.get('accept')?.includes('text/event-stream')) return; // <-- FIX 4
+  if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/ingest/events')) return;
 
-  // Ignora completamente il flusso di autenticazione e gli eventi SSE.
-  if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/ingest/events')) {
-    return; // Lascia che la richiesta vada direttamente alla rete.
-  }
-  // --- FINE BLOCCO DI BYPASS ---
-
-  // 1) IMAGES: cache-first (includes /api/img)
+  // 1) IMAGES: cache-first con fallback a placeholder
   if (req.destination === 'image' || url.pathname.startsWith('/api/img')) {
     event.respondWith((async () => {
       const cache = await caches.open(C_IMAGES);
@@ -87,27 +83,27 @@ self.addEventListener('fetch', (event) => {
       if (hit) return hit;
       try {
         const res = await fetch(req);
-        if (shouldCacheResponse(res)) {
-          try { await cache.put(req, res.clone()); } catch {}
-        }
+        if (shouldCacheResponse(res)) { try { await cache.put(req, res.clone()); } catch {} }
         return res;
       } catch {
-        return new Response('', { status: 504 });
+        // <-- FIX 2: Fallback a un'immagine placeholder invece di errore 504
+        const placeholder = await (await caches.open(C_STATIC)).match('/img/loading.gif');
+        return placeholder || new Response('', { status: 504 });
       }
     })());
     return;
   }
 
-  // 2) API: stale-while-revalidate for allowlisted endpoints only
+  // 2) API CACHEABILI: stale-while-revalidate
   if (url.pathname.startsWith('/api/')) {
-    if (!apiCacheable(url.pathname)) {
-      return;
-    }
+    if (!apiCacheable(url.pathname)) return;
+    
     event.respondWith((async () => {
       const cache = await caches.open(C_API);
       const cached = await cache.match(req);
       const network = fetch(req).then(async (res) => {
-        if (shouldCacheResponse(res)) {
+        // <-- FIX 5: Metti in cache solo le risposte 200 OK
+        if (res.status === 200 && shouldCacheResponse(res)) {
           try { await cache.put(req, res.clone()); } catch {}
         }
         return res;
@@ -117,13 +113,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3) NAVIGATIONS: network-first with navigation preload and shell fallback
+  // 3) NAVIGATIONS: network-first con fallback alla shell
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
         const preload = 'preloadResponse' in event ? await event.preloadResponse : null;
         if (preload) return preload;
         const res = await fetch(req);
+        // Aggiorna la cache della shell se la navigazione ha successo
         if (url.pathname === '/' || url.pathname === '/index.html') {
           try { (await caches.open(C_STATIC)).put(req, res.clone()); } catch {}
         }
@@ -136,13 +133,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4) STATIC ASSETS (scripts/styles/fonts): SWR
+  // 4) STATIC ASSETS (scripts/styles/fonts): stale-while-revalidate
   if (['script', 'style', 'font'].includes(req.destination)) {
     event.respondWith((async () => {
       const cache = await caches.open(C_STATIC);
       const cached = await cache.match(req);
       const network = fetch(req).then(async (res) => {
-        if (shouldCacheResponse(res)) {
+        // <-- FIX 5 (applicato anche qui per coerenza)
+        if (res.status === 200 && shouldCacheResponse(res)) {
           try { await cache.put(req, res.clone()); } catch {}
         }
         return res;

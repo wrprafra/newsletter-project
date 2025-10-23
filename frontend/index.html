@@ -30,6 +30,14 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+<div id="sw-update-banner" class="hidden fixed bottom-0 left-0 right-0 z-[200] bg-gray-800 text-white p-3 text-center shadow-lg">
+  <div class="max-w-2xl mx-auto flex items-center justify-center gap-4">
+    <span class="text-sm">È disponibile una nuova versione.</span>
+    <button id="sw-reload-btn" class="bg-white text-gray-800 font-bold py-1 px-4 rounded-full text-sm hover:bg-gray-200">
+      Aggiorna
+    </button>
+  </div>
+</div>
 <header id="app-header" class="sticky top-0 z-[80]">
   <!-- Overlay per sfondo e blur, separato dallo sticky container -->
   <div class="hdr-bg" aria-hidden="true"></div>

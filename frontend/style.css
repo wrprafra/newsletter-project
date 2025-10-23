@@ -518,3 +518,8 @@
 }
 
 @keyframes spin { to { transform: rotate(1turn); } }
+
+.prefers-reduced-motion * {
+  animation: none !important;
+  transition: none !important;
+}

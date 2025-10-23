@@ -1,25 +1,39 @@
 // ===================================================================
 // CONFIGURAZIONE E VARIABILI DI STATO GLOBALI
 // ===================================================================
+function safeStringify(v){
+  const seen = new WeakSet();
+  return JSON.stringify(v, (k, val) => {
+    if (typeof val === 'function') return undefined;
+    if (typeof val === 'object' && val !== null){
+      if (seen.has(val)) return '[Circular]';
+      seen.add(val);
+    }
+    return val;
+  });
+}
+
 async function logToServer(level, ...args) {
   try {
-    const api = window.API_URL;
-    if (!api) return;
-    // --- INIZIO MODIFICA ---
-    // La variabile 'payload' viene definita correttamente qui
-    const payload = JSON.stringify({ level, message: JSON.stringify(args) });
-    // --- FINE MODIFICA ---
+    const api = window.API_URL; if (!api) return;
+    const message = args.map(a => {
+      try { 
+        const parsed = JSON.parse(safeStringify(a));
+        return typeof parsed === 'string' ? redact(parsed) : parsed;
+      } catch { 
+        return redact(String(a));
+      }
+    });
+    const payload = safeStringify({ level, message });
+
     if (document.visibilityState === 'hidden' && navigator.sendBeacon) {
       const blob = new Blob([payload], { type: 'application/json' });
-      navigator.sendBeacon(`${api}/log`, blob);
-      return;
+      navigator.sendBeacon(`${api}/log`, blob); return;
     }
     await fetch(`${api}/log`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-      keepalive: true
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: payload, keepalive:true
     });
   } catch {}
 }
@@ -58,6 +72,9 @@ function dlog(group, obj = {}) {
   }
 }
 
+const pauseCss = hidden => document.documentElement.classList.toggle('prefers-reduced-motion', hidden);
+document.addEventListener('visibilitychange', () => pauseCss(document.visibilityState !== 'visible'));
+
 // Flag di stato dell'applicazione
 let __activeTopic = null;
 let __activeSender = null;
@@ -68,6 +85,7 @@ let __inFlight = false;
 let __isIngesting = false;
 let __isInitialIngesting = false;
 let __initialLoadDone = false;
+let __renderScheduled = false;
 let __autoIngesting = false;
 let __app_started = false;
 const TYPE_ORDER = ['newsletter', 'promo', 'personali', 'informative'];
@@ -143,52 +161,64 @@ const originalConsole = window.__rawConsole || {
   warn: console.warn.bind(console),
   error: console.error.bind(console),
 };
+const __sseRetry = new Map(); // id -> n
+async function fetchItem(id){
+  const r = await fetch(`${API_URL}/feed/item/${id}`, { credentials:'include', cache:'no-store' });
+  if (!r.ok) throw new Error(`fetch_failed_${r.status}`);
+  return r.json();
+}
 
-async function processSseUpdateQueue() {
-  if (__sseUpdateQueue.length === 0) return;
+function redact(s) {
+  if (typeof s !== 'string') return s;
+  return s
+    .replace(/([?&](?:access_)?token=)[^&]+/gi, '$1[REDACTED]')
+    .replace(/("Authorization":\s*")[^"]+(")/gi, '$1[REDACTED]$2')
+    .replace(/\b[\w.+-]+@[\w.-]+\.\w{2,}\b/g, '[EMAIL_REDACTED]')
+    .replace(/\b(?:\+?\d{1,3}[\s-]?)?(?:\d[\s-]?){7,14}\b/g, '[PHONE_REDACTED]')
+    .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/g, '[IBAN_REDACTED]');
+}
 
-  // Dedup e svuota la coda in modo atomico
-  const idsToProcess = [...new Set(__sseUpdateQueue)];
-  __sseUpdateQueue = [];
+async function processSseUpdateQueue(){
+  if (!__sseOpen || __sseUpdateQueue.length === 0) return;
+  const ids = [...new Set(__sseUpdateQueue)]; __sseUpdateQueue = [];
+  const results = await Promise.allSettled(ids.map(fetchItem));
+  const newItems = [];
 
-  feLog('info', 'sse.batch.process', { count: idsToProcess.length });
-
-  // Fetch di tutti gli item in parallelo
-  const results = await Promise.allSettled(
-    idsToProcess.map(id =>
-      fetch(`${API_URL}/feed/item/${id}`, { credentials: 'include', cache: 'no-store' })
-        .then(r => r.ok ? r.json() : Promise.reject(new Error(`fetch_failed_${r.status}`)))
-    )
-  );
-
-  const newItems = results
-    .filter(r => r.status === 'fulfilled' && r.value && !__mountedIds.has(r.value.email_id))
-    .map(r => r.value);
-
-  // Ordina i nuovi item dal meno recente al più recente per un inserimento corretto
-  newItems.sort((a, b) => new Date(a.received_date) - new Date(b.received_date));
+  for (let i=0; i<results.length; i++){
+    const res = results[i], id = ids[i];
+    if (res.status === 'fulfilled' && res.value && !__mountedIds.has(res.value.email_id)) {
+      newItems.push(res.value);
+      __sseRetry.delete(id); // Successo, resetta il contatore
+    } else {
+      const n = (__sseRetry.get(id) || 0) + 1;
+      if (n <= 3) {
+        __sseRetry.set(id, n);
+        const delay = 800 * (2**(n-1)) + Math.random() * 200; // Aggiungi jitter
+        feLog('warn','sse.item.retry',{id, attempts:n, delay});
+        setTimeout(()=>{ scheduleSseUpdate(id); }, delay);
+      } else {
+        feLog('warn','sse.item.drop',{id, attempts:n, error: res.reason?.message});
+        __sseRetry.delete(id); // Drop definitivo, resetta
+      }
+    }
+  }
 
   if (newItems.length > 0) {
-    // Usa la stessa logica di upsertFeedItems per prependere e idratare
-    await upsertFeedItems(newItems, { prepend: true });
+    newItems.sort((a, b) => new Date(a.received_date) - new Date(b.received_date));
+    await upsertFeedItems(newItems, { prepend:true });
     mergeFeedMemory(newItems);
-    applyViewFilter();
-    
-    // --- INIZIO MODIFICA ---
-    // Riattiva il sentinel per l'infinite scroll.
-    clearSentinel();
-    // --- FINE MODIFICA ---
   }
+  
+  applyViewFilter(); 
+  reconcileEndOfFeed();
 }
 
 function scheduleSseUpdate(emailId) {
-  if (!__sseUpdateQueue.includes(emailId)) {
-    __sseUpdateQueue.push(emailId);
-  }
-
-  // Usa un debounce/throttle manuale con setTimeout
+  if (!emailId) return;
+  if (!__sseUpdateQueue.includes(emailId)) __sseUpdateQueue.push(emailId);
   if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
-  __sseProcessTimer = setTimeout(processSseUpdateQueue, 800); // Raggruppa update entro 800ms
+  if (!__sseOpen) return;           // ⬅️ Evita flush dopo chiusura
+  __sseProcessTimer = setTimeout(processSseUpdateQueue, 800);
 }
 
 function formatDate(isoLike) {
@@ -253,13 +283,51 @@ const READ_SECONDS = 2;
 let __readObserver;
 const __readState = new Map(); // id -> { seen:ms, t0:hrtime, timer }
 function readKey(){ return `readThreads:${EVER_KEY || 'anonymous'}`; }
-function loadReadSet(){ try{ return new Set(JSON.parse(localStorage.getItem(readKey())||'[]')); }catch{return new Set();} }
 let __readSet = loadReadSet();
 
 function isRead(id){ return __readSet.has(String(id)); }
 
+function loadReadSet() {
+  try {
+    const raw = localStorage.getItem(readKey());
+    if (!raw) return new Set();
+    
+    const data = JSON.parse(raw);
+    // Controlla se è il nuovo formato compresso
+    if (data && typeof data.b !== 'undefined' && Array.isArray(data.d)) {
+      let lastId = Number(data.b) || 0;
+      const out = [String(lastId)];
+      for (let i = 1; i < data.d.length; i++) {
+        lastId += Number(data.d[i]) || 0;
+        out.push(String(lastId));
+      }
+      return new Set(out);
+    }
+    // Fallback per il vecchio formato (array semplice)
+    if (Array.isArray(data)) {
+        return new Set(data);
+    }
+  } catch {}
+  // Fallback finale se tutto fallisce
+  return new Set();
+}
 
-function saveReadSet(){ try{ localStorage.setItem(readKey(), JSON.stringify([...__readSet])); }catch{} }
+const debounce = (fn, ms = 200) => {
+  let t;
+  return (...a) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...a), ms);
+  };
+};
+
+function saveReadSet(){ 
+  try{ 
+    const arr = [...__readSet];
+    const CAP = 5000;
+    const trimmed = arr.slice(-CAP);
+    localStorage.setItem(readKey(), JSON.stringify(trimmed)); 
+  }catch{} 
+}
 
 function markRead(id){
   const s = String(id);
@@ -591,8 +659,8 @@ function getGmailUrl(item, accountIndex = 0) {
 
     const rfc822 = item.rfc822_message_id || item.messageId || item.headers?.['Message-ID'] || item.headers?.['Message-Id'];
     if (rfc822){
-      const qid = /<.*>/.test(rfc822) ? rfc822 : `<${rfc822}>`;
-      const q = `rfc822msgid:${qid}`;
+      const cleaned = String(rfc822).trim().replace(/[^\w.@<>-]/g,'');
+      const q = `rfc822msgid:<${cleaned.replace(/[<>]/g,'')}>`;
       log('rfc822 → search', q);
       return base(`#search/${encodeURIComponent(q)}`);
     }
@@ -614,48 +682,42 @@ function getGmailUrl(item, accountIndex = 0) {
   }
 }
 
-async function applyTypeOverride(emailId, typeTag) {
-    const targetItem = allFeedItems.find(it => String(it.email_id) === String(emailId));
-    if (!targetItem) return;
-    const domain = (targetItem.source_domain || (targetItem.sender_email || '').split('@')[1] || '').toLowerCase();
+async function applyTypeOverride(emailId, typeTag){
+  const targetItem = allFeedItems.find(it => String(it.email_id) === String(emailId));
+  if (!targetItem) return;
+  const domain = (targetItem.source_domain || (targetItem.sender_email || '').split('@')[1] || '').toLowerCase();
 
-    // Aggiornamento ottimistico dei dati in memoria
-    allFeedItems.forEach(item => {
-        const itemDomain = (item.source_domain || (item.sender_email || '').split('@')[1] || '').toLowerCase();
-        if (domain && itemDomain === domain) {
-            item.type_tag = typeTag;
-        }
-    });
+  const before = new Map();
+  allFeedItems.forEach(item => {
+      const itemDomain = (item.source_domain || (item.sender_email || '').split('@')[1] || '').toLowerCase();
+      if (domain && itemDomain === domain) {
+          before.set(item.email_id, item.type_tag);
+          item.type_tag = typeTag;
+      }
+  });
 
-    // Aggiornamento immediato del DOM
-    const formattedTag = typeTag.charAt(0).toUpperCase() + typeTag.slice(1);
-    document.querySelectorAll('.feed-card').forEach(card => {
-        const it = getItemById(card.dataset.emailId);
-        if (it) {
-            const itemDomain = (it.source_domain || (it.sender_email || '').split('@')[1] || '').toLowerCase();
-            if (domain && itemDomain === domain) {
-                const btn = card.querySelector('.js-type-edit');
-                if (btn) btn.textContent = formattedTag;
-            }
-        }
-    });
+  // Aggiornamento ottimistico
+  renderWithFilters();
 
-    updateTypeMenuCounters();
-    renderWithFilters();
-
-    // Chiamata al backend
-    try {
-        const res = await fetch(`${window.API_URL}/feed/${emailId}/type`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ type_tag: typeTag })
-        });
-        if (!res.ok) throw new Error('save_failed');
-    } catch (err) {
-        console.error("Salvataggio della tipologia fallito:", err);
-        showToast('Errore nel salvare la modifica', 'error');
-    }
+  try {
+      const res = await fetch(`${window.API_URL}/feed/${emailId}/type`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ type_tag: typeTag })
+      });
+      if (!res.ok) throw new Error('save_failed');
+  } catch (err) {
+      // Rollback in caso di errore
+      allFeedItems.forEach(item => {
+          if (before.has(item.email_id)) {
+              item.type_tag = before.get(item.email_id);
+          }
+      });
+      renderWithFilters();
+      console.error("Salvataggio della tipologia fallito, rollback eseguito:", err);
+      showToast('Errore nel salvare la modifica', 'error');
+  }
 }
 
 
@@ -702,17 +764,25 @@ function renderTileSkeleton(id) {
 function setCardImageCached(imgEl, emailId, url, isInternal) {
   if (!imgEl || !url) return;
 
-  // Aggiungi il gestore di errore per il fallback
   imgEl.onerror = () => {
-    imgEl.onerror = null; // Evita loop di errori
+    imgEl.onerror = null;
     const originalUrl = new URL(url, window.location.origin).searchParams.get('u');
     if (originalUrl) {
-      console.warn(`[IMG Fallback] Proxy fallito per ${emailId}. Tento di caricare l'URL originale.`);
-      imgEl.src = originalUrl; // Tenta di caricare l'URL diretto
+      imgEl.src = originalUrl;
     }
   };
 
   const cached = __IMG_CACHE.get(emailId);
+
+  const updateCacheAndEl = (blobUrl) => {
+    const prev = __IMG_CACHE.get(emailId);
+    if (prev && prev !== blobUrl && prev.startsWith('blob:')) {
+      try { URL.revokeObjectURL(prev); } catch(e) {}
+    }
+    __IMG_CACHE.set(emailId, blobUrl);
+    if (imgEl.src !== blobUrl) imgEl.src = blobUrl;
+  };
+
   if (cached) {
     if (imgEl.src !== cached) imgEl.src = cached;
     return;
@@ -720,17 +790,8 @@ function setCardImageCached(imgEl, emailId, url, isInternal) {
 
   fetch(url, { credentials: 'include', cache: 'force-cache' })
     .then(r => r.ok ? r.blob() : Promise.reject(new Error('img_http_' + r.status)))
-    .then(b => {
-      const prev = __IMG_CACHE.get(emailId);
-      if (prev && prev.startsWith('blob:')) {
-        try { URL.revokeObjectURL(prev); } catch(e) {}
-      }
-      const obj = URL.createObjectURL(b);
-      __IMG_CACHE.set(emailId, obj);
-      if (imgEl.src !== obj) imgEl.src = obj;
-    })
+    .then(b => updateCacheAndEl(URL.createObjectURL(b)))
     .catch(() => {
-      // Se anche il fetch fallisce, usa l'URL diretto
       setCardImage(imgEl, url, isInternal);
     });
 }
@@ -969,54 +1030,38 @@ function clearFeed(reason = 'unknown') {
 }
 
 // app.js — blocco Service Worker
-if ('serviceWorker' in navigator) {
-  // Controlla se l'hostname NON è localhost o 127.0.0.1
-  if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
-    // --- AMBIENTE DI PRODUZIONE ---
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('Service Worker registrato con successo:', registration);
-
-          // Logica per gestire l'aggiornamento automatico
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              console.log('Nuovo Service Worker trovato, in fase di installazione...');
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Un nuovo SW è pronto e in attesa.
-                  // Invia un messaggio per attivarlo immediatamente.
-                  console.log('Nuovo Service Worker installato e pronto. Invio SKIP_WAITING.');
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                }
-              });
-            }
-          });
-        })
-        .catch((error) => console.warn('Registrazione Service Worker fallita:', error));
+if ('serviceWorker' in navigator && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw?.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // Mostra il banner per l'aggiornamento invece di forzare il reload
+            document.getElementById('sw-update-banner')?.classList.remove('hidden');
+          }
+        });
+      });
+    }).catch(err => console.warn('Registrazione Service Worker fallita:', err));
+  });
+  // Aggiungi un listener al bottone del banner per eseguire il reload
+  document.getElementById('sw-reload-btn')?.addEventListener('click', () => {
+    // Invia un messaggio al nuovo SW per attivarsi subito
+    navigator.serviceWorker.getRegistration().then(reg => {
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+        // Ricarica la pagina dopo un breve ritardo per dare tempo al SW di attivarsi
+        setTimeout(() => window.location.reload(), 200);
     });
-
-    // Ricarica la pagina una sola volta quando il nuovo SW prende il controllo.
-    let refreshing;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      console.log('Service Worker aggiornato. Ricarico la pagina...');
-      window.location.reload();
-      refreshing = true;
-    });
-
-  } else {
-    // --- AMBIENTE DI SVILUPPO (localhost) ---
+  });
+} else {
+    // Logica per ambiente di sviluppo (invariata)
     console.log('[SW] Rilevato ambiente di sviluppo. Annullamento registrazioni esistenti...');
     navigator.serviceWorker.getRegistrations()
       .then(registrations => {
         for (let registration of registrations) {
           registration.unregister();
-          console.log('[SW] Registrazione annullata:', registration.scope);
         }
       });
-  }
 }
 
 
@@ -1130,6 +1175,7 @@ async function autoIngestAndLoad(options = {}) {
       feLog('warn', 'ingest.pull.fail', { status: res?.status, error });
       __ingestCooldownUntil = Date.now() + 30_000;
       __autoIngesting = false;
+      reconcileEndOfFeed(); // <-- Aggiunta qui
       return;
     }
 
@@ -1138,11 +1184,11 @@ async function autoIngestAndLoad(options = {}) {
     feLog('info', 'ingest.pull.ok', { jobId, status: body?.status });
 
     if (body.status === 'already_running' && jobId) {
-      __autoIngesting = false; // Sblocca subito la UI
+      __autoIngesting = false;
       window.__isIngesting = true;
       handleIngestionState(jobId, {
-          onDone: () => { __autoIngesting = false; dlog('[PTR] refresh_done (joined)'); },
-          onError: () => { __autoIngesting = false; }
+          onDone: () => { __autoIngesting = false; dlog('[PTR] refresh_done (joined)'); reconcileEndOfFeed(); },
+          onError: () => { __autoIngesting = false; reconcileEndOfFeed(); }
       });
       return;
     }
@@ -1162,21 +1208,25 @@ async function autoIngestAndLoad(options = {}) {
           clearSentinel();
           __autoIngesting = false;
           dlog('[PTR] refresh_done');
+          reconcileEndOfFeed();
         },
         onError: () => {
           __isIngesting = false;
           __isInitialIngesting = false;
           clearSentinel();
           __autoIngesting = false;
+          reconcileEndOfFeed();
         }
       });
     } else {
       __autoIngesting = false;
+      reconcileEndOfFeed();
     }
   } catch (e) {
     console.warn('[ingest] Errore durante il processo di auto-ingestione:', e);
     __autoIngesting = false;
     __isInitialIngesting = false;
+    reconcileEndOfFeed();
   }
 }
 
@@ -1286,15 +1336,12 @@ function startBackgroundUpdates() {
 function handleIngestionState(jobId, { onDone, onError } = {}) {
   feLog('info', 'sse.start', { jobId });
 
-  // JOIN: Se lo stesso job è già in ascolto, aggiungi i callback e riallinea la UI
   if (__ingestSSE && __ingestSSE.__jobId === jobId) {
     dlog('[SSE] join', {jobId});
     __ingestSSE.__waiters ||= [];
     __ingestSSE.__waiters.push({ onDone, onError });
-
     __isIngesting = true;
     __sseOpen = true;
-    toggleEndOfFeed(false);
     toggleLoadingMessage(true);
     startBackgroundUpdates();
     return;
@@ -1306,41 +1353,24 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
   if (updateBtn) { updateBtn.disabled = true; updateBtn.classList.add('opacity-50','cursor-not-allowed'); }
 
   __isIngesting = true;
-  const es = new EventSource(`${window.BACKEND_BASE}/api/ingest/events/${jobId}`, { withCredentials: true });
-  __ingestSSE = es; es.__jobId = jobId;
-
-  __sseOpen = true;
-  toggleEndOfFeed(false);
-  toggleLoadingMessage(true);
-  startBackgroundUpdates();
-
-  let aborted = false;
-  const ctrl = new AbortController();
-  let sseHadActivity = false;
+  let retries = 0;
+  const MAX_RETRIES = 5;
+  let es;
   let finished = false;
 
-    const cleanup = () => {
-    aborted = true;
-    try { ctrl.abort(); } catch {}
+  const cleanup = () => {
     if (backgroundUpdateInterval) {
       clearInterval(backgroundUpdateInterval);
       backgroundUpdateInterval = null;
     }
-    clearTimeout(sseSilenceTimer);
     if (es) es.close();
     __ingestSSE = null;
     if (updateBtn) { updateBtn.disabled = false; updateBtn.classList.remove('opacity-50','cursor-not-allowed'); }
-    
-    // --- INIZIO MODIFICA ---
-    // Azzera la coda e il timer degli aggiornamenti SSE per evitare flush tardivi.
     __sseUpdateQueue = [];
     if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
     __sseProcessTimer = null;
-    // --- FINE MODIFICA ---
-
     feLog('info', 'sse.closed', { jobId });
   };
-
 
   const finish = (isSuccess, meta) => {
     if (finished) return;
@@ -1348,12 +1378,12 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     __sseOpen = false;
     toggleLoadingMessage(false);
     
-    const waiters = (es.__waiters || []);
+    const waiters = (es?.__waiters || []);
     for (const w of waiters) {
       if (isSuccess) w.onDone?.(meta);
       else w.onError?.();
     }
-    es.__waiters = [];
+    if (es) es.__waiters = [];
 
     cleanup();
 
@@ -1362,48 +1392,16 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     } else {
       onError?.();
     }
-  };
-
-  const sseSilenceTimer = setTimeout(async () => {
-    if (sseHadActivity || !hasRenderedAtLeastOneCard()) return;
-    try {
-      const res = await fetch(`${API_URL}/ingest/status/${jobId}`);
-      if (res.ok) {
-        const status = await res.json();
-        if (status.state === 'running' || status.state === 'queued') {
-          return;
-        }
-      }
-    } catch (e) {}
-    feLog('warn', 'sse.silence.timeout', { jobId });
-    finish(true, { status: 'done_by_silence', added: 0 });
-  }, 30000);
-
-  let retried = false;
-  es.onerror = (e) => {
-    feLog('warn', 'sse.error', { jobId, message: String(e?.message || e) });
-    if (!retried) {
-      retried = true;
-      clearTimeout(sseSilenceTimer);
-      try { es.close(); } catch {}
-      setTimeout(() => handleIngestionState(jobId, { onDone, onError }), 600);
-      return;
-    }
-    finish(false);
+    reconcileEndOfFeed();
   };
 
   const onAny = async (ev) => {
     let st = {}; 
     try { st = JSON.parse(ev.data || "{}"); } catch {}
     feLog('info', 'sse.event', { jobId, type: ev.type, ...st });
-
-    if (ev.type === 'update') sseHadActivity = true;
-
-    if (ev.type === 'update' && st.email_id && !aborted) {
-      // Invece di processare subito, accoda l'ID per il batching.
+    if (ev.type === 'update' && st.email_id) {
       scheduleSseUpdate(st.email_id);
     }
-
     if (st.state === "done") {
       finish(true, { status: 'done', added: st.done || 0 });
     } else if (st.state === "failed") {
@@ -1411,11 +1409,54 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     }
   };
 
-  es.addEventListener('progress', onAny);
-  es.addEventListener('update', onAny);
-  window.addEventListener('beforeunload', cleanup, { once: true });
+  function openES() {
+    es = new EventSource(`${window.BACKEND_BASE}/api/ingest/events/${jobId}`, { withCredentials: true });
+    __ingestSSE = es; es.__jobId = jobId;
+    __sseOpen = true;
+    
+    es.addEventListener('progress', onAny);
+    es.addEventListener('update', onAny);
+    window.addEventListener('beforeunload', cleanup, { once: true });
+
+    es.onerror = () => {
+      es.close();
+      __sseOpen = false;
+      
+      if (!navigator.onLine) {
+        feLog('warn', 'sse.offline', { jobId });
+        window.addEventListener('online', openES, { once: true });
+        return;
+      }
+
+      if (retries >= MAX_RETRIES) {
+        feLog('error', 'sse.retries.exhausted', { jobId });
+        finish(false);
+        return;
+      }
+      const delay = Math.min(8000, 600 * (2 ** retries) + Math.random() * 300);
+      retries++;
+      feLog('warn', 'sse.retry.schedule', { jobId, retries, delay });
+      setTimeout(openES, delay);
+    };
+  }
+
+  toggleEndOfFeed(false);
+  toggleLoadingMessage(true);
+  startBackgroundUpdates();
+  openES();
 }
 
+function reconcileEndOfFeed() {
+    const ingesting = __sseOpen || __isIngesting;
+    if (!__hasMore && !ingesting) {
+        // Solo se non c'è più nulla da caricare E non c'è un'ingestione in corso
+        toggleEndOfFeed(true);
+        toggleLoadingMessage(false);
+        clearSentinel();
+    } else {
+        toggleEndOfFeed(false);
+    }
+}
 
 // Sovrascrivi la funzione fetchFeed globale con la versione finale
 
@@ -2069,7 +2110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    domainSearch?.addEventListener('input', () => renderDomainDropdown(domainSearch.value));
+    domainSearch?.addEventListener('input', debounce(() => renderDomainDropdown(domainSearch.value), 150));
 
     domainSelectAll?.addEventListener('click', () => {
         const q = (domainSearch?.value || '').trim().toLowerCase();
@@ -2147,17 +2188,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally { 
         __typeTarget = null; // Resetta il target dopo l'operazione
       }
-    });
-
-    // ===== INIZIO BLOCCO DA AGGIUNGERE =====
-    const closeTypeOverride = () =>
-      document.getElementById('type-override-menu')?.classList.add('hidden');
-
-    ['scroll','wheel','touchmove','resize'].forEach(ev =>
-      window.addEventListener(ev, closeTypeOverride, { passive: true })
-    );
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeTypeOverride();
     });
 
     hiddenSheet?.addEventListener('click', async (e) => {
@@ -2840,41 +2870,40 @@ const saveHiddenIds = () =>
   localStorage.setItem('hiddenEmailIds', JSON.stringify([...hiddenEmailIds]));
 
 // utility: trova l’item dal feed in memoria
-const getItemById = (id) => allFeedItems.find(x => String(x.email_id) === String(id));
+const getItemById = (id) => itemsById.get(String(id));
 
 // applica i filtri client (preferiti toggle + hidden locali)
 const renderWithFilters = () => {
-  const filtered = applyClientFilters(allFeedItems);
-  const visibleIds = new Set(filtered.map(it => String(it.email_id)));
+  if (__renderScheduled) return;
+  __renderScheduled = true;
+  requestAnimationFrame(() => {
+    __renderScheduled = false;
+    
+    const filtered = applyClientFilters(allFeedItems);
+    const visibleIds = new Set(filtered.map(it => String(it.email_id)));
 
-  // Mostra o nascondi le card già presenti nel DOM
-  document.querySelectorAll('#feed-container .feed-card').forEach(card => {
-    card.classList.toggle('hidden', !visibleIds.has(card.dataset.emailId));
+    document.querySelectorAll('#feed-container .feed-card').forEach(card => {
+      card.classList.toggle('hidden', !visibleIds.has(card.dataset.emailId));
+    });
+
+    document.querySelectorAll('.js-topic').forEach(el => {
+      const on = __activeTopic && el.dataset.topic.toLowerCase() === __activeTopic.toLowerCase();
+      el.classList.toggle('ring-2', on);
+      el.classList.toggle('ring-white/40', on);
+    });
+
+    document.querySelectorAll('.js-sender').forEach(el => {
+      const on = __activeSender && (el.dataset.sender || '') === __activeSender;
+      el.classList.toggle('ring-2', on);
+      el.classList.toggle('ring-white/40', on);
+    });
+
+    const isFiltered = showOnlyFavorites || __activeTopic || __activeSender || (activeTypes.size < TYPE_ORDER.length) || (activeReads.size < READ_STATES.length);
+    document.getElementById('load-more-sentinel')?.classList.toggle('hidden', isFiltered);
+
+    updateFeedCounter();
+    updateTypeMenuCounters();
   });
-
-  // Evidenzia i chip dei filtri attivi per il topic
-  document.querySelectorAll('.js-topic').forEach(el => {
-    const on = __activeTopic && el.dataset.topic.toLowerCase() === __activeTopic.toLowerCase();
-    el.classList.toggle('ring-2', on);
-    el.classList.toggle('ring-white/40', on);
-  });
-
-  // Evidenzia i chip dei filtri attivi per il sender
-  document.querySelectorAll('.js-sender').forEach(el => {
-    const on = __activeSender && (el.dataset.sender || '') === __activeSender;
-    el.classList.toggle('ring-2', on);
-    el.classList.toggle('ring-white/40', on);
-  });
-
-  // Disattiva lo scroll infinito se c'è un filtro attivo
-  const isFiltered = showOnlyFavorites || __activeTopic || __activeSender || (activeTypes.size < TYPE_ORDER.length);
-  document.getElementById('load-more-sentinel')?.classList.toggle('hidden', isFiltered);
-
-  // --- INIZIO MODIFICA: Aggiorna il contatore ---
-  updateFeedCounter();
-  updateTypeMenuCounters();
-
-  // --- FINE MODIFICA ---
 };
 
 
@@ -3285,11 +3314,11 @@ let __applyPrefTimer = null;
       total: 0,
     };
 
-    function extractHostname(u) {
+function extractHostname(u) {
+  if (!u || u.startsWith('mailto:') || u.startsWith('tel:')) return null;
   try { return new URL(u).hostname.replace(/^www\./,'').toLowerCase(); } 
   catch { return null; }
 }
-
 
 function deriveDomainForItem(item) {
   // 1) se backend ha già calcolato source_domain, usa quello
@@ -3323,15 +3352,13 @@ function mdToHtmlSafe(md) {
 
   const autolink = (txt) =>
     txt.replace(/((?:https?:\/\/|mailto:)[^\s<]+[^<.,:;"')\]\s])/gi,
-      (m) => `<a href="${esc(m)}" target="_blank" rel="noopener noreferrer">${esc(m)}</a>`);
+      (m) => `<a href="${esc(m)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(m)}</a>`);
 
   const inline = (s) => autolink(
     esc(s)
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/__(.+?)__/g,     '<strong>$1</strong>')
       .replace(/`([^`]+)`/g,     '<code>$1</code>')
       .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
-      .replace(/(^|[^_])_([^_\n]+)_(?!_)/g,   '$1<em>$2</em>')
   );
 
   const lines = String(md).split(/\n+/);
@@ -3558,24 +3585,19 @@ function updateFeedCard(cardEl, item) {
     if (cur !== newSrc) {
       imgEl.style.opacity = 0;
 
-      loadImageWithDiagnostics(newSrc, 6000)
+      loadWithRetry(newSrc)
         .then(preImg => {
           try { applyColorsFromImage(cardEl, preImg); } catch {}
-          setCardImage(imgEl, newSrc, isInternal);   // <<< FIX: usa isInternal
+          setCardImage(imgEl, newSrc, isInternal);
           imgEl.style.display = 'block';
           imgEl.style.transition = 'opacity .25s ease-in';
           requestAnimationFrame(() => { imgEl.style.opacity = 1; });
-          // assicura visibilità card
           cardEl.classList.remove('opacity-0');
         })
-        .catch(() => {
-          setCardImage(imgEl, newSrc, isInternal);   // <<< FIX: usa isInternal
-          imgEl.onload = () => {
-            try { applyColorsFromImage(cardEl, imgEl); } catch {}
-            imgEl.style.transition = 'opacity .25s ease-in';
-            imgEl.style.opacity = 1;
-            cardEl.classList.remove('opacity-0');
-          };
+        .catch(() => { // Questo catch ora gestisce il fallimento anche di picsum
+          imgEl.src = '/img/loading.gif'; // Fallback finale
+          imgEl.style.opacity = 1;
+          cardEl.classList.remove('opacity-0');
         });
     }
   }
@@ -3638,6 +3660,13 @@ function createSkeletonNode() {
     img.referrerPolicy = 'no-referrer';
     img.src = url;
   });
+}
+async function loadWithRetry(u){
+  for (const t of [3000, 6000]){
+    try{ return await loadImageWithDiagnostics(u, t); }catch{}
+  }
+  const seed = Math.random().toString(36).slice(2);
+  return loadImageWithDiagnostics(`https://picsum.photos/seed/${seed}/800/600`, 4000);
 }
 
 async function prepareAndMountCard(item, placeholder) {
@@ -3766,7 +3795,9 @@ async function upsertFeedItems(items, { append = false, prepend = false } = {}) 
 window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) => {
   dlog("fetch_start", { reset, cursor, force, inFlight: __inFlight, isIngesting: __isIngesting });
 
-  if (__inFlight && !force) { return; }
+  if (__inFlight && !force) {
+    return;
+  }
   __inFlight = true;
 
   if (reset) {
@@ -3777,23 +3808,24 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     __mountedIds.clear();
     clearFeed('fetchFeed(reset=true)');
     toggleEndOfFeed(false);
-    __endStreak = 0;
   }
 
   const prepend = !reset && !cursor && hasCards();
-  const append = !!cursor || (cursor === null && !hasCards()); // Aggiungi anche al primo caricamento
-
+  const append = !!cursor || (cursor === null && !hasCards());
   const size = __firstPaintDone ? __PAGE_SIZE : FIRST_PAINT_COUNT;
   const params = new URLSearchParams({ page_size: String(size) });
-  
-  // Il cursore viene usato solo per la paginazione verso il basso (append).
   const currentCursor = append ? (cursor || __cursor) : null;
+
   if (currentCursor) {
     params.set('before', currentCursor);
   }
 
   const url = `${API_URL}/feed?${params.toString()}`;
-  if (__feedAbort) { try { __feedAbort.abort(); } catch {} }
+  if (__feedAbort) {
+    try {
+      __feedAbort.abort();
+    } catch {}
+  }
   const ctrl = new AbortController();
   __feedAbort = ctrl;
 
@@ -3802,107 +3834,113 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     const res = await fetch(url, {
       credentials: 'include',
       signal: ctrl.signal,
-      headers: { "X-Request-Id": (window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).slice(2)).slice(0, 12) }
+      headers: {
+        "X-Request-Id": (window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).slice(2)).slice(0, 12)
+      }
     });
     console.log('[feed.fetch.ms]', Math.round(performance.now() - t0_fetch), res.headers.get('server-timing'));
 
     if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`[fetchFeed] Errore HTTP ${res.status}:`, errorText.slice(0, 500));
-        showToast(`Errore di comunicazione (${res.status})`, 'error');
-        hideLoadingFooter();
-        clearSentinel();
-        return;
+      const errorText = await res.text();
+      console.error(`[fetchFeed] Errore HTTP ${res.status}:`, errorText.slice(0, 500));
+      showToast(`Errore di comunicazione (${res.status})`, 'error');
+      hideLoadingFooter();
+      clearSentinel();
+      return;
     }
 
     const data = await res.json();
     const page = Array.isArray(data?.feed) ? data.feed : [];
 
-    console.debug("[FEED] fetched", {
-        count: page.length, 
-        has_more: data.has_more, 
-        next_cursor: data.next_cursor,
-        ingest_running: data?.ingest?.running 
-    });
-    
-    // --- INIZIO PATCH ---
+    __hasMore = Boolean(data.has_more);
+    __isIngesting = data?.ingest?.running || false;
+
     if (page.length === 0 && !reset) {
-        __hasMore = data.has_more ?? false;
-
-        if (data?.ingest?.running || __sseOpen) {
-            // Se l'ingestione è in corso, non mostrare mai il messaggio di fine.
-            toggleEndOfFeed(false);
-            toggleLoadingMessage(true, "Sto preparando nuove newsletter…");
-        } else if (!__hasMore) {
-            // Altrimenti, usa la logica a "streak" per mostrare il messaggio.
-            toggleLoadingMessage(false);
-            __endStreak = (__endStreak || 0) + 1;
-            if (__endStreak >= 2) {
-                toggleEndOfFeed(true);
-            }
-        }
-        clearSentinel();
-        return;
+      reconcileEndOfFeed();
+      return;
     }
-
-    if (page.length > 0) {
-        __endStreak = 0;
-        toggleLoadingMessage(false); // Nascondi il loader se arrivano item
-    }
-    // --- FINE PATCH ---
 
     mergeFeedMemory(page);
     await upsertFeedItems(page, { append, prepend });
+
     if (prepend) {
       clearSentinel();
     }
+
     applyViewFilter();
 
     if (append) {
       __cursor = data.next_cursor ?? null;
     }
-    __hasMore = Boolean(data.has_more);
-
-    // if (!__hasMore && !__didBackfillOnce) {
-    //   __didBackfillOnce = true;
-    //   autoIngestAndLoad({ batch: 100, pages: 8, target: 400, reason: 'one-time-backfill' });
-    // }
 
     if (data?.ingest?.running && data.ingest.job_id) {
-      __isIngesting = true;
       handleIngestionState(data.ingest.job_id);
     }
+
+    reconcileEndOfFeed();
+
   } catch (err) {
     if (err?.name !== 'AbortError') {
       console.error("[fetchFeed] ERRORE:", err);
     }
   } finally {
     __inFlight = false;
-    if (__feedAbort === ctrl) __feedAbort = null;
-    if (!FEED_STATE.everLoaded && hasCards()) setEverLoaded(true);
+    if (__feedAbort === ctrl) {
+      __feedAbort = null;
+    }
+    if (!FEED_STATE.everLoaded && hasCards()) {
+      setEverLoaded(true);
+    }
   }
 };
 
 function mergeFeedMemory(pageItems = []) {
   if (!Array.isArray(pageItems) || pageItems.length === 0) return;
-  
+  const MAX_CACHE = 1500; // Limite massimo di item in memoria
+
   for (const it of pageItems) {
     const k = String(it.email_id);
-    if (!itemsById.has(k)) {
-      allFeedItems.push(it); // Aggiungi solo se veramente nuovo
+    if (itemsById.has(k)) {
+      const idx = allFeedItems.findIndex(x => String(x.email_id) === k);
+      if (idx >= 0) allFeedItems[idx] = it;
+    } else {
+      allFeedItems.push(it);
     }
-    // Aggiorna sempre la cache con i dati più recenti
     itemsById.set(k, it);
   }
-  
-  recomputeDomainCounts(allFeedItems);
 
+  if (allFeedItems.length > MAX_CACHE) {
+    const dropCount = allFeedItems.length - MAX_CACHE;
+    const removed = allFeedItems.splice(0, dropCount);
+    for (const it of removed) {
+      itemsById.delete(String(it.email_id));
+    }
+  }
+
+  recomputeDomainCounts(allFeedItems);
   if (domainDropdown && !domainDropdown.classList.contains('hidden')) {
     renderDomainDropdown(domainSearch?.value || "");
   }
-  
-  window.allFeedItems = allFeedItems; // Per debug
 }
+
+document.addEventListener('visibilitychange', () => {
+  const hidden = document.visibilityState !== 'visible';
+  if (__readObserver) {
+    const cards = document.querySelectorAll('#feed-container .feed-card');
+    cards.forEach(card => {
+      try {
+        if (hidden) {
+          __readObserver.unobserve(card);
+        } else {
+          // Osserva di nuovo solo se non è già stato letto
+          if (!isRead(card.dataset.emailId)) {
+            __readObserver.observe(card);
+          }
+        }
+      } catch {}
+    });
+  }
+});
 
 function recomputeDomainCounts(items){
   const counts = new Map();
@@ -3914,7 +3952,9 @@ function recomputeDomainCounts(items){
   window.__domainCounts = counts;
 }
 
+const mkSrcSet = (u)=> `${u.replace(/w=\d+/, 'w=800').replace(/h=\d+/, 'h=450')} 1x, ${u.replace(/w=\d+/, 'w=1600').replace(/h=\d+/, 'h=900')} 2x`;
     // --- LOGICA DI AGGIORNAMENTO IMMAGINI ---
+
 const updateImages = async (overrideSource = null) => {
     console.log("-> [updateImages] Avvio processo...");
 
@@ -3963,7 +4003,6 @@ const updateImages = async (overrideSource = null) => {
             const img = card.querySelector('.card-image');
             if (!img) return;
 
-            // Applica l'effetto "updating" SOLO alla card che sta per essere aggiornata
             img.classList.add('updating-image');
 
             const internal = isInternalImageUrl(item.image_url);
@@ -3974,6 +4013,12 @@ const updateImages = async (overrideSource = null) => {
             if (item.accent_hex) {
               card.style.setProperty('--accent', item.accent_hex);
             }
+            
+            if (internal && /w=\d+/.test(newSrc)) {
+                img.setAttribute('srcset', mkSrcSet(newSrc));
+            } else {
+                img.removeAttribute('srcset');
+            }
 
             const done = () => {
               img.classList.remove('updating-image');
@@ -3983,7 +4028,6 @@ const updateImages = async (overrideSource = null) => {
             img.addEventListener('load', done, { once: true });
             img.addEventListener('error', () => {
               img.classList.remove('updating-image');
-              // placeholder elegante + mantieni il colore fallback
               img.removeAttribute('srcset');
               img.src = '/img/loading.gif';
             }, { once: true });
