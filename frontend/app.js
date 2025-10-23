@@ -2911,28 +2911,40 @@ const applyClientFilters = (items) => {
   let out = items.filter(it => !hiddenEmailIds.has(it.email_id));
   if (showOnlyFavorites) out = out.filter(it => !!it.is_favorite);
 
-  // Filtro per TIPOLOGIE (newsletter, promo, etc.)
   if (activeTypes.size < TYPE_ORDER.length) {
     out = out.filter(it => activeTypes.has((it.type_tag || 'informative').toLowerCase()));
   }
 
-  // Filtro per argomento (dal click sulla pillola del topic)
   if (__activeTopic) {
     out = out.filter(it => (it.topic_tag || '').toLowerCase() === __activeTopic.toLowerCase());
   }
 
-  // Filtro per mittente
   if (__activeSender) {
     out = out.filter(it => (it.sender_email || '').toLowerCase() === __activeSender);
   }
 
-  // NUOVO: Filtro per stato di lettura
   if (activeReads.size < READ_STATES.length){
     out = out.filter(it => activeReads.has(isRead(it.email_id) ? 'read' : 'unread'));
   }
 
+  // --- INIZIO BLOCCO LOG ---
+  feLog('info','filter.stats',{
+    in: items.length,
+    out: out.length,
+    favorites: !!showOnlyFavorites,
+    types: [...activeTypes],
+    reads: [...activeReads],
+    topic: __activeTopic || null,
+    sender: __activeSender || null,
+    hidden_ids: hiddenEmailIds.size,
+    first_dt_out: out[0]?.received_date,
+    last_dt_out: out[out.length-1]?.received_date
+  });
+  // --- FINE BLOCCO LOG ---
+
   return out;
 };
+
 
 function updateFeedCounter() {
   const counterEl = document.getElementById('feed-counter');
@@ -3850,6 +3862,21 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     }
 
     const data = await res.json();
+
+    // --- INIZIO BLOCCO LOG ---
+    feLog('info','feed.page',{
+      reset, append, prepend,
+      page_len: Array.isArray(data?.feed)? data.feed.length : 0,
+      has_more: !!data?.has_more,
+      next_cursor: data?.next_cursor,
+      first_dt: data?.feed?.[0]?.received_date,
+      last_dt: data?.feed?.[data.feed.length-1]?.received_date
+    });
+    // Date malformate
+    const bad = (data.feed||[]).filter(it => isNaN(new Date(it.received_date)));
+    if (bad.length) feLog('warn','feed.page.bad_dates', {count: bad.length, samples: bad.slice(0,3).map(x=>({id:x.email_id, dt:x.received_date}))});
+    // --- FINE BLOCCO LOG ---
+
     const page = Array.isArray(data?.feed) ? data.feed : [];
 
     __hasMore = Boolean(data.has_more);
@@ -3896,7 +3923,7 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
 
 function mergeFeedMemory(pageItems = []) {
   if (!Array.isArray(pageItems) || pageItems.length === 0) return;
-  const MAX_CACHE = 1500; // Limite massimo di item in memoria
+  const MAX_CACHE = 1500;
 
   for (const it of pageItems) {
     const k = String(it.email_id);
@@ -3918,10 +3945,34 @@ function mergeFeedMemory(pageItems = []) {
   }
 
   recomputeDomainCounts(allFeedItems);
+
   if (domainDropdown && !domainDropdown.classList.contains('hidden')) {
     renderDomainDropdown(domainSearch?.value || "");
   }
+
+  // --- INIZIO BLOCCO LOG ---
+  let breakIdx = -1;
+  for (let i = 1; i < allFeedItems.length; i++) {
+    const prev = new Date(allFeedItems[i - 1].received_date).getTime();
+    const cur = new Date(allFeedItems[i].received_date).getTime();
+    // L'ordine atteso è decrescente (dal più recente al meno recente)
+    if (!(prev >= cur)) {
+      breakIdx = i;
+      break;
+    }
+  }
+  if (breakIdx >= 0) {
+    feLog('warn', 'order.break', {
+      i: breakIdx,
+      prev_id: allFeedItems[breakIdx - 1]?.email_id,
+      prev_dt: allFeedItems[breakIdx - 1]?.received_date,
+      cur_id: allFeedItems[breakIdx]?.email_id,
+      cur_dt: allFeedItems[breakIdx]?.received_date
+    });
+  }
+  // --- FINE BLOCCO LOG ---
 }
+
 
 document.addEventListener('visibilitychange', () => {
   const hidden = document.visibilityState !== 'visible';
