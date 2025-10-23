@@ -2440,91 +2440,87 @@ async def debug_snapshot(request: Request):
         raise HTTPException(status_code=500, detail="Errore interno durante la creazione dello snapshot.")
     
 @app.get("/api/feed")
-async def get_feed(
-    request: Request,
-    bg: BackgroundTasks,
-    page_size: int = Query(20, ge=1, le=50),
-    before: str | None = Query(None, description="cursor: 'ISOZ|<email_id>'"),
-):
+async def get_feed(request: Request,
+                   bg: BackgroundTasks,
+                   page_size: int = Query(20, ge=1, le=50),
+                   before: str | None = Query(None)):
     rid = getattr(request.state, "request_id", "-")
     user_id = get_user_id_from_session(request)
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Non autenticato")
 
     log_feed(rid, "in", user_id=user_id, before=before, limit=page_size)
-    t0_total = time.perf_counter()
+    t0 = time.perf_counter()
 
     settings = SETTINGS_STORE.get(user_id, {"hidden_domains": []})
     hidden = set(settings.get("hidden_domains", []))
 
-    # 1. La query al database è stabile, con ordinamento corretto e filtro "seek"
-    base_q = (Newsletter
-        .select()
-        .where(
-            (Newsletter.user_id == user_id) &
-            (Newsletter.is_complete == True) &
-            (Newsletter.is_deleted == False) &
-            (Newsletter.received_date.is_null(False))
-        )
-        .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc())
-    )
+    q = (Newsletter
+         .select()
+         .where(
+             (Newsletter.user_id == user_id) &
+             (Newsletter.is_complete == True) &
+             (Newsletter.is_deleted == False) &
+             (Newsletter.received_date.is_null(False))
+         )
+         .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc()))
 
     if hidden:
-        base_q = base_q.where(~(Newsletter.source_domain.in_(list(hidden))))
+        q = q.where(~(Newsletter.source_domain.in_(list(hidden))))
 
     if before:
-        last_dt, last_email_id = _parse_cursor(before)
-        if last_dt and last_email_id:
-            base_q = base_q.where(
+        last_dt, last_id = _parse_cursor(before)
+        if last_dt and last_id:
+            q = q.where(
                 (Newsletter.received_date < last_dt) |
-                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_email_id))
+                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_id))
             )
 
-    t0_db = time.perf_counter()
-    rows = list(base_q.limit(page_size + 1).dicts())
-    t_db_ms = (time.perf_counter() - t0_db) * 1000
-    log_feed(rid, "db_result", user_id=user_id, found_rows=len(rows), db_ms=int(t_db_ms))
+    # --- Raccolta fino a capienza con dedup ---
+    CHUNK = 200
+    seen_threads = set()
+    acc: list[dict] = []
+    offset = 0
 
-    has_more = len(rows) > page_size
-    page_raw = rows[:page_size]
-    
-    # --- INIZIO BLOCCO CORRETTO E RIORDINATO ---
+    while len(acc) < page_size + 1:
+        batch = list(q.limit(CHUNK).offset(offset).dicts())
+        if not batch:
+            break
+        offset += CHUNK
 
-    # 2. Esegui la deduplicazione dei thread per ottenere la pagina effettiva da inviare al client
-    if DEDUP_THREADS:
-        seen_threads = set()
-        page = []
-        for item in page_raw:
-            tid = item.get("thread_id")
-            if tid and tid in seen_threads:
-                continue
-            if tid:
+        for it in batch:
+            tid = it.get("thread_id")
+            if DEDUP_THREADS and tid:
+                if tid in seen_threads:
+                    continue
                 seen_threads.add(tid)
-            page.append(item)
-    else:
-        # Se la deduplicazione è disattivata, la pagina finale è semplicemente la pagina grezza
-        page = page_raw
-    
-    # 3. Calcola il cursore per la pagina SUCCESSIVA basandoti sull'ultimo elemento PRIMA della deduplica.
-    #    Questo garantisce che la paginazione continui dal punto giusto anche se tutti gli elementi vengono filtrati.
+            acc.append(it)
+            if len(acc) >= page_size + 1:
+                break
+
+    # Page e has_more corretti
+    page_items = acc[:page_size]
+    has_more = len(acc) > page_size
+
+    # Cursor sull’ultimo elemento INVIATO
     next_cursor = None
-    if page_raw and has_more:
-        last_item_for_cursor = rows[page_size] # L'elemento page_size+1
-        next_cursor = f"{_iso_utc(last_item_for_cursor['received_date'])}|{last_item_for_cursor['email_id']}"
+    if has_more and page_items:
+        last = page_items[-1]
+        next_cursor = f"{_iso_utc(last['received_date'])}|{last['email_id']}"
 
-    # --- FINE BLOCCO CORRETTO E RIORDINATO ---
-
-    # 4. Prepara la pagina finale (già deduplicata) per la risposta JSON
+    # Serializzazione finale
     final_page = []
-    for item in page:
-        item["received_date"] = _iso_utc(item.get("received_date"))
-        item = _add_gmail_deep_link_fields(item)
-        final_page.append(item)
+    for it in page_items:
+        it["received_date"] = _iso_utc(it.get("received_date"))
+        it = _add_gmail_deep_link_fields(it)
+        final_page.append(it)
 
     state = get_ingestion_state(user_id)
-    
-    dur_total_ms = (time.perf_counter() - t0_total) * 1000
-    log_feed(rid, "out", has_more=has_more, page_len=len(page), dur_ms=int(dur_total_ms), db_ms=int(t_db_ms))
+    dur_ms = int((time.perf_counter() - t0) * 1000)
+    log_feed(rid, "out",
+             has_more=has_more,
+             page_len=len(final_page),
+             dur_ms=dur_ms)
 
     resp = JSONResponse({
         "feed": final_page,
@@ -2532,7 +2528,7 @@ async def get_feed(
         "has_more": has_more,
         "ingest": state,
     })
-    resp.headers["Server-Timing"] = f"db;dur={t_db_ms:.0f}"
+    resp.headers["Server-Timing"] = f"db;dur={dur_ms}"
     return resp
 
 @app.get("/api/_diag/feed-stats")

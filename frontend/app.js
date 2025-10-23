@@ -3850,7 +3850,16 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
         "X-Request-Id": (window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).slice(2)).slice(0, 12)
       }
     });
+    console.log('[FEED][resp]', res.status, url);
+      const data = res.ok ? await res.json() : null;
+      if (!data || !data.feed) {
+      console.error('[FEED][bad-json]', res.status, url, await res.text());
+      // Interrompi l'esecuzione se la risposta non è valida
+      __inFlight = false;
+      return;
+      }
     console.log('[feed.fetch.ms]', Math.round(performance.now() - t0_fetch), res.headers.get('server-timing'));
+
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -3860,8 +3869,6 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
       clearSentinel();
       return;
     }
-
-    const data = await res.json();
 
     // --- INIZIO BLOCCO LOG ---
     feLog('info','feed.page',{
