@@ -3903,9 +3903,11 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
 
     applyViewFilter();
 
-    if (append) {
-      __cursor = data.next_cursor ?? null;
+    // Il cursore si aggiorna solo se ci sono altre pagine
+    if (data.has_more) {
+        __cursor = data.next_cursor ?? null;
     }
+    __hasMore = Boolean(data.has_more);
 
     if (data?.ingest?.running && data.ingest.job_id) {
       handleIngestionState(data.ingest.job_id);

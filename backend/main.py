@@ -2459,7 +2459,7 @@ async def get_feed(request: Request,
          .select()
          .where(
              (Newsletter.user_id == user_id) &
-             (Newsletter.is_complete == True) &
+            #  (Newsletter.is_complete == True) &
              (Newsletter.is_deleted == False) &
              (Newsletter.received_date.is_null(False))
          )
@@ -2517,10 +2517,16 @@ async def get_feed(request: Request,
 
     state = get_ingestion_state(user_id)
     dur_ms = int((time.perf_counter() - t0) * 1000)
-    log_feed(rid, "out",
-             has_more=has_more,
-             page_len=len(final_page),
-             dur_ms=dur_ms)
+    log_feed(
+        rid, "out",
+        user_id=user_id,
+        page_len=len(final_page),
+        has_more=has_more,
+        next_cursor=next_cursor,
+        first_dt=_iso_utc(final_page[0]['received_date']) if final_page else None,
+        last_dt=_iso_utc(final_page[-1]['received_date']) if final_page else None,
+        dur_ms=int((time.perf_counter() - t0_total) * 1000)
+    )
 
     resp = JSONResponse({
         "feed": final_page,
