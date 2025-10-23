@@ -2459,7 +2459,7 @@ async def get_feed(request: Request,
          .select()
          .where(
              (Newsletter.user_id == user_id) &
-            #  (Newsletter.is_complete == True) &
+             (Newsletter.is_complete == True) &
              (Newsletter.is_deleted == False) &
              (Newsletter.received_date.is_null(False))
          )
