@@ -3,8 +3,11 @@ import os
 import time
 import json
 import logging
-import redis
 import random
+from typing import Any, cast
+import redis
+from redis import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
 import signal
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -12,6 +15,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
 
 from backend.logging_config import setup_logging
 from backend.database import db, Newsletter, initialize_db
@@ -45,10 +49,12 @@ signal.signal(signal.SIGINT, _stop_handler)
 
 # --- CONNESSIONE A REDIS ---
 try:
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    # Usiamo cast(Redis, ...) perché le definizioni di tipo nell'ambiente
+    # non supportano la sintassi generica Redis[str].
+    redis_client = cast(Redis, redis.from_url(REDIS_URL, decode_responses=True))
     redis_client.ping()
     logging.info("Connesso a Redis.")
-except redis.exceptions.ConnectionError as e:
+except RedisConnectionError as e:
     logging.error(f"Impossibile connettersi a Redis: {e}.")
     raise SystemExit(1)
 
@@ -120,16 +126,18 @@ def _gmail_list(gmail, page_token=None):
 
 def _exists_in_db(user_id: str, msg_id: str) -> bool:
     """Controlla se un messaggio esiste già nel database per un utente."""
-    return Newsletter.select(Newsletter.id).where(
-        (Newsletter.user_id == user_id) & (Newsletter.email_id == msg_id)
+    N = cast(Any, Newsletter)
+    return N.select(N.id).where(
+        (N.user_id == user_id) & (N.email_id == msg_id)
     ).exists()
 
 def _exists_thread(user_id: str, thread_id: str) -> bool:
     """Controlla se un thread esiste già nel database per un utente."""
     if not thread_id:
         return False
-    return Newsletter.select(Newsletter.id).where(
-        (Newsletter.user_id == user_id) & (Newsletter.thread_id == thread_id)
+    N = cast(Any, Newsletter)
+    return N.select(N.id).where(
+        (N.user_id == user_id) & (N.thread_id == thread_id)
     ).exists()
 
 def _rpush_safe(key: str, payload: str, tries: int = 3) -> bool:
@@ -138,7 +146,7 @@ def _rpush_safe(key: str, payload: str, tries: int = 3) -> bool:
         try:
             redis_client.rpush(key, payload)
             return True
-        except redis.exceptions.RedisError:
+        except RedisError:
             time.sleep(0.2 * (i + 1))
     logging.error(f"rpush su Redis fallito persistentemente per la chiave {key}")
     return False
@@ -268,10 +276,14 @@ def main_loop():
 
             if jobs_created > 0:
                 # Imposta TTL solo se non è già presente, per efficienza
-                if redis_client.ttl(user_key) < 0:
+                ttl_user = cast(int, redis_client.ttl(user_key))
+                if isinstance(ttl_user, int) and ttl_user < 0:
                     redis_client.expire(user_key, 24 * 3600)
-                if redis_client.ttl(global_key) < 0:
+
+                ttl_global = cast(int, redis_client.ttl(global_key))
+                if isinstance(ttl_global, int) and ttl_global < 0:
                     redis_client.expire(global_key, 24 * 3600)
+                    
                 logging.info(f"Aggiunti {jobs_created} lavori alla coda per l'utente {_scrub(user_id)}.")
 
         if _run:

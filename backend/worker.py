@@ -12,7 +12,12 @@ from dotenv import load_dotenv
 load_dotenv()
 from backend.logging_config import setup_logging
 import logging
+import typing as t
+from typing import Any, Optional, Tuple, cast
 import redis
+from redis import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from peewee import DoesNotExist as PeeweeDoesNotExist
 import asyncio
 import httpx
 from google.oauth2.credentials import Credentials
@@ -46,10 +51,10 @@ except FileNotFoundError:
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 try:
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client: Redis = cast(Redis, redis.from_url(REDIS_URL, decode_responses=True))
     redis_client.ping()
     logging.info("Connesso a Redis.")
-except redis.exceptions.ConnectionError as e:
+except RedisConnectionError as e:
     logging.error(f"Impossibile connettersi a Redis: {e}.")
     exit()
 
@@ -84,7 +89,7 @@ def _db_get_newsletter(email_id, user_id):
     """Funzione sincrona per ottenere la newsletter dal DB."""
     try:
         return Newsletter.get(Newsletter.email_id == email_id, Newsletter.user_id == user_id)
-    except Newsletter.DoesNotExist:
+    except PeeweeDoesNotExist:
         return None
 
 def _db_save_newsletter(newsletter_instance):
@@ -105,15 +110,20 @@ def _pixabay_cache_key(kw: str) -> str:
     return f"pixabay:img:{(kw or '').strip().lower()}"
 
 async def _pixabay_rate_gate():
-    # circuit breaker
-    block_until = redis_client.get("pixabay:block_until_epoch")
-    if block_until and time.time() < float(block_until):
+    val_raw: Any = redis_client.get("pixabay:block_until_epoch")
+    block_until: float = 0.0
+    if val_raw is not None:
+        try:
+            block_until = float(val_raw)  # gestisce str/int/bytes
+        except (TypeError, ValueError):
+            block_until = 0.0
+    if block_until and time.time() < block_until:
         raise RuntimeError("pixabay_temporarily_blocked")
 
-    # finestra fissa 60s
     now_min = int(time.time() // 60)
     cnt_key = f"pixabay:rpm:{now_min}"
-    cnt = redis_client.incr(cnt_key)
+    cnt_raw: Any = redis_client.incr(cnt_key)
+    cnt: int = int(cnt_raw)
     if cnt == 1:
         redis_client.expire(cnt_key, 120)
     if cnt > PIXABAY_RPM:
@@ -216,7 +226,7 @@ async def process_job(job_payload: dict):
             )
             if dup:
                 logw("skip_due_to_thread_duplicate", user_id=user_id, email_id=email_id, thread_id=tid)
-                (Newsletter
+                _ = (cast(Any, Newsletter)
                     .update(enriched=True, is_complete=False)
                     .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
                     .execute())
@@ -224,7 +234,7 @@ async def process_job(job_payload: dict):
         
         label_ids = set(message.get('labelIds', []))
         if 'SPAM' in label_ids or 'TRASH' in label_ids:
-            (Newsletter
+            _ = (cast(Any, Newsletter)
                .update(is_deleted=True, enriched=True, is_complete=False)
                .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
                .execute())
@@ -237,7 +247,7 @@ async def process_job(job_payload: dict):
         internal_date_ms = message.get('internalDate')
         received_dt_utc = datetime.fromtimestamp(int(internal_date_ms) / 1000, tz=timezone.utc) if internal_date_ms else datetime.now(timezone.utc)
 
-        preliminary_data = {
+        preliminary_data: dict[str, Any] = {
             "sender_name": parse_sender(header_map.get('from', '')),
             "sender_email": parseaddr(header_map.get('from', ''))[1].lower(),
             "original_subject": header_map.get('subject', ''),
@@ -247,12 +257,12 @@ async def process_job(job_payload: dict):
             "thread_id": message.get("threadId"),
             "rfc822_message_id": header_map.get("message-id"),
         }
-        (Newsletter
+        _ = (cast(Any, Newsletter)
            .update(**preliminary_data)
            .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
            .execute())
         
-        update_data = {"enriched": True, "is_complete": False}
+        update_data: dict[str, Any] = {"enriched": True, "is_complete": False}
 
         try:
             # --- INIZIO FIX: USARE L'HTML PULITO ---
@@ -350,7 +360,7 @@ async def process_job(job_payload: dict):
             feed_visible = bool(update_data.get("is_complete"))
             logw("db_update_fields", email_id=email_id, keys=list(update_data.keys()))
             logw("about_to_save", email_id=email_id, thread_id=tid, will_be_visible=feed_visible)
-            (Newsletter
+            _ = (cast(Any, Newsletter)
                .update(**update_data)
                .where((Newsletter.email_id == email_id) & (Newsletter.user_id == user_id))
                .execute())
@@ -381,17 +391,16 @@ async def main_worker_loop():
     logging.info("Worker avviato. In attesa di lavoro...")
     while True:
         try:
-            # Esegui la chiamata bloccante in un thread separato per non bloccare l'event loop
-            job_json_tuple = await asyncio.to_thread(redis_client.blpop, 'email_queue', timeout=0)
-            
+            job_json_tuple: Optional[Tuple[str, str]] = cast(
+                Optional[Tuple[str, str]],
+                await asyncio.to_thread(redis_client.blpop, ['email_queue'], 0)
+            )
             if job_json_tuple:
-                # blpop restituisce una tupla (nome_coda, valore)
                 _, job_json = job_json_tuple
                 job_payload = json.loads(job_json)
                 logging.info(f"Nuovo lavoro ricevuto: {job_payload.get('email_id')}")
-                # Crea il task che ora può essere eseguito dall'event loop
                 asyncio.create_task(process_job(job_payload))
-        except redis.exceptions.ConnectionError as e:
+        except RedisConnectionError as e:
             logging.error(f"Connessione a Redis persa: {e}. Riprovo tra 5s.")
             await asyncio.sleep(5)
         except Exception as e:
