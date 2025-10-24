@@ -65,19 +65,17 @@ class Newsletter(BaseModel):
 
     # 4. LA CLASSE Meta VA MESSA QUI, DENTRO la classe Newsletter
     class Meta(BaseModel.Meta):
-        table_name = "newsletter" # Buona pratica per definire esplicitamente il nome della tabella
+        table_name = "newsletter"
         primary_key = CompositeKey("email_id", "user_id")
-        indexes = (
-            (("user_id", "thread_id"), False), # Rimosso 'True' se l'unicità non è strettamente richiesta qui
-        )
+        indexes = ((("user_id", "thread_id"), False),)
 
 class DomainTypeOverride(BaseModel):
     user_id = CharField(index=True)
     domain = CharField()
     type_tag = CharField(max_length=24)
     class Meta(BaseModel.Meta):
-            table_name = "domain_type_override" # Buona pratica
-            primary_key = CompositeKey('user_id', 'domain')
+        table_name = "domain_type_override"
+        primary_key = CompositeKey("user_id", "domain")
 
 
 # --- FINE MODIFICHE ---
