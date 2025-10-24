@@ -20,7 +20,7 @@ from googleapiclient.errors import HttpError
 from backend.logging_config import setup_logging
 from backend.database import db, Newsletter, initialize_db
 
-load_dotenv()
+load_dotenv("/opt/newsletter/.env")
 setup_logging("INGESTOR")
 
 THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()

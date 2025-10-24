@@ -9,7 +9,7 @@ import time
 import json
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv("/opt/newsletter/.env")
 from backend.logging_config import setup_logging
 import logging
 import typing as t
