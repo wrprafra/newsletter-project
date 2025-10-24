@@ -64,7 +64,8 @@ class Newsletter(BaseModel):
     rfc822_message_id = CharField(null=True) # Rimosso index=True se non necessario per query
 
     # 4. LA CLASSE Meta VA MESSA QUI, DENTRO la classe Newsletter
-    class Meta(BaseModel.Meta):
+    class Meta:  # type: ignore
+        database = db
         table_name = "newsletter"
         primary_key = CompositeKey("email_id", "user_id")
         indexes = ((("user_id", "thread_id"), False),)
@@ -73,7 +74,8 @@ class DomainTypeOverride(BaseModel):
     user_id = CharField(index=True)
     domain = CharField()
     type_tag = CharField(max_length=24)
-    class Meta(BaseModel.Meta):
+    class Meta:  # type: ignore
+        database = db
         table_name = "domain_type_override"
         primary_key = CompositeKey("user_id", "domain")
 
