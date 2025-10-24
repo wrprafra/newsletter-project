@@ -2211,7 +2211,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
     if is_new_user:
         log.info(f"[AUTH/CALLBACK] Nuovo utente: {email}. Avvio ingestione iniziale.")
-        bg.add_task(kickstart_initial_ingestion, user_id)
+        asyncio.create_task(kickstart_initial_ingestion(user_id))
     
     await ensure_user_defaults(user_id)
 
@@ -2800,7 +2800,7 @@ async def ingest_pull(body: IngestPullBody, request: Request, bg: BackgroundTask
     job_id = uuid.uuid4().hex
     INGEST_JOBS[job_id] = {"state":"queued","total":0,"done":0,"errors":0,"user_id":user_id}
     logging.info(f"[PULL] start user={user_id} job_id={job_id} batch={body.batch} img_src={body.image_source} pages={body.pages} target={body.target}")
-    bg.add_task(run_ingest_job, job_id, user_id, body.batch, body.image_source, body.pages, body.target)
+    asyncio.create_task(run_ingest_job(job_id, user_id, body.batch, body.image_source, body.pages, body.target))
     return {"job_id": job_id, "status": "started"}
 
 class IngestStartBody(BaseModel):
