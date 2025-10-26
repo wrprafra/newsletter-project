@@ -13,7 +13,7 @@ from peewee import (
     CompositeKey  # <-- 1. DEVI IMPORTARE CompositeKey
 )
 
-DATA_DIR = Path("/app/data")
+DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
 
 # 2. Assicurati che questa directory esista all'interno del container.
 #    Questo comando è sicuro da eseguire ogni volta.

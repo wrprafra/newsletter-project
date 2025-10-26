@@ -268,7 +268,7 @@ logging.info("[CFG] OPENAI key present=%s len=%d", bool(OPENAI_API_KEY), len(OPE
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
 SETTINGS_PATH = "user_settings.json"
-CREDENTIALS_PATH = "/app/data/user_credentials.json"
+CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
 _credentials_lock = FileLock(CREDENTIALS_PATH + ".lock", timeout=5)
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 CREDENTIALS_STORE: Dict[str, dict] = {}

@@ -27,7 +27,7 @@ THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
 logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
 
 # --- CONFIGURAZIONE ---
-CREDENTIALS_PATH = "/app/data/user_credentials.json"
+CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 POLL_SECONDS = int(os.getenv("INGESTOR_POLL_SECONDS", "60"))
 BACKFILL_PAGES = int(os.getenv("INGESTOR_BACKFILL_PAGES", "4"))

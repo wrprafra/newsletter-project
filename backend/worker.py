@@ -41,7 +41,7 @@ logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THR
 
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
-CREDENTIALS_PATH = "/app/data/user_credentials.json"
+CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
 try:
     with open(CREDENTIALS_PATH, "r") as f:
         ALL_USER_CREDENTIALS = json.load(f)
