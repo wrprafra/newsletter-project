@@ -13,7 +13,9 @@ services:
       - PYTHONUNBUFFERED=1
       - SQLALCHEMY_ECHO=1
       - DB_PATH=/app/data/newsletter.db
+      - DATABASE_URL=sqlite:////app/data/newsletter.db
       - CREDENTIALS_PATH=/app/data/user_credentials.json
+      - SETTINGS_PATH=/app/data/user_settings.json
     depends_on:
       redis:
         condition: service_healthy
@@ -52,7 +54,9 @@ services:
       - PYTHONUNBUFFERED=1
       - SQLALCHEMY_ECHO=1
       - DB_PATH=/app/data/newsletter.db
+      - DATABASE_URL=sqlite:////app/data/newsletter.db
       - CREDENTIALS_PATH=/app/data/user_credentials.json
+      - SETTINGS_PATH=/app/data/user_settings.json
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/backend:/app/backend:ro
@@ -80,7 +84,9 @@ services:
       - PYTHONUNBUFFERED=1
       - SQLALCHEMY_ECHO=1
       - DB_PATH=/app/data/newsletter.db
+      - DATABASE_URL=sqlite:////app/data/newsletter.db
       - CREDENTIALS_PATH=/app/data/user_credentials.json
+      - SETTINGS_PATH=/app/data/user_settings.json
     volumes:
       - /var/newsletter:/app/data
       - /opt/newsletter/backend:/app/backend:ro
