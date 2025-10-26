@@ -1,4 +1,3 @@
-# backend/database.py
 import logging
 import os
 from pathlib import Path
@@ -11,6 +10,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "newsletter.db"
 print(f"*** Inizializzazione del database in: {DB_PATH} ***")
 
+# Aggiunto str() per coerenza con la documentazione di Peewee
 db = SqliteDatabase(str(DB_PATH), pragmas={
     "journal_mode": "wal",
     "synchronous": 1,
@@ -45,23 +45,30 @@ class Newsletter(BaseModel):
     thread_id = CharField(null=True, index=True)
     rfc822_message_id = CharField(null=True)
 
-    class Meta(BaseModel.Meta):
+    # --- INIZIO FIX ---
+    # La classe Meta non eredita più da BaseModel.Meta per evitare crash.
+    # L'attributo 'database = db' viene ereditato automaticamente da BaseModel.
+    class Meta:
         table_name = "newsletter"
         primary_key = CompositeKey("email_id", "user_id")
         indexes = ((("user_id", "thread_id"), False),)
+    # --- FINE FIX ---
 
 class DomainTypeOverride(BaseModel):
     user_id = CharField(index=True)
     domain = CharField()
     type_tag = CharField(max_length=24)
 
-    class Meta(BaseModel.Meta):
+    # --- INIZIO FIX ---
+    # Anche qui, la classe Meta non eredita più.
+    class Meta:
         table_name = "domain_type_override"
         primary_key = CompositeKey("user_id", "domain")
+    # --- FINE FIX ---
 
 def initialize_db():
     try:
-        logging.info("DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...")
+        logging.info("DB: Tentativo di creare le tabelle (safe=True)...")
         db.create_tables([Newsletter, DomainTypeOverride], safe=True)
 
         cols = {c.name for c in db.get_columns('newsletter')}
