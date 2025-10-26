@@ -1,8 +1,6 @@
 import os
 import base64
 import re
-os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 import secrets
 import time
 import asyncio
@@ -53,6 +51,13 @@ from googleapiclient.discovery import build
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=False)
+
+APP_ENV = os.getenv("APP_ENV", "dev").lower()
+IS_PROD = APP_ENV == "prod"
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+if not IS_PROD:
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 import logging
 logging.info(f"[BOOT] SESSION_SECRET loaded: '{os.getenv('SESSION_SECRET')}'")
 import openai
@@ -138,19 +143,6 @@ def _assert_dev():
 
 def _get_pending_auth_nonce_key(sid: str, nonce: str) -> str:
     return f"pending_auth:{sid}:{nonce}"
-
-def _load_pending_auth(request: Request) -> dict:
-    sid = request.session.get("sid")
-    if sid and redis_client:
-        try:
-            raw = cast(Optional[str], redis_client.get(_get_pending_auth_key(sid)))
-            if raw:
-                d = json.loads(raw)
-                logging.info(f"[AUTH] load_pending_auth sid={sid} keys={list(d.keys())}")
-                return d
-        except Exception as e:
-            logging.warning(f"[AUTH] redis get failed: {e}")
-    return {}
 
 def _clear_pending_auth(request: Request) -> None:
     sid = request.session.get("sid")
@@ -1053,7 +1045,7 @@ async def get_feed_item(email_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Newsletter not found")
 
     item = {
-        "id": n.id,
+        "id": n.email_id,
         "email_id": n.email_id,
         "user_id": n.user_id,
         "sender_name": n.sender_name,

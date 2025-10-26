@@ -170,6 +170,7 @@ async def process_job(job_payload: dict):
     user_id = job_payload.get("user_id")
     job_id = job_payload.get("job_id")
     t0 = time.perf_counter()
+    tid = None  # Inizializza tid per evitare UnboundLocalError
     logw("start", user_id=user_id, email_id=email_id, job_id=job_id)
 
     if not email_id or not user_id:

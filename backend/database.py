@@ -1,37 +1,21 @@
 # backend/database.py
-
 import logging
 import os
 from pathlib import Path
 from peewee import (
-    SqliteDatabase,
-    Model,
-    CharField,
-    TextField,
-    BooleanField,
-    DateTimeField,
-    CompositeKey  # <-- 1. DEVI IMPORTARE CompositeKey
+    SqliteDatabase, Model, CharField, TextField, BooleanField, DateTimeField, CompositeKey
 )
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
-
-# 2. Assicurati che questa directory esista all'interno del container.
-#    Questo comando è sicuro da eseguire ogni volta.
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-# 3. Definisci il percorso completo del file del database.
 DB_PATH = DATA_DIR / "newsletter.db"
-
 print(f"*** Inizializzazione del database in: {DB_PATH} ***")
 
-# Il database viene creato nella cartella principale del progetto
-# NOTA: ../newsletter.db significa che il file sarà FUORI dalla cartella 'backend'.
-# Se è quello che vuoi, va bene. Altrimenti, usa 'newsletter.db' per tenerlo dentro 'backend'.
-db = SqliteDatabase(DB_PATH, pragmas={
-    "journal_mode": "wal",      # scritture non bloccano letture
-    "synchronous": 1,           # NORMAL
+db = SqliteDatabase(str(DB_PATH), pragmas={
+    "journal_mode": "wal",
+    "synchronous": 1,
     "temp_store": "memory",
-    "cache_size": -20000        # ~20MB cache
+    "cache_size": -20000,
 })
 
 class BaseModel(Model):
@@ -39,8 +23,6 @@ class BaseModel(Model):
         database = db
 
 class Newsletter(BaseModel):
-    # 3. RIMUOVI unique=True DA QUI
-    # email_id = CharField(unique=True)
     email_id = CharField()
     user_id = CharField(index=True)
     sender_name = CharField(null=True)
@@ -61,11 +43,9 @@ class Newsletter(BaseModel):
     topic_tag = CharField(max_length=32, null=True, index=True)
     source_domain = CharField(null=True, index=True)
     thread_id = CharField(null=True, index=True)
-    rfc822_message_id = CharField(null=True) # Rimosso index=True se non necessario per query
+    rfc822_message_id = CharField(null=True)
 
-    # 4. LA CLASSE Meta VA MESSA QUI, DENTRO la classe Newsletter
-    class Meta:  # type: ignore
-        database = db
+    class Meta(BaseModel.Meta):
         table_name = "newsletter"
         primary_key = CompositeKey("email_id", "user_id")
         indexes = ((("user_id", "thread_id"), False),)
@@ -74,21 +54,16 @@ class DomainTypeOverride(BaseModel):
     user_id = CharField(index=True)
     domain = CharField()
     type_tag = CharField(max_length=24)
-    class Meta:  # type: ignore
-        database = db
+
+    class Meta(BaseModel.Meta):
         table_name = "domain_type_override"
         primary_key = CompositeKey("user_id", "domain")
 
-
-# --- FINE MODIFICHE ---
-
 def initialize_db():
-    """Crea la tabella, aggiunge le nuove colonne e crea gli indici se non esistono."""
     try:
         logging.info("DB: Tentativo di creare la tabella 'Newsletter' (safe=True)...")
         db.create_tables([Newsletter, DomainTypeOverride], safe=True)
-        
-        # Migrazione leggera per aggiungere le nuove colonne
+
         cols = {c.name for c in db.get_columns('newsletter')}
         if 'type_tag' not in cols:
             logging.info("DB: Aggiungo colonna 'type_tag'...")
@@ -109,22 +84,14 @@ def initialize_db():
             logging.info("DB: Aggiungo colonna 'is_deleted'...")
             db.execute_sql('ALTER TABLE newsletter ADD COLUMN is_deleted BOOLEAN DEFAULT 0;')
 
-        logging.info("DB: Assicuro la presenza degli indici ottimizzati...")
-
-        # 1. Indice principale per la paginazione del feed (sostituisce idx_feed e altri).
         db.execute_sql("""
             CREATE INDEX IF NOT EXISTS idx_feed_seek
             ON newsletter(user_id, is_complete, is_deleted, received_date DESC, email_id DESC);
         """)
-
-        # 2. Indice ottimizzato per la vista "Preferiti".
         db.execute_sql("""
             CREATE INDEX IF NOT EXISTS idx_feed_favorites
             ON newsletter(user_id, is_favorite, received_date DESC, email_id DESC);
         """)
-        
-        # 3. Pulizia una tantum dei vecchi indici ridondanti.
-        #    Questi comandi sono sicuri e non fanno nulla se gli indici non esistono.
         db.execute_sql("DROP INDEX IF EXISTS idx_news_user_complete_date_id;")
         db.execute_sql("DROP INDEX IF EXISTS idx_feed;")
         db.execute_sql("DROP INDEX IF EXISTS idx_news_user_fav;")

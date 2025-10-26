@@ -127,7 +127,7 @@ def _gmail_list(gmail, page_token=None):
 def _exists_in_db(user_id: str, msg_id: str) -> bool:
     """Controlla se un messaggio esiste già nel database per un utente."""
     N = cast(Any, Newsletter)
-    return N.select(N.id).where(
+    return N.select(N.email_id).where(
         (N.user_id == user_id) & (N.email_id == msg_id)
     ).exists()
 
@@ -136,7 +136,7 @@ def _exists_thread(user_id: str, thread_id: str) -> bool:
     if not thread_id:
         return False
     N = cast(Any, Newsletter)
-    return N.select(N.id).where(
+    return N.select(N.email_id).where(
         (N.user_id == user_id) & (N.thread_id == thread_id)
     ).exists()
 
