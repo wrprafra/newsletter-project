@@ -75,7 +75,7 @@ export function observeInfinite(onBottom) {
     if (entries[0]?.isIntersecting) {
       onBottom();
     }
-  }, { rootMargin: '900px 0px 900px 0px' });
+  }, { rootMargin: '1200px 0px' });
 
   if (__sentinel) {
     __scrollObserver.observe(__sentinel);

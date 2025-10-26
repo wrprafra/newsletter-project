@@ -88,6 +88,7 @@ let __initialLoadDone = false;
 let __renderScheduled = false;
 let __autoIngesting = false;
 let __app_started = false;
+let tailTimer = null;
 const TYPE_ORDER = ['newsletter', 'promo', 'personali', 'informative'];
 let activeTypes = new Set(TYPE_ORDER);
 let __cursor = null;
@@ -1444,17 +1445,44 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
 }
 
 function reconcileEndOfFeed() {
-    const ingesting = __sseOpen || __isIngesting;
-    if (!__hasMore && !ingesting) {
-        // Solo se non c'è più nulla da caricare E non c'è un'ingestione in corso
+    const ingesting = __isIngesting || __autoIngesting;
+    const pendingMore = window.__pendingMore || false; // Leggiamo un flag globale
+    
+    const showEnd = !__hasMore && !ingesting && !pendingMore;
+
+    if (showEnd) {
         toggleEndOfFeed(true);
         toggleLoadingMessage(false);
         clearSentinel();
+        stopTailPolling(); // Ferma il polling se abbiamo finito
     } else {
         toggleEndOfFeed(false);
+        if (!__hasMore && (ingesting || pendingMore)) {
+            // Non ci sono altre pagine complete, ma c'è lavoro in corso
+            setSentinelBusy('Elaborazione in corso...');
+            startTailPolling();
+        } else {
+            stopTailPolling();
+        }
     }
 }
 
+function startTailPolling() {
+  if (tailTimer) return;
+  console.log("[Polling] Avvio tail polling ogni 4 secondi.");
+  tailTimer = setInterval(() => {
+    // Chiamiamo fetchFeed senza cursore per caricare la prima pagina
+    window.fetchFeed({ force: true, _fromWatcher: true });
+  }, 4000);
+}
+
+function stopTailPolling() {
+  if (tailTimer) {
+    console.log("[Polling] Arresto tail polling.");
+    clearInterval(tailTimer);
+    tailTimer = null;
+  }
+}
 // Sovrascrivi la funzione fetchFeed globale con la versione finale
 
 function isStandaloneDisplayMode() {
@@ -3884,6 +3912,7 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
     const page = Array.isArray(data?.feed) ? data.feed : [];
 
     __hasMore = Boolean(data.has_more);
+    window.__pendingMore = Boolean(data.pending_more); 
     __isIngesting = data?.ingest?.running || false;
 
     if (page.length === 0 && !reset) {

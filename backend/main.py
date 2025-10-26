@@ -2356,16 +2356,33 @@ def _parse_cursor(cur: str | None) -> Tuple[datetime | None, str | None]:
         return None, None
 
 def get_ingestion_state(user_id: str) -> dict:
-    """Restituisce lo stato di ingestione per un utente specifico."""
     active_job = next(
-        (
-            jid
-            for jid, st in INGEST_JOBS.items()
-            if st.get("user_id") == user_id and st.get("state") in ("queued", "running")
-        ),
+        (jid for jid, st in INGEST_JOBS.items()
+         if st.get("user_id")==user_id and st.get("state") in ("queued","running")),
         None,
     )
-    return {"running": bool(active_job), "job_id": active_job}
+    running = bool(active_job)
+    try:
+        if redis_client:
+            qlen = int(redis_client.llen("email_queue") or 0) # type: ignore
+            has_lock = bool(redis_client.get("ingestor:lock"))
+            running = running or qlen > 0 or has_lock
+    except Exception:
+        pass
+    # opzionale: considera anche pendenti nel DB
+    try:
+        pending = (Newsletter
+                   .select()
+                   .where((Newsletter.user_id==user_id) &
+                          (Newsletter.enriched==True) &
+                          (Newsletter.is_complete==False) &
+                          (Newsletter.is_deleted==False))
+                   .limit(1)
+                  ).exists()
+        running = running or pending
+    except Exception:
+        pass
+    return {"running": running, "job_id": active_job}
 
 @router_api.get("/feed/_debug/stats")
 async def feed_debug_stats(request: Request):
@@ -2424,7 +2441,7 @@ async def debug_snapshot(request: Request):
         missing_image_count = noimg_q.count()
 
         # Dati da Redis
-        qlen = redis_client.llen("email_queue") if redis_client else -1
+        qlen = cast(int, redis_client.llen("email_queue") or 0) if redis_client else -1
         block_until_raw = redis_client.get("pixabay:block_until_epoch") if redis_client else None
         block_until = int(block_until_raw) if isinstance(block_until_raw, (str, bytes, int)) else 0
 
@@ -2514,11 +2531,11 @@ async def get_feed(request: Request,
 
     # Page e has_more corretti
     page_items = acc[:page_size]
-    has_more = len(acc) > page_size
+    has_more_db = len(acc) > page_size
 
     # Cursor sull’ultimo elemento INVIATO
     next_cursor = None
-    if has_more and page_items:
+    if has_more_db and page_items:
         last = page_items[-1]
         next_cursor = f"{_iso_utc(last['received_date'])}|{last['email_id']}"
 
@@ -2529,13 +2546,29 @@ async def get_feed(request: Request,
         it = _add_gmail_deep_link_fields(it)
         final_page.append(it)
 
-    state = get_ingestion_state(user_id)
+    # --- INIZIO MODIFICA ---
+    # Controlla se c'è altro lavoro in arrivo
+    queue_len = int(cast(int, redis_client.llen("email_queue") or 0)) if redis_client else 0
+    ingestor_busy = bool(redis_client.get("ingestor:lock")) if redis_client else False
+    pending_more = (Newsletter
+                    .select(Newsletter.email_id)
+                    .where((Newsletter.user_id == user_id) &
+                           (Newsletter.is_deleted == False) &
+                           (Newsletter.is_complete == False))
+                    .limit(1)
+                   ).exists()
+
+    has_more = has_more_db or pending_more or ingestor_busy or (queue_len > 0)
+    state = get_ingestion_state(user_id) # get_ingestion_state è già robusto
+    # --- FINE MODIFICA ---
+
     dur_ms = int((time.perf_counter() - t0) * 1000)
     log_feed(
         rid, "out",
         user_id=user_id,
         page_len=len(final_page),
         has_more=has_more,
+        pending_more=pending_more,
         next_cursor=next_cursor,
         first_dt=_iso_utc(final_page[0]['received_date']) if final_page else None,
         last_dt=_iso_utc(final_page[-1]['received_date']) if final_page else None,
@@ -2546,6 +2579,7 @@ async def get_feed(request: Request,
         "feed": final_page,
         "next_cursor": next_cursor,
         "has_more": has_more,
+        "pending_more": pending_more, # Aggiunto nuovo flag
         "ingest": state,
     })
     resp.headers["Server-Timing"] = f"db;dur={dur_ms}"
