@@ -23,7 +23,6 @@ services:
       - /var/newsletter:/app/data
       - /opt/newsletter/backend:/app/backend:ro
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-      - /var/newsletter/user_settings.json:/app/user_settings.json
     command:
       - uvicorn
       - backend.main:app
@@ -58,7 +57,6 @@ services:
       - /var/newsletter:/app/data
       - /opt/newsletter/backend:/app/backend:ro
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-      - /var/newsletter/user_settings.json:/app/user_settings.json
     command: python -m backend.worker
 
   ingestor:
@@ -87,7 +85,6 @@ services:
       - /var/newsletter:/app/data
       - /opt/newsletter/backend:/app/backend:ro
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
-      - /var/newsletter/user_settings.json:/app/user_settings.json
     command: python -m backend.ingestor
 
   redis:
