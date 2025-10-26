@@ -35,7 +35,8 @@ from backend.processing_utils import (
 
 # --- CONFIGURAZIONE ---
 setup_logging("WORKER")
-
+REQUEUE_ON_STARTUP = os.getenv("REQUEUE_ON_STARTUP", "1") == "1"
+REQUEUE_BOOT_MAX   = int(os.getenv("REQUEUE_BOOT_MAX", "1000"))
 THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
 logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
 
@@ -71,6 +72,25 @@ PIXABAY_SEM = asyncio.Semaphore(PIXABAY_MAX_CONC)
 
 
 # --- FUNZIONI HELPER PER OPERAZIONI BLOCCANTI ---
+def bootstrap_requeue(max_items: int = REQUEUE_BOOT_MAX):
+    rows = (Newsletter
+            .select(Newsletter.email_id, Newsletter.user_id)
+            .where(
+                (Newsletter.is_deleted == False) &
+                (
+                    (Newsletter.enriched == False) |
+                    (Newsletter.is_complete == False) |
+                    (Newsletter.image_url.is_null(True)) |
+                    (Newsletter.image_url == '')
+                )
+            )
+            .limit(max_items))
+    n = 0
+    for r in rows:
+        redis_client.rpush("email_queue", json.dumps({"email_id": r.email_id, "user_id": r.user_id}))
+        n += 1
+    logging.info(f"[BOOT] requeue pendenti: {n}")
+
 def _save_credentials_all(creds_all: dict):
     """Salva il dizionario completo delle credenziali in modo atomico e sicuro."""
     try:
@@ -412,6 +432,9 @@ if __name__ == "__main__":
     if db.is_closed():
         db.connect()
     initialize_db()
+
+    if REQUEUE_ON_STARTUP:
+        bootstrap_requeue()
 
     try:
         asyncio.run(main_worker_loop())

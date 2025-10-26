@@ -18,7 +18,7 @@ db = SqliteDatabase(str(DB_PATH), pragmas={
     "cache_size": -20000,
 })
 
-class BaseModel(Model):
+class BaseModel(Model): # type: ignore
     class Meta:
         database = db
 
@@ -48,7 +48,7 @@ class Newsletter(BaseModel):
     # --- INIZIO FIX ---
     # La classe Meta non eredita più da BaseModel.Meta per evitare crash.
     # L'attributo 'database = db' viene ereditato automaticamente da BaseModel.
-    class Meta:
+    class Meta: # type: ignore
         table_name = "newsletter"
         primary_key = CompositeKey("email_id", "user_id")
         indexes = ((("user_id", "thread_id"), False),)
@@ -61,7 +61,7 @@ class DomainTypeOverride(BaseModel):
 
     # --- INIZIO FIX ---
     # Anche qui, la classe Meta non eredita più.
-    class Meta:
+    class Meta: # type: ignore
         table_name = "domain_type_override"
         primary_key = CompositeKey("user_id", "domain")
     # --- FINE FIX ---

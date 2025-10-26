@@ -84,7 +84,7 @@ export function startIngestSSE(jobId, { onUpdate = () => {}, onProgress, onEnd }
     }
     if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
     __sseProcessTimer = setTimeout(() => {
-      const idsToProcess = [...new Set(__sseUpdateQueue)];
+      const idsToProcess = Array.from(new Set(__sseUpdateQueue));
       __sseUpdateQueue = [];
       if (idsToProcess.length > 0) {
         safe(onUpdate, idsToProcess);

@@ -17,6 +17,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - /var/newsletter:/app/data
+      - /opt/newsletter/backend:/app/backend
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command:
       - uvicorn
@@ -46,6 +47,7 @@ services:
       - SQLALCHEMY_ECHO=1
     volumes:
       - /var/newsletter:/app/data
+      - /opt/newsletter/backend:/app/backend
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.worker
 
@@ -69,6 +71,7 @@ services:
       - SQLALCHEMY_ECHO=1
     volumes:
       - /var/newsletter:/app/data
+      - /opt/newsletter/backend:/app/backend
       - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.ingestor
 

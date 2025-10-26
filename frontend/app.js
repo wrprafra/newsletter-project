@@ -1308,8 +1308,8 @@ function startBackgroundUpdates() {
 
   backgroundUpdateInterval = setInterval(async () => {
     console.log("Controllo aggiornamenti in background...");
-    // Questa chiamata è corretta, non ha reset:true
-    await fetchFeed({ cursor: __cursor, _fromWatcher: true });
+    // FIX: Rimuovi il cursore per caricare la prima pagina e scoprire i nuovi item.
+    await fetchFeed({ force: true, _fromWatcher: true });
 
     updateCount++;
     const sseGone = (__ingestSSE == null);
@@ -1318,13 +1318,10 @@ function startBackgroundUpdates() {
     if (stop) {
       clearInterval(backgroundUpdateInterval);
       console.log("Polling in background terminato.");
-
-      // --- INIZIO MODIFICA ---
-      // La chiamata finale deve anch'essa essere reset: false per evitare il lampeggio.
+      // FIX: Anche la chiamata finale non deve avere il cursore.
       if (sseGone) {
-        await fetchFeed({ cursor: __cursor, _fromWatcher: true });
+        await fetchFeed({ force: true, _fromWatcher: true });
       }
-      // --- FINE MODIFICA ---
     }
   }, 5000);
 }

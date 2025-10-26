@@ -27,6 +27,7 @@ THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
 logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
 
 # --- CONFIGURAZIONE ---
+DEDUP_TTL = int(os.getenv("ENQUEUE_DEDUPE_TTL", "3600"))
 CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 POLL_SECONDS = int(os.getenv("INGESTOR_POLL_SECONDS", "60"))
@@ -71,6 +72,18 @@ def _acquire_lock() -> bool:
 def _refresh_lock():
     """Aggiorna la scadenza del lock."""
     redis_client.expire("ingestor:lock", 120)
+
+def _enqueue_email(email_id: str, user_id: str) -> bool:
+    dd_key = f"dq:{user_id}:{email_id}"
+    if not redis_client.set(dd_key, "1", nx=True, ex=DEDUP_TTL):
+        logging.debug(f"[ENQ] skip dedup user={_scrub(user_id)} email={email_id}")
+        return False
+    payload = json.dumps({"email_id": email_id, "user_id": user_id})
+    _rpush_safe("email_queue", payload)
+    # opzionale: metrico con scadenza
+    redis_client.sadd(f"ingestor:queued:{user_id}", email_id)
+    redis_client.expire(f"ingestor:queued:{user_id}", 86400)
+    return True
 
 def _reload_creds() -> dict:
     """Ricarica il file delle credenziali in modo robusto, con retry."""
@@ -254,36 +267,19 @@ def main_loop():
             if not new_ids:
                 continue
 
-            user_key = f"ingestor:queued:{user_id}"
-            global_key = "ingestor:seen_global"
             jobs_created = 0
-            
             for email_id in new_ids:
                 nl, created = Newsletter.get_or_create(
                     email_id=email_id, user_id=user_id,
-                    defaults={
-                        "received_date": datetime.now(timezone.utc),
-                        "enriched": False, "is_complete": False
-                    }
+                    defaults={"received_date": datetime.now(timezone.utc),
+                              "enriched": False, "is_complete": False}
                 )
-                if created or not nl.enriched:
-                    # Deduplicazione a livello utente E globale
-                    if redis_client.sadd(user_key, email_id) and redis_client.sadd(global_key, email_id):
-                        job_payload = json.dumps({"email_id": email_id, "user_id": user_id})
-                        logging.debug(f"[ENQ] rpush email_queue user={_scrub(user_id)} email_id={email_id}")
-                        if _rpush_safe("email_queue", job_payload):
-                            jobs_created += 1
-
+                needs_work = created or (not nl.enriched) or (not nl.is_complete) or not (nl.image_url or "").strip()
+                if needs_work:
+                    if _enqueue_email(email_id, user_id):
+                        jobs_created += 1
+            
             if jobs_created > 0:
-                # Imposta TTL solo se non è già presente, per efficienza
-                ttl_user = cast(int, redis_client.ttl(user_key))
-                if isinstance(ttl_user, int) and ttl_user < 0:
-                    redis_client.expire(user_key, 24 * 3600)
-
-                ttl_global = cast(int, redis_client.ttl(global_key))
-                if isinstance(ttl_global, int) and ttl_global < 0:
-                    redis_client.expire(global_key, 24 * 3600)
-                    
                 logging.info(f"Aggiunti {jobs_created} lavori alla coda per l'utente {_scrub(user_id)}.")
 
         if _run:
