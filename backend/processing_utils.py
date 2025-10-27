@@ -25,7 +25,13 @@ MODEL_JSON = "gpt-4o-mini"
 MODEL_CLASSIFY = "gpt-4o-mini"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-MODEL_SUMMARY = "gpt-5-nano"
+PIXABAY_TIMEOUT_SECONDS = float(os.getenv("PIXABAY_TIMEOUT_SECONDS", "25"))
+PIXABAY_MAX_RETRIES = int(os.getenv("PIXABAY_MAX_RETRIES", "3"))
+PIXABAY_RETRY_BACKOFF_BASE = float(os.getenv("PIXABAY_RETRY_BACKOFF_BASE", "1.8"))
+PIXABAY_FALLBACK_IMAGE_URL = os.getenv(
+    "FALLBACK_NEWSLETTER_IMAGE_URL",
+    "https://cdn.pixabay.com/photo/2016/05/05/02/37/email-1370059_1280.jpg",
+)
 
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
 TOPIC_VOCAB = [
@@ -84,7 +90,7 @@ __all__ = [
     "_extract_output_text", "extract_domain_from_from_header", "_decode_body",
     "root_domain_py", "get_ai_summary", "classify_type_and_topic",
     "get_ai_keyword", "get_pixabay_image_by_query", "extract_dominant_hex",
-    "SHARED_HTTP_CLIENT"
+    "SHARED_HTTP_CLIENT", "PIXABAY_FALLBACK_IMAGE_URL"
 ]
 
 _BANNED_KW = {
@@ -539,15 +545,14 @@ async def get_ai_keyword(content: str, client: httpx.AsyncClient) -> str:
 async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> str | None:
     """
     Interroga l'API di Pixabay e restituisce l'URL della migliore immagine trovata.
-    Versione corretta e robusta.
+    Applica retry con backoff ed espone un fallback configurabile.
     """
     if not PIXABAY_KEY:
         logging.warning("PIXABAY_KEY non è impostata, impossibile cercare immagini.")
-        return None
+        return PIXABAY_FALLBACK_IMAGE_URL or None
 
-    # Pulisce e prepara la query
     q = (query or "newsletter").strip()
-    
+
     params = {
         "key": PIXABAY_KEY,
         "q": q,
@@ -558,36 +563,99 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
         "per_page": 10,
     }
 
-    try:
-        r = await client.get("https://pixabay.com/api/", params=params, timeout=15.0)
-        r.raise_for_status()
-        data = r.json()
-        
-        hits = data.get("hits", [])
-        
-        if not hits:
-            logging.warning(f"Nessun risultato da Pixabay per la query: '{q}'")
-            return None
+    last_error: Exception | None = None
 
-        # Scegli un'immagine a caso tra i primi risultati per avere più varietà
-        best_hit = random.choice(hits)
-        
-        # Estrai l'URL, con fallback
-        image_url = best_hit.get("largeImageURL") or best_hit.get("webformatURL")
+    for attempt in range(1, PIXABAY_MAX_RETRIES + 1):
+        try:
+            r = await client.get(
+                "https://pixabay.com/api/",
+                params=params,
+                timeout=PIXABAY_TIMEOUT_SECONDS,
+                follow_redirects=True,
+            )
+            r.raise_for_status()
+            data = r.json()
+            hits = data.get("hits", [])
 
-        if not image_url:
-            logging.error(f"Trovato risultato da Pixabay per '{q}', ma manca 'largeImageURL'. Dati: {best_hit}")
-            return None
-            
-        logging.info(f"Trovato URL da Pixabay per '{q}': {image_url}")
-        return image_url
+            if not hits:
+                logging.warning("Nessun risultato da Pixabay per la query '%s'", q)
+                break
 
-    except httpx.HTTPStatusError as e:
-        logging.error(f"Errore HTTP da Pixabay per query '{q}': {e.response.status_code} - {e.response.text}")
-        return None
-    except Exception as e:
-        logging.error(f"Errore imprevisto durante la ricerca su Pixabay per '{q}': {e}", exc_info=True)
-        return None
+            best_hit = random.choice(hits)
+            image_url = best_hit.get("largeImageURL") or best_hit.get("webformatURL")
+
+            if not image_url:
+                last_error = RuntimeError("Pixabay response missing image URL")
+                logging.error(
+                    "Risultato Pixabay privo di URL per '%s'. Dati: %s",
+                    q,
+                    best_hit,
+                )
+                continue
+
+            logging.info("Trovato URL da Pixabay per '%s': %s", q, image_url)
+            return image_url
+
+        except httpx.HTTPStatusError as e:
+            last_error = e
+            status = e.response.status_code
+            body_preview = e.response.text[:2000]
+            retryable = status in {408, 425, 429, 500, 502, 503, 504}
+            log_fn = logging.warning if retryable and attempt < PIXABAY_MAX_RETRIES else logging.error
+            log_fn(
+                "Errore HTTP da Pixabay (tentativo %s/%s) per '%s': %s - %s",
+                attempt,
+                PIXABAY_MAX_RETRIES,
+                q,
+                status,
+                body_preview,
+            )
+            if retryable and attempt < PIXABAY_MAX_RETRIES:
+                wait = min(10.0, PIXABAY_RETRY_BACKOFF_BASE ** (attempt - 1))
+                await asyncio.sleep(wait)
+                continue
+            break
+
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError) as e:
+            last_error = e
+            logging.warning(
+                "Problema di rete con Pixabay per '%s' (tentativo %s/%s): %s",
+                q,
+                attempt,
+                PIXABAY_MAX_RETRIES,
+                e,
+            )
+            if attempt < PIXABAY_MAX_RETRIES:
+                wait = min(10.0, PIXABAY_RETRY_BACKOFF_BASE ** (attempt - 1))
+                await asyncio.sleep(wait)
+                continue
+            break
+
+        except Exception as e:
+            last_error = e
+            logging.error(
+                "Errore imprevisto durante la ricerca Pixabay per '%s': %s",
+                q,
+                e,
+                exc_info=True,
+            )
+            break
+
+    if PIXABAY_FALLBACK_IMAGE_URL:
+        if last_error:
+            logging.warning(
+                "Uso immagine di fallback per '%s' dopo errore: %s",
+                q,
+                last_error,
+            )
+        else:
+            logging.info("Uso immagine di fallback per '%s' (nessun risultato).", q)
+        return PIXABAY_FALLBACK_IMAGE_URL
+
+    if last_error:
+        logging.error("Ricerca Pixabay fallita definitivamente per '%s': %s", q, last_error)
+
+    return None
 
 def extract_dominant_hex(img_bytes: bytes) -> str:
     try:
