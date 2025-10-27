@@ -180,7 +180,7 @@ function redact(s) {
 }
 
 async function processSseUpdateQueue(){
-  if (!__sseOpen || __sseUpdateQueue.length === 0) return;
+  if (__sseUpdateQueue.length === 0) return;
   const ids = [...new Set(__sseUpdateQueue)]; __sseUpdateQueue = [];
   const results = await Promise.allSettled(ids.map(fetchItem));
   const newItems = [];
@@ -205,7 +205,7 @@ async function processSseUpdateQueue(){
   }
 
   if (newItems.length > 0) {
-    newItems.sort((a, b) => new Date(a.received_date) - new Date(b.received_date));
+    newItems.sort((a, b) => new Date(b.received_date) - new Date(a.received_date));
     await upsertFeedItems(newItems, { prepend:true });
     mergeFeedMemory(newItems);
   }
@@ -216,9 +216,16 @@ async function processSseUpdateQueue(){
 
 function scheduleSseUpdate(emailId) {
   if (!emailId) return;
-  if (!__sseUpdateQueue.includes(emailId)) __sseUpdateQueue.push(emailId);
+  if (!__sseUpdateQueue.includes(emailId)) {
+    __sseUpdateQueue.push(emailId);
+    // <-- MODIFICA: Se siamo alla fine del feed, mostra subito uno skeleton per un feedback immediato
+    if (!__hasMore) {
+      try { getOrCreatePlaceholder(emailId); } catch {}
+    }
+  }
+  
   if (__sseProcessTimer) clearTimeout(__sseProcessTimer);
-  if (!__sseOpen) return;           // ⬅️ Evita flush dopo chiusura
+  // La guardia `if (!__sseOpen) return;` è stata rimossa per permettere il flush finale.
   __sseProcessTimer = setTimeout(processSseUpdateQueue, 800);
 }
 
@@ -1374,6 +1381,7 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     if (finished) return;
     finished = true;
     __sseOpen = false;
+    try { processSseUpdateQueue(); } catch {} // <-- MODIFICA: Esegui un ultimo flush della coda
     toggleLoadingMessage(false);
     
     const waiters = (es?.__waiters || []);
@@ -1446,22 +1454,24 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
 
 function reconcileEndOfFeed() {
     const ingesting = __isIngesting || __autoIngesting;
-    const pendingMore = window.__pendingMore || false; // Leggiamo un flag globale
+    const pendingMore = window.__pendingMore || false;
     
     const showEnd = !__hasMore && !ingesting && !pendingMore;
 
     if (showEnd) {
+        hideLoadingFooter(); // <-- MODIFICA
         toggleEndOfFeed(true);
         toggleLoadingMessage(false);
         clearSentinel();
-        stopTailPolling(); // Ferma il polling se abbiamo finito
+        stopTailPolling();
     } else {
         toggleEndOfFeed(false);
         if (!__hasMore && (ingesting || pendingMore)) {
-            // Non ci sono altre pagine complete, ma c'è lavoro in corso
-            setSentinelBusy('Elaborazione in corso...');
+            showLoadingFooter('Sto preparando nuove newsletter…'); // <-- MODIFICA
+            setSentinelBusy('Elaborazione in corso…');
             startTailPolling();
         } else {
+            hideLoadingFooter(); // <-- MODIFICA
             stopTailPolling();
         }
     }
