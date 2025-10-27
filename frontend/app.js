@@ -642,30 +642,38 @@ document.addEventListener('keydown', (e) => {
 });
 
 
-function getGmailUrl(item, accountIndex = 0) {
-  const base = (frag) => `https://mail.google.com/mail/u/${accountIndex}/${frag}`;
-  const log  = (...a) => { if (window.__DEBUG) console.log('[GMAIL-LINK]', ...a); };
+function resolveGmailLinkParts(item, accountIndex = 0) {
+  const base = (fragment) => {
+    const normalizedFragment = fragment.startsWith('#') ? fragment : `#${fragment}`;
+    return {
+      fragment: normalizedFragment,
+      fragmentPath: normalizedFragment.replace(/^#/, ''),
+      webUrl: `https://mail.google.com/mail/u/${accountIndex}/${normalizedFragment}`,
+      accountIndex,
+    };
+  };
 
+  const log  = (...a) => { if (window.__DEBUG) console.log('[GMAIL-LINK]', ...a); };
   const pick = (...vals) => vals.find(v => typeof v === 'string' && v.length >= 10);
 
   try {
-    if (item.display_url)        { log('display_url', item.display_url); return item.display_url; }
-    if (item.gmail?.display_url) { log('gmail.display_url', item.gmail.display_url); return item.gmail.display_url; }
+    if (item?.display_url)        { log('display_url', item.display_url); return { ...base('#inbox'), webUrl: item.display_url }; }
+    if (item?.gmail?.display_url) { log('gmail.display_url', item.gmail.display_url); return { ...base('#inbox'), webUrl: item.gmail.display_url }; }
 
     const webId = pick(
-      item.gmail_web_id, item.gmail?.web_id, item.gmail?.webId,
-      item.gmail_legacy_id, item.gmail?.legacyId,
-      item.gmail?.rid, item.gmail?.r
+      item?.gmail_web_id, item?.gmail?.web_id, item?.gmail?.webId,
+      item?.gmail_legacy_id, item?.gmail?.legacyId,
+      item?.gmail?.rid, item?.gmail?.r
     );
     if (webId) { log('webId', webId); return base(`#inbox/${webId}`); }
 
-    const threadId  = pick(item.gmail_thread_id, item.thread_id, item.gmail?.threadId, item.gmail?.thrId);
+    const threadId  = pick(item?.gmail_thread_id, item?.thread_id, item?.gmail?.threadId, item?.gmail?.thrId);
     if (threadId) { log('threadId', threadId); return base(`#inbox/${threadId}`); }
 
-    const messageId = pick(item.gmail_message_id, item.message_id, item.gmail?.id, item.gmail?.msgId);
+    const messageId = pick(item?.gmail_message_id, item?.message_id, item?.gmail?.id, item?.gmail?.msgId);
     if (messageId) { log('messageId', messageId); return base(`#inbox/${messageId}`); }
 
-    const rfc822 = item.rfc822_message_id || item.messageId || item.headers?.['Message-ID'] || item.headers?.['Message-Id'];
+    const rfc822 = item?.rfc822_message_id || item?.messageId || item?.headers?.['Message-ID'] || item?.headers?.['Message-Id'];
     if (rfc822){
       const cleaned = String(rfc822).trim().replace(/[^\w.@<>-]/g,'');
       const q = `rfc822msgid:<${cleaned.replace(/[<>]/g,'')}>`;
@@ -673,10 +681,9 @@ function getGmailUrl(item, accountIndex = 0) {
       return base(`#search/${encodeURIComponent(q)}`);
     }
 
-    if (!rfc822 && item.sender_email) {
+    if (!rfc822 && item?.sender_email) {
       const sender = (item.sender_email || '').trim();
       log('fallback → search by sender', sender);
-      // --- PATCH ROBUSTEZZA: Aggiunge le virgolette per una ricerca esatta ---
       const searchQuery = `from:("${sender.replace(/"/g, '\\"')}")`;
       return base('#search/' + encodeURIComponent(searchQuery));
     }
@@ -688,6 +695,101 @@ function getGmailUrl(item, accountIndex = 0) {
     console.error('[GMAIL-LINK] error', e, item);
     return base('#inbox');
   }
+}
+
+function getGmailUrl(item, accountIndex = 0) {
+  return resolveGmailLinkParts(item, accountIndex).webUrl;
+}
+
+window.getGmailUrl = getGmailUrl;
+window.resolveGmailLinkParts = resolveGmailLinkParts;
+
+const USER_AGENT = navigator.userAgent || '';
+
+function isIOSDevice() {
+  return /iP(ad|hone|od)/.test(USER_AGENT) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isAndroidDevice() {
+  return /Android/.test(USER_AGENT);
+}
+
+function openInNewTab(url) {
+  if (!url) return;
+  const w = window.open(url, '_blank', 'noopener,noreferrer');
+  if (w) {
+    w.opener = null;
+    return;
+  }
+  window.location.href = url;
+}
+
+function openMobileDeepLink(primaryUrl, fallbackUrl, secondaryUrl) {
+  if (!primaryUrl) {
+    if (fallbackUrl) openInNewTab(fallbackUrl);
+    return;
+  }
+
+  let handled = false;
+  const cleanup = () => {
+    handled = true;
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+  };
+
+  const onVisibilityChange = () => {
+    if (document.hidden) {
+      cleanup();
+    }
+  };
+
+  document.addEventListener('visibilitychange', onVisibilityChange, { once: true });
+
+  const primaryTimer = setTimeout(() => {
+    if (!handled) {
+      if (secondaryUrl) {
+        window.location.href = secondaryUrl;
+        setTimeout(() => {
+          if (!document.hidden && fallbackUrl) {
+            openInNewTab(fallbackUrl);
+          }
+        }, 600);
+      } else if (fallbackUrl) {
+        openInNewTab(fallbackUrl);
+      }
+      cleanup();
+    }
+  }, 700);
+
+  try {
+    window.location.href = primaryUrl;
+  } catch (err) {
+    clearTimeout(primaryTimer);
+    cleanup();
+    if (secondaryUrl) {
+      window.location.href = secondaryUrl;
+    } else if (fallbackUrl) {
+      openInNewTab(fallbackUrl);
+    }
+  }
+}
+
+function openGmailAppOrWeb(linkParts) {
+  if (!linkParts) return;
+  const { webUrl, fragmentPath, accountIndex } = linkParts;
+  if (!(isIOSDevice() || isAndroidDevice())) {
+    openInNewTab(webUrl);
+    return;
+  }
+
+  const targetPath = fragmentPath || 'inbox';
+  const appPrimary = `googlegmail://mail/u/${accountIndex}/${targetPath}`;
+  if (isIOSDevice()) {
+    openMobileDeepLink(appPrimary, webUrl);
+    return;
+  }
+
+  const androidIntent = `intent://mail.google.com/mail/u/${accountIndex}/${targetPath}#Intent;scheme=https;package=com.google.android.gm;end`;
+  openMobileDeepLink(appPrimary, webUrl, androidIntent);
 }
 
 async function applyTypeOverride(emailId, typeTag){
@@ -2434,12 +2536,14 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        if (action === 'open') { 
-            const url = actionEl.dataset.url; 
-            if (url) {
-                const w = window.open(url, '_blank', 'noopener,noreferrer');
-                if (w) w.opener = null;
-            }
+        if (action === 'open') {
+          const linkParts = resolveGmailLinkParts(item || {}, item?.gmail_account_index || 0);
+          if (isIOSDevice() || isAndroidDevice()) {
+            openGmailAppOrWeb(linkParts);
+          } else {
+            openInNewTab(linkParts.webUrl || actionEl.dataset.url);
+          }
+          return;
         }
         // --- FINE PATCH ---
 
@@ -2952,7 +3056,13 @@ const renderWithFilters = () => {
 
 
 const applyClientFilters = (items) => {
-  let out = items.filter(it => !hiddenEmailIds.has(it.email_id));
+  let out = items.filter(it => !hiddenEmailIds.has(String(it.email_id)));
+  if (userHiddenDomains.size > 0) {
+    out = out.filter(it => {
+      const dom = (deriveDomainForItem(it) || '').toLowerCase();
+      return !dom || !userHiddenDomains.has(dom);
+    });
+  }
   if (showOnlyFavorites) out = out.filter(it => !!it.is_favorite);
 
   if (activeTypes.size < TYPE_ORDER.length) {

@@ -286,10 +286,13 @@ function mdToHtmlSafe(md) {
 }
 
 function getGmailUrl(item) {
+    if (typeof window.getGmailUrl === 'function') {
+        return window.getGmailUrl(item);
+    }
     const base = (frag) => `https://mail.google.com/mail/u/0/#all/${frag}`;
-    const threadId = item.thread_id || item.gmail_thread_id;
+    const threadId = item?.thread_id || item?.gmail_thread_id;
     if (threadId) return base(threadId);
-    const msgId = item.email_id || item.gmail_message_id;
+    const msgId = item?.email_id || item?.gmail_message_id;
     if (msgId) return base(msgId);
     return 'https://mail.google.com/mail/u/0/#inbox';
 }
