@@ -836,6 +836,137 @@ IMG_ALLOWED_HOSTS = {h for h in [
     "lh3.googleusercontent.com",
 ] if h}
 
+FALLBACK_IMAGE_PATH = Path(__file__).resolve().parent.parent / "frontend" / "img" / "loading.gif"
+_FALLBACK_IMAGE_ENTRY: dict[str, Any] | None = None
+_IMAGE_REFRESH_TRACK: dict[tuple[str, str], float] = {}
+IMAGE_REFRESH_COOLDOWN = 300.0
+
+def _get_fallback_image_entry() -> dict[str, Any]:
+    """
+    Restituisce (con caching in memoria) i byte e le intestazioni di base
+    dell'immagine di fallback da usare quando l'upstream fallisce.
+    """
+    global _FALLBACK_IMAGE_ENTRY
+    if _FALLBACK_IMAGE_ENTRY is None:
+        try:
+            raw = FALLBACK_IMAGE_PATH.read_bytes()
+            ct = "image/gif"
+        except Exception:
+            # 1x1 GIF trasparente inline come ultima risorsa
+            raw = base64.b64decode("R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==")
+            ct = "image/gif"
+        etag = f'W/"fallback-{hashlib.sha1(raw).hexdigest()}"'
+        _FALLBACK_IMAGE_ENTRY = {"bytes": raw, "ct": ct, "etag": etag}
+    return _FALLBACK_IMAGE_ENTRY
+
+def _fallback_image_response(reason: str, *, upstream_url: str | None = None, status_code: int | None = None) -> Response:
+    """
+    Restituisce una risposta HTTP 200 con un placeholder per evitare che il frontend
+    debba gestire errori 4xx/5xx durante il rendering delle tile.
+    """
+    ent = _get_fallback_image_entry()
+    headers = {
+        "Content-Type": ent["ct"],
+        "Cache-Control": "public, max-age=60",
+        "ETag": ent["etag"],
+        "X-Cache-Status": "FALLBACK",
+        "X-Fallback-Reason": reason,
+        "Access-Control-Allow-Origin": "*",
+    }
+    if upstream_url:
+        headers["X-Original-URL"] = upstream_url
+    if status_code:
+        headers["X-Upstream-Status"] = str(status_code)
+    log.warning("[IMG][fallback] reason=%s upstream=%s status=%s", reason, upstream_url, status_code)
+    return Response(content=ent["bytes"], status_code=200, headers=headers)
+
+def _fallback_with_refresh(request: Request, email_id: str | None, reason: str, *, upstream_url: str | None = None, status_code: int | None = None) -> Response:
+    if email_id:
+        _schedule_pixabay_refresh(request, email_id, reason)
+    return _fallback_image_response(reason, upstream_url=upstream_url, status_code=status_code)
+
+def _schedule_pixabay_refresh(request: Request, email_id: str, reason: str) -> None:
+    try:
+        uid = _current_user_id(request)
+    except HTTPException:
+        return
+
+    key = (uid, email_id)
+    now = time.time()
+    last = _IMAGE_REFRESH_TRACK.get(key, 0.0)
+    if now - last < IMAGE_REFRESH_COOLDOWN:
+        return
+
+    _IMAGE_REFRESH_TRACK[key] = now
+    logging.debug("[IMG][refresh] schedule email_id=%s uid=%s reason=%s", email_id, uid, reason)
+
+    async def runner():
+        try:
+            await _refresh_pixabay_image_for_email(uid, email_id)
+        except Exception as exc:
+            logging.warning("[IMG][refresh] fallito per email_id=%s uid=%s: %s", email_id, uid, exc, exc_info=True)
+        finally:
+            _IMAGE_REFRESH_TRACK.pop(key, None)
+
+    asyncio.create_task(runner())
+
+async def _refresh_pixabay_image_for_email(uid: str, email_id: str) -> None:
+    try:
+        n = Newsletter.get((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
+    except Newsletter.DoesNotExist:
+        logging.debug("[IMG][refresh] email_id=%s uid=%s non trovato", email_id, uid)
+        return
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        kw = await get_ai_keyword(n.full_content_html or "", client)
+        if not kw:
+            kw = (n.ai_title or n.original_subject or n.source_domain or "newsletter")
+
+        if not kw:
+            logging.debug("[IMG][refresh] nessuna keyword disponibile per email_id=%s", email_id)
+            return
+
+        image_url = await get_pixabay_image_by_query(client, kw)
+        if not image_url:
+            logging.warning("[IMG][refresh] Pixabay non ha restituito risultati per email_id=%s kw=%r", email_id, kw)
+            return
+
+        try:
+            resp = await client.get(image_url, timeout=20.0, follow_redirects=True)
+            resp.raise_for_status()
+            body_bytes = resp.content
+        except Exception as exc:
+            logging.warning("[IMG][refresh] download fallito per email_id=%s: %s", email_id, exc)
+            return
+
+        ct = (resp.headers.get("content-type", "image/jpeg").split(";", 1)[0]).lower()
+        accent_hex: str | None = None
+        try:
+            accent_hex = extract_dominant_hex(body_bytes)
+        except Exception:
+            accent_hex = None
+
+        final_url = image_url
+        try:
+            r2_client = _get_r2()
+            if r2_client:
+                ext = "jpg"
+                if ct.endswith("png"): ext = "png"
+                elif ct.endswith("webp"): ext = "webp"
+                kw_for_key = (kw or n.ai_title or n.original_subject or "newsletter")
+                key = make_r2_key_from_kw(kw_for_key, ext=ext)
+                final_url = upload_bytes_to_r2(body_bytes, key, content_type=ct)
+        except Exception as exc:
+            logging.warning("[IMG][refresh] upload su R2 fallito per email_id=%s: %s", email_id, exc)
+
+        is_complete = bool(n.ai_title and n.ai_summary_markdown and final_url and accent_hex)
+
+        (Newsletter.update(image_url=final_url, accent_hex=accent_hex, is_complete=is_complete)
+         .where((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
+         ).execute()
+
+        logging.info("[IMG][refresh] email_id=%s aggiornato (reason=fallback)", email_id)
+
 image_cache = OrderedDict()  # url -> {"ts": float, "bytes": bytes, "ct": str, "etag": str|None}
 
 def _cache_get(url: str) -> dict | None:
@@ -1070,10 +1201,14 @@ async def get_feed_item(email_id: str, request: Request):
 
     
 @app.get("/api/img")
-async def api_img(request: Request, u: str = Query(..., description="URL assoluto dell'immagine")):
-    return await proxy_image(u, request)
+async def api_img(
+    request: Request,
+    u: str = Query(..., description="URL assoluto dell'immagine"),
+    email_id: str | None = Query(default=None, alias="email_id"),
+):
+    return await proxy_image(u, request, email_id=email_id)
 
-async def proxy_image(u: str, request: Request):
+async def proxy_image(u: str, request: Request, email_id: str | None = None):
     """
     Proxy per immagini sicuro con allowlist, gestione manuale dei redirect (anti-SSRF),
     e download in streaming per prevenire attacchi OOM.
@@ -1107,6 +1242,7 @@ async def proxy_image(u: str, request: Request):
     try:
         current_url = url
         max_redirects = 5
+        r: httpx.Response | None = None
         for _ in range(max_redirects):
             parsed = urlparse(current_url)
             if parsed.scheme.lower() not in ("http", "https"):
@@ -1133,12 +1269,18 @@ async def proxy_image(u: str, request: Request):
         else:
             raise HTTPException(status_code=400, detail="Troppi redirect")
 
+    except HTTPException:
+        raise
     except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Errore di rete: {e}")
+        log.warning("[IMG][proxy] network error for %s: %s", url, e)
+        return _fallback_with_refresh(request, email_id, "network_error", upstream_url=url, status_code=None)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"URL non valido o host non consentito: {e}")
 
     # --- FIX DI SICUREZZA: DOWNLOAD IN STREAMING CON LIMITE ---
+    if r is None:
+        return _fallback_with_refresh(request, email_id, "empty_response", upstream_url=current_url, status_code=None)
+
     if r.status_code == 200:
         total_bytes = 0
         chunks = []
@@ -1157,9 +1299,9 @@ async def proxy_image(u: str, request: Request):
                         chunks.append(chunk)
             content = b"".join(chunks)
         except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=e.response.status_code, detail="Errore dall'upstream")
+            return _fallback_with_refresh(request, email_id, "upstream_status_error", upstream_url=current_url, status_code=e.response.status_code)
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Download fallito: {e}")
+            return _fallback_with_refresh(request, email_id, "download_error", upstream_url=current_url, status_code=None)
 
         etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
         _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
@@ -1173,7 +1315,7 @@ async def proxy_image(u: str, request: Request):
         }
         return Response(content=content, headers=response_headers)
 
-    raise HTTPException(status_code=r.status_code, detail="Impossibile recuperare l'immagine upstream")
+    return _fallback_with_refresh(request, email_id, "upstream_http_error", upstream_url=current_url, status_code=r.status_code)
 
 @app.get("/api/gmail/messages/{msg_id}/html")
 def gmail_message_html(msg_id: str, request: Request):

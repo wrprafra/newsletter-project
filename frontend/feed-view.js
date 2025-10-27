@@ -121,7 +121,7 @@ export function observeRead(cardEl, onRead) {
  * @param {object} options - Opzioni aggiuntive.
  * @param {string} options.accentHex - Colore esadecimale per lo sfondo.
  */
-export function attachImage(imgEl, src, { accentHex } = {}) {
+export function attachImage(imgEl, src, { accentHex, emailId } = {}) {
   if (!imgEl || !src) return;
 
   imgEl.crossOrigin = 'anonymous'; // Aggiunto per evitare canvas "tainted"
@@ -137,6 +137,11 @@ export function attachImage(imgEl, src, { accentHex } = {}) {
   imgEl.decoding = 'async';
   imgEl.width = 800;
   imgEl.height = 450;
+  if (emailId) {
+    imgEl.dataset.emailId = String(emailId);
+  }
+
+  const finalSrc = toProxy(src, emailId);
 
   imgEl.onload = () => {
     imgEl.classList.add('is-loaded');
@@ -159,7 +164,7 @@ export function attachImage(imgEl, src, { accentHex } = {}) {
     imgEl.classList.add('is-loaded');
   };
 
-  imgEl.src = src;
+  imgEl.src = finalSrc;
 }
 
 // --- FUNZIONI DI UTILITÀ UI ---
@@ -233,7 +238,7 @@ function renderFeedCard(item) {
   `;
 
   const imgEl = cardEl.querySelector('img.card-image');
-  attachImage(imgEl, toProxy(item.image_url), { accentHex: item.accent_hex });
+  attachImage(imgEl, item.image_url, { accentHex: item.accent_hex, emailId: item.email_id });
   
   setTimeout(() => cardEl.classList.remove('opacity-0'), 50);
 

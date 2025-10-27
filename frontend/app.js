@@ -1558,6 +1558,15 @@ function isInternalImageUrl(u) {
   }
 }
 
+function buildImageProxyUrl(imageUrl, emailId) {
+  if (!imageUrl) return imageUrl;
+  if (isInternalImageUrl(imageUrl)) return imageUrl;
+  const params = new URLSearchParams();
+  params.set('u', imageUrl);
+  if (emailId) params.set('email_id', String(emailId));
+  return `${window.BACKEND_BASE}/api/img?${params.toString()}`;
+}
+
 async function ensurePickerReady(timeout = 8000) {
   const start = Date.now();
 
@@ -3575,6 +3584,9 @@ function renderFeedCard(item, opts = {}) {
   `;
 
   const imgEl = cardEl.querySelector('img.card-image');
+  if (imgEl) {
+    imgEl.dataset.emailId = String(item.email_id || '');
+  }
   const imageUrl = item.image_url || '';
 
   if (__cardRenderCount <= 3) {
@@ -3588,7 +3600,7 @@ function renderFeedCard(item, opts = {}) {
 
   if (!opts.skipImageInit && imgEl && imageUrl) {
     const isInternal = isInternalImageUrl(imageUrl);
-    const finalSrc = isInternal ? imageUrl : `${window.BACKEND_BASE}/api/img?u=${encodeURIComponent(imageUrl)}`;
+    const finalSrc = isInternal ? imageUrl : buildImageProxyUrl(imageUrl, item.email_id);
     
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1));
     imgEl.addEventListener('load', () => {
@@ -3626,7 +3638,7 @@ function updateFeedCard(cardEl, item) {
     const isInternal = isInternalImageUrl(item.image_url);
     const newSrc = isInternal
       ? item.image_url
-      : `${window.BACKEND_BASE}/api/img?u=${encodeURIComponent(item.image_url)}`;
+      : buildImageProxyUrl(item.image_url, item.email_id);
 
     const cur = imgEl.currentSrc || imgEl.src || '';
     if (cur !== newSrc) {
@@ -4104,7 +4116,10 @@ const updateImages = async (overrideSource = null) => {
             const internal = isInternalImageUrl(item.image_url);
             const newSrc = internal
               ? item.image_url
-              : `${window.BACKEND_BASE}/api/img?u=${encodeURIComponent(item.image_url)}`;
+              : buildImageProxyUrl(item.image_url, item.email_id);
+            if (item.email_id) {
+              img.dataset.emailId = String(item.email_id);
+            }
 
             if (item.accent_hex) {
               card.style.setProperty('--accent', item.accent_hex);
@@ -4298,7 +4313,10 @@ async function retryUpdateImages() {
   if (!img) return;
 
   const internal = isInternalImageUrl(item.image_url);
-  const newSrc = internal ? item.image_url : `${window.BACKEND_BASE}/api/img?u=${encodeURIComponent(item.image_url)}`;
+  const newSrc = internal ? item.image_url : buildImageProxyUrl(item.image_url, item.email_id);
+  if (item.email_id) {
+    img.dataset.emailId = String(item.email_id);
+  }
   setCardImage(img, newSrc, internal);
 
   img.onload = () => {

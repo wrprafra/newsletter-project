@@ -162,10 +162,13 @@ export async function updateImages(emailIds, source) {
  * @param {string} externalUrl - L'URL dell'immagine originale.
  * @returns {string} L'URL che passa attraverso il proxy del backend.
  */
-export function toProxy(externalUrl) {
+export function toProxy(externalUrl, emailId) {
   if (!externalUrl) return '';
   if (externalUrl.startsWith('data:') || !externalUrl.startsWith('http')) return externalUrl;
-  return `${window.BACKEND_BASE}/api/img?u=${encodeURIComponent(externalUrl)}`;
+  const params = new URLSearchParams();
+  params.set('u', externalUrl);
+  if (emailId) params.set('email_id', String(emailId));
+  return `${window.BACKEND_BASE}/api/img?${params.toString()}`;
 }
 
 // --- FUNZIONI INTERNE ---
