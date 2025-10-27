@@ -259,7 +259,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 logging.info("[CFG] OPENAI key present=%s len=%d", bool(OPENAI_API_KEY), len(OPENAI_API_KEY))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-SETTINGS_PATH = "user_settings.json"
+SETTINGS_PATH = os.getenv("SETTINGS_PATH", "/app/data/user_settings.json")
 CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
 _credentials_lock = FileLock(CREDENTIALS_PATH + ".lock", timeout=5)
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
@@ -2356,33 +2356,16 @@ def _parse_cursor(cur: str | None) -> Tuple[datetime | None, str | None]:
         return None, None
 
 def get_ingestion_state(user_id: str) -> dict:
+    """Restituisce lo stato di ingestione per un utente specifico."""
     active_job = next(
-        (jid for jid, st in INGEST_JOBS.items()
-         if st.get("user_id")==user_id and st.get("state") in ("queued","running")),
+        (
+            jid
+            for jid, st in INGEST_JOBS.items()
+            if st.get("user_id") == user_id and st.get("state") in ("queued", "running")
+        ),
         None,
     )
-    running = bool(active_job)
-    try:
-        if redis_client:
-            qlen = int(redis_client.llen("email_queue") or 0) # type: ignore
-            has_lock = bool(redis_client.get("ingestor:lock"))
-            running = running or qlen > 0 or has_lock
-    except Exception:
-        pass
-    # opzionale: considera anche pendenti nel DB
-    try:
-        pending = (Newsletter
-                   .select()
-                   .where((Newsletter.user_id==user_id) &
-                          (Newsletter.enriched==True) &
-                          (Newsletter.is_complete==False) &
-                          (Newsletter.is_deleted==False))
-                   .limit(1)
-                  ).exists()
-        running = running or pending
-    except Exception:
-        pass
-    return {"running": running, "job_id": active_job}
+    return {"running": bool(active_job), "job_id": active_job}
 
 @router_api.get("/feed/_debug/stats")
 async def feed_debug_stats(request: Request):

@@ -2,20 +2,16 @@ services:
   app:
     image: ghcr.io/wrprafra/newsletter-project:latest
     restart: always
-    mem_limit: "512m"
     env_file:
       - .env
     environment:
-      - APP_ENV=prod
-      - THREAD_DEDUP_MODE=off
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG
       - PYTHONUNBUFFERED=1
-      - SQLALCHEMY_ECHO=1
-      - DB_PATH=/app/data/newsletter.db
-      - DATABASE_URL=sqlite:////app/data/newsletter.db
+      - DATA_DIR=/app/data
       - CREDENTIALS_PATH=/app/data/user_credentials.json
       - SETTINGS_PATH=/app/data/user_settings.json
+      - CLIENT_SECRETS_FILE=/app/data/credentials.json
     depends_on:
       redis:
         condition: service_healthy
@@ -23,8 +19,6 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - /var/newsletter:/app/data
-      - /opt/newsletter/backend:/app/backend:ro
-      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command:
       - uvicorn
       - backend.main:app
@@ -37,7 +31,6 @@ services:
 
   worker:
     image: ghcr.io/wrprafra/newsletter-project:latest
-    mem_limit: "512m"
     restart: always
     depends_on:
       redis:
@@ -47,26 +40,19 @@ services:
     env_file:
       - .env
     environment:
-      - APP_ENV=prod
-      - THREAD_DEDUP_MODE=off
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG
       - PYTHONUNBUFFERED=1
-      - SQLALCHEMY_ECHO=1
-      - DB_PATH=/app/data/newsletter.db
-      - DATABASE_URL=sqlite:////app/data/newsletter.db
+      - DATA_DIR=/app/data
       - CREDENTIALS_PATH=/app/data/user_credentials.json
       - SETTINGS_PATH=/app/data/user_settings.json
     volumes:
       - /var/newsletter:/app/data
-      - /opt/newsletter/backend:/app/backend:ro
-      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.worker
 
   ingestor:
     image: ghcr.io/wrprafra/newsletter-project:latest
     restart: always
-    mem_limit: "512m"
     depends_on:
       redis:
         condition: service_healthy
@@ -75,22 +61,16 @@ services:
     env_file:
       - .env
     environment:
-      - APP_ENV=prod
-      - THREAD_DEDUP_MODE=off
       - INGESTOR_BACKFILL_PAGES=25
       - INGESTOR_BACKFILL_TARGET=1000
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=DEBUG
       - PYTHONUNBUFFERED=1
-      - SQLALCHEMY_ECHO=1
-      - DB_PATH=/app/data/newsletter.db
-      - DATABASE_URL=sqlite:////app/data/newsletter.db
+      - DATA_DIR=/app/data
       - CREDENTIALS_PATH=/app/data/user_credentials.json
       - SETTINGS_PATH=/app/data/user_settings.json
     volumes:
       - /var/newsletter:/app/data
-      - /opt/newsletter/backend:/app/backend:ro
-      - /opt/newsletter/secrets/credentials.json:/app/data/credentials.json:ro
     command: python -m backend.ingestor
 
   redis:
