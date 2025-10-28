@@ -721,7 +721,17 @@ function openInNewTab(url) {
     w.opener = null;
     return;
   }
-  window.location.href = url;
+  // Fallback senza perdere il focus dell'app
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  requestAnimationFrame(() => {
+    document.body.removeChild(a);
+  });
 }
 
 function openMobileDeepLink(primaryUrl, fallbackUrl, secondaryUrl) {

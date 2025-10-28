@@ -38,6 +38,8 @@ export function mount(containerEl) {
  * @param {Array<object>} items - La lista di item da visualizzare.
  */
 export function render(items) {
+  if (!__container) return;
+
   const fragment = document.createDocumentFragment();
   const visibleIds = new Set();
 
@@ -51,8 +53,9 @@ export function render(items) {
     } else {
       cardNode = renderFeedCard(item);
       __cardNodes.set(id, cardNode);
-      fragment.appendChild(cardNode);
     }
+
+    fragment.appendChild(cardNode);
   }
 
   if (fragment.childElementCount > 0) {
