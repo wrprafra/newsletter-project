@@ -30,6 +30,18 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+<div id="splash-screen" class="splash-screen" role="status" aria-live="polite">
+  <div class="splash-content">
+    <div class="splash-logo">
+      <img src="img/the-gist-icon.png" alt="" width="48" height="48" />
+      <span class="splash-title">the gist</span>
+    </div>
+    <p class="splash-tagline">Sto preparando il tuo feed personalizzato…</p>
+    <div class="splash-spinner" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
 <div id="sw-update-banner" class="hidden fixed bottom-0 left-0 right-0 z-[200] bg-gray-800 text-white p-3 text-center shadow-lg">
   <div class="max-w-2xl mx-auto flex items-center justify-center gap-4">
     <span class="text-sm">È disponibile una nuova versione.</span>
@@ -148,9 +160,14 @@
 
   <!-- Feed (centrato) -->
   <section id="feed-container" class="max-w-2xl mx-auto space-y-6"></section>
-  <div id="feed-loading" class="hidden text-center text-sm text-gray-500 py-6">
-  Sto preparando nuove mail
-</div>
+  <div id="feed-loading" class="hidden feed-loader" role="status" aria-live="polite">
+    <div class="loader-visual" aria-hidden="true">
+      <span class="loader-dot"></span>
+      <span class="loader-dot"></span>
+      <span class="loader-dot"></span>
+    </div>
+    <p class="loader-text">Sto preparando nuove newsletter…</p>
+  </div>
   <div id="load-more-sentinel"
      role="button"
      tabindex="0"

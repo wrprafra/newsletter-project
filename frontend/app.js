@@ -75,6 +75,47 @@ function dlog(group, obj = {}) {
 const pauseCss = hidden => document.documentElement.classList.toggle('prefers-reduced-motion', hidden);
 document.addEventListener('visibilitychange', () => pauseCss(document.visibilityState !== 'visible'));
 
+const SPLASH_MIN_DURATION_MS = 1000;
+let __splashShownAt = 0;
+let __splashHideTimer = null;
+let __splashDismissed = false;
+
+function hideSplash(force = false) {
+  if (__splashDismissed) return;
+  const splashEl = document.getElementById('splash-screen');
+  if (!splashEl) {
+    __splashDismissed = true;
+    return;
+  }
+
+  const elapsed = performance.now() - __splashShownAt;
+  if (!force && elapsed < SPLASH_MIN_DURATION_MS) {
+    clearTimeout(__splashHideTimer);
+    __splashHideTimer = window.setTimeout(() => hideSplash(true), SPLASH_MIN_DURATION_MS - elapsed);
+    return;
+  }
+
+  __splashDismissed = true;
+  splashEl.classList.add('splash-hidden');
+  clearTimeout(__splashHideTimer);
+  __splashHideTimer = window.setTimeout(() => {
+    try { splashEl.remove(); } catch {}
+  }, 400);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const splashEl = document.getElementById('splash-screen');
+  if (!splashEl) {
+    __splashDismissed = true;
+    return;
+  }
+  __splashShownAt = performance.now();
+  clearTimeout(__splashHideTimer);
+  __splashHideTimer = window.setTimeout(() => hideSplash(true), SPLASH_MIN_DURATION_MS + 400);
+});
+
+window.__hideSplashScreen = hideSplash;
+
 // Flag di stato dell'applicazione
 let __activeTopic = null;
 let __activeSender = null;
@@ -958,7 +999,8 @@ function hydrateTile(el, item) {
 function toggleLoadingMessage(show, text = "Sto preparando nuove newsletter…") {
   const el = document.getElementById('feed-loading');
   if (!el) return;
-  el.textContent = text;
+  const textEl = el.querySelector('.loader-text') || el.querySelector('p');
+  if (textEl) textEl.textContent = text;
   el.classList.toggle('hidden', !show);
 }
 
@@ -982,6 +1024,7 @@ function setEverLoaded(v) {
 
 
 function removeGlobalLoading() {
+  hideSplash();
   document.getElementById('feed-loading-indicator')?.remove();
   window.FEED_STATE && (FEED_STATE.initialSkeletonsVisible = false);
   window.__isInitialIngesting = false;
@@ -1198,7 +1241,11 @@ function showInitialSkeletons(n = 6) {
   loadingIndicator.id = 'feed-loading-indicator';
   loadingIndicator.className = 'loading-indicator';
   loadingIndicator.innerHTML = `
-    <img src="/img/loading.gif" alt="Caricamento in corso..." /> 
+    <div class="loader-visual" aria-hidden="true">
+      <span class="loader-dot"></span>
+      <span class="loader-dot"></span>
+      <span class="loader-dot"></span>
+    </div>
     <p>Sincronizzazione con la tua casella di posta in corso...</p>
   `;
   root.appendChild(loadingIndicator);
@@ -4711,11 +4758,7 @@ async function mainAppStart() {
     if (loginMessage) loginMessage.style.display = 'block';
     stopBoot();
   }  finally {
-    // --- INIZIO MODIFICA ---
-    // Rimuovi l'indicatore di caricamento globale e gli scheletri in ogni caso,
-    // garantendo che l'UI non rimanga mai bloccata.
-    if (__firstPaintDone || hasCards()) removeGlobalLoading();
-    // --- FINE MODIFICA ---
+    removeGlobalLoading();
 
     console.log("[JS] Avvio completato. Abilito lo scroll automatico.");
     __initialLoadDone = true;
