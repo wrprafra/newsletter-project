@@ -132,6 +132,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+@app.middleware("http")
+async def enforce_https(request: Request, call_next):
+    if IS_PROD:
+        xf_proto = request.headers.get("x-forwarded-proto") or request.headers.get("x-forwarded-protocol")
+        scheme = (xf_proto or request.url.scheme or "").lower()
+        host = (request.headers.get("host") or "").lower()
+        if host.endswith("thegist.tech") and scheme != "https":
+            target = request.url.replace(scheme="https")
+            return RedirectResponse(str(target), status_code=307)
+    return await call_next(request)
+
 router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
 router_auth = APIRouter(prefix="/auth", tags=["authentication"])
 router_api = APIRouter(prefix="/api", tags=["api"])
