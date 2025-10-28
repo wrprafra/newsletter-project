@@ -78,43 +78,39 @@ document.addEventListener('visibilitychange', () => pauseCss(document.visibility
 const SPLASH_MIN_DURATION_MS = 1000;
 let __splashShownAt = 0;
 let __splashHideTimer = null;
-let __splashDismissed = false;
+let __splashVisible = false;
+
+function showSplash() {
+  const splashEl = document.getElementById('splash-screen');
+  if (!splashEl) return;
+  __splashVisible = true;
+  splashEl.classList.remove('splash-hidden');
+  splashEl.classList.add('splash-visible');
+  __splashShownAt = performance.now();
+  clearTimeout(__splashHideTimer);
+}
 
 function hideSplash(force = false) {
-  if (__splashDismissed) return;
   const splashEl = document.getElementById('splash-screen');
-  if (!splashEl) {
-    __splashDismissed = true;
-    return;
-  }
+  if (!splashEl) return;
+
+  if (!force && !__splashVisible) return;
 
   const elapsed = performance.now() - __splashShownAt;
-  if (!force && elapsed < SPLASH_MIN_DURATION_MS) {
+  if (!force && __splashVisible && elapsed < SPLASH_MIN_DURATION_MS) {
     clearTimeout(__splashHideTimer);
     __splashHideTimer = window.setTimeout(() => hideSplash(true), SPLASH_MIN_DURATION_MS - elapsed);
     return;
   }
 
-  __splashDismissed = true;
+  __splashVisible = false;
+  splashEl.classList.remove('splash-visible');
   splashEl.classList.add('splash-hidden');
   clearTimeout(__splashHideTimer);
-  __splashHideTimer = window.setTimeout(() => {
-    try { splashEl.remove(); } catch {}
-  }, 400);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const splashEl = document.getElementById('splash-screen');
-  if (!splashEl) {
-    __splashDismissed = true;
-    return;
-  }
-  __splashShownAt = performance.now();
-  clearTimeout(__splashHideTimer);
-  __splashHideTimer = window.setTimeout(() => hideSplash(true), SPLASH_MIN_DURATION_MS + 400);
-});
-
 window.__hideSplashScreen = hideSplash;
+window.__showSplashScreen = showSplash;
 
 // Flag di stato dell'applicazione
 let __activeTopic = null;
@@ -4704,6 +4700,7 @@ async function mainAppStart() {
 
     if (isLogged) {
       if (loginMessage) loginMessage.style.display = 'none';
+      showSplash();
       await loadUserSettings();
       await finalizePendingGPhotosSession();
       stopBoot();
@@ -4748,6 +4745,7 @@ async function mainAppStart() {
       } catch {}
 
     } else {
+      hideSplash(true);
       if (loginMessage) loginMessage.style.display = 'block';
       stopBoot();
       return;
@@ -4755,6 +4753,7 @@ async function mainAppStart() {
 
   } catch (e) {
     console.error("[JS-DEBUG] mainAppStart: Errore critico durante l'avvio:", e);
+    hideSplash(true);
     if (loginMessage) loginMessage.style.display = 'block';
     stopBoot();
   }  finally {
