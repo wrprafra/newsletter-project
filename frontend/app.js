@@ -148,6 +148,60 @@ let activeReads = new Set(READ_STATES);
 const readFilterKey = () => `activeReads:${EVER_KEY}`;
 function saveActiveReads(){ try{ localStorage.setItem(readFilterKey(), JSON.stringify([...activeReads])); }catch{} }
 
+const PTR_DEFAULT_TEXT = 'Tira per aggiornare';
+const PTR_LOADERS = new Map();
+
+function ptrUpdateHint() {
+  const ptr = document.getElementById('ptr');
+  if (!ptr) return;
+  const textEl = ptr.querySelector('.ptr-text');
+  if (!textEl) return;
+  if (PTR_LOADERS.size === 0) {
+    textEl.textContent = PTR_DEFAULT_TEXT;
+  } else {
+    const values = Array.from(PTR_LOADERS.values());
+    const lastText = values[values.length - 1] || 'Sto sincronizzando nuove newsletter…';
+    textEl.textContent = lastText;
+  }
+}
+
+function ptrShowLoading(token = `ptr-${Date.now()}`, text = 'Sto sincronizzando nuove newsletter…') {
+  const ptr = document.getElementById('ptr');
+  if (!ptr) return token;
+  PTR_LOADERS.set(token, text);
+  ptr.classList.add('ptr--loading');
+  ptrUpdateHint();
+  return token;
+}
+
+function ptrHideLoading(token) {
+  const ptr = document.getElementById('ptr');
+  if (!ptr) return;
+  if (token) PTR_LOADERS.delete(token);
+  if (PTR_LOADERS.size === 0) {
+    ptr.classList.remove('ptr--loading');
+  }
+  ptrUpdateHint();
+}
+
+function ptrWaitUntilIdle(token) {
+  const poll = () => {
+    if (!window.__isIngesting && !window.__autoIngesting) {
+      ptrHideLoading(token);
+    } else {
+      setTimeout(poll, 250);
+    }
+  };
+  poll();
+}
+
+function ptrSetHint(text) {
+  if (PTR_LOADERS.size > 0) return;
+  const ptr = document.getElementById('ptr');
+  const hint = typeof text === 'string' && text.length ? text : PTR_DEFAULT_TEXT;
+  ptr?.querySelector('.ptr-text')?.textContent = hint;
+}
+
 // let WINDOW_GMAIL_POPUP = null;
 // let POPUP_POLL_TIMER = null;
 // let lastGmailUrl = '';
@@ -1003,7 +1057,11 @@ function toggleLoadingMessage(show, text = "Sto preparando nuove newsletter…")
 function toggleEndOfFeed(show) {
   if (!endOfFeedEl) endOfFeedEl = document.getElementById("feed-end-message");
   if (!endOfFeedEl) return;
-  endOfFeedEl.classList.toggle("hidden", !show);
+  if (document.getElementById('login-message')?.classList.contains('hero-hidden')) {
+    endOfFeedEl.classList.toggle("hidden", !show);
+  } else {
+    endOfFeedEl.classList.add("hidden");
+  }
 }
 
 function hasRenderedAtLeastOneCard() {
@@ -1317,13 +1375,31 @@ const PHOTOS_SCOPE_STR =
 
 
 async function autoIngestAndLoad(options = {}) {
-  const { reason = "auto", force = false, ...apiParams } = options;
-  if (__autoIngesting) return;
+  const {
+    reason = "auto",
+    force = false,
+    ptrToken = null,
+    ptrText = 'Sto sincronizzando nuove newsletter…',
+    ...apiParams
+  } = options;
+
+  const token = ptrToken || null;
+  if (token) ptrShowLoading(token, ptrText);
+
+  if (__autoIngesting && !force) {
+    if (token) ptrWaitUntilIdle(token);
+    return;
+  }
+
   if (!force && Date.now() < __ingestCooldownUntil) {
     feLog('info', 'ingest.skip.cooldown', { reason });
+    if (token) ptrWaitUntilIdle(token);
     return;
   }
   __autoIngesting = true;
+  const releasePtr = () => {
+    if (token) ptrHideLoading(token);
+  };
   try {
     const payload = { batch: 5, pages: 1, target: 25, ...apiParams };
     
@@ -1339,6 +1415,7 @@ async function autoIngestAndLoad(options = {}) {
       __ingestCooldownUntil = Date.now() + 30_000;
       __autoIngesting = false;
       reconcileEndOfFeed(); // <-- Aggiunta qui
+      releasePtr();
       return;
     }
 
@@ -1350,9 +1427,10 @@ async function autoIngestAndLoad(options = {}) {
       __autoIngesting = false;
       window.__isIngesting = true;
       handleIngestionState(jobId, {
-          onDone: () => { __autoIngesting = false; dlog('[PTR] refresh_done (joined)'); reconcileEndOfFeed(); },
-          onError: () => { __autoIngesting = false; reconcileEndOfFeed(); }
+          onDone: () => { __autoIngesting = false; dlog('[PTR] refresh_done (joined)'); reconcileEndOfFeed(); releasePtr(); },
+          onError: () => { __autoIngesting = false; reconcileEndOfFeed(); releasePtr(); }
       });
+      if (token) ptrWaitUntilIdle(token);
       return;
     }
 
@@ -1372,6 +1450,7 @@ async function autoIngestAndLoad(options = {}) {
           __autoIngesting = false;
           dlog('[PTR] refresh_done');
           reconcileEndOfFeed();
+          releasePtr();
         },
         onError: () => {
           __isIngesting = false;
@@ -1379,17 +1458,20 @@ async function autoIngestAndLoad(options = {}) {
           clearSentinel();
           __autoIngesting = false;
           reconcileEndOfFeed();
+          releasePtr();
         }
       });
     } else {
       __autoIngesting = false;
       reconcileEndOfFeed();
+      releasePtr();
     }
   } catch (e) {
     console.warn('[ingest] Errore durante il processo di auto-ingestione:', e);
     __autoIngesting = false;
     __isInitialIngesting = false;
     reconcileEndOfFeed();
+    releasePtr();
   }
 }
 
@@ -4699,10 +4781,14 @@ async function mainAppStart() {
     FEED_STATE.everLoaded = getEverLoaded();
 
     if (isLogged) {
-      if (loginMessage) loginMessage.style.display = 'none';
+      if (loginMessage) {
+        loginMessage.style.display = 'none';
+        loginMessage.classList.add('hero-hidden');
+      }
       showSplash();
       document.getElementById('app-header')?.classList.remove('hidden');
       document.getElementById('app-footer')?.classList.remove('hidden');
+      document.getElementById('ptr')?.classList.remove('hidden');
       await loadUserSettings();
       await finalizePendingGPhotosSession();
       stopBoot();
@@ -4750,7 +4836,11 @@ async function mainAppStart() {
       hideSplash(true);
       document.getElementById('app-header')?.classList.add('hidden');
       document.getElementById('app-footer')?.classList.add('hidden');
-      if (loginMessage) loginMessage.style.display = 'block';
+      document.getElementById('ptr')?.classList.add('hidden');
+      if (loginMessage) {
+        loginMessage.style.display = 'block';
+        loginMessage.classList.remove('hero-hidden');
+      }
       stopBoot();
       return;
     }
@@ -4760,7 +4850,11 @@ async function mainAppStart() {
     hideSplash(true);
     document.getElementById('app-header')?.classList.add('hidden');
     document.getElementById('app-footer')?.classList.add('hidden');
-    if (loginMessage) loginMessage.style.display = 'block';
+    document.getElementById('ptr')?.classList.add('hidden');
+    if (loginMessage) {
+      loginMessage.style.display = 'block';
+      loginMessage.classList.remove('hero-hidden');
+    }
     stopBoot();
   }  finally {
     removeGlobalLoading();
@@ -4872,19 +4966,16 @@ if (document.readyState === 'loading') {
       lastTrigger = Date.now();
       window.__lastIngestAt = Date.now();
 
-      const ptr = document.getElementById('ptr');
-      if (ptr) ptr.classList.add('ptr--loading'); // Mostra la barra di caricamento
-
+      const token = ptrShowLoading('scroll-up', 'Sto sincronizzando nuove newsletter…');
       try { window.setSentinelBusy?.('Controllo la casella di posta…'); } catch {}
-      autoIngestAndLoad({ reason: 'scroll-up', batch: 10, pages: 1, target: 30 });
-
-      // Controlla periodicamente la fine dell'ingestione per nascondere la barra
-      const t = setInterval(() => {
-        if (!window.__isIngesting && !window.__autoIngesting) {
-          clearInterval(t);
-          if (ptr) ptr.classList.remove('ptr--loading'); // Nascondi la barra
-        }
-      }, 300);
+      autoIngestAndLoad({
+        reason: 'scroll-up',
+        batch: 10,
+        pages: 1,
+        target: 30,
+        ptrToken: token,
+        ptrText: 'Sto sincronizzando nuove newsletter…'
+      });
     }
     lastY = y;
   }, { passive: true });
@@ -4902,37 +4993,29 @@ if (document.readyState === 'loading') {
 
   const triggerRefresh = (reason) => {
     dlog('[PTR] refresh_trigger');
-    ptr.classList.add('ptr--loading');
+    const token = ptrShowLoading(`ptr-${reason}-${Date.now()}`, 'Sto sincronizzando nuove newsletter…');
     __lastIngestAt = Date.now();
     try { window.setSentinelBusy?.('Controllo la casella di posta…'); } catch {}
-    autoIngestAndLoad({ reason, force: true, batch: 10, pages: 1, target: 30 });
-    const t = setInterval(() => {
-      if (!window.__isIngesting && !window.__autoIngesting) {
-        clearInterval(t);
-        ptr.classList.remove('ptr--loading');
-      }
-    }, 300);
+    autoIngestAndLoad({
+      reason,
+      force: true,
+      batch: 10,
+      pages: 1,
+      target: 30,
+      ptrToken: token,
+      ptrText: 'Sto sincronizzando nuove newsletter…'
+    });
   };
 
   const onStart = (e) => {
     if (window.scrollY > 0) { dlog('ptr_blocked', { reason: 'not_top' }); return; }
     
-    // --- INIZIO MODIFICA ---
-    // Se un'ingestione è già in corso, mostra comunque la barra di caricamento
     if (window.__isIngesting || window.__autoIngesting) {
-      if (ptr && !ptr.classList.contains('ptr--loading')) {
-        ptr.classList.add('ptr--loading');
-        const t = setInterval(() => {
-          if (!window.__isIngesting && !window.__autoIngesting) {
-            clearInterval(t);
-            ptr.classList.remove('ptr--loading');
-          }
-        }, 300);
-      }
+      const waitToken = ptrShowLoading(`ptr-wait-${Date.now()}`, 'Aggiornamento in corso…');
+      ptrWaitUntilIdle(waitToken);
       dlog('ptr_blocked', { reason: window.__isIngesting ? 'isIngesting' : 'autoIngesting' });
       return;
     }
-    // --- FINE MODIFICA ---
 
     if (wheelActive) return;
     
@@ -4940,6 +5023,7 @@ if (document.readyState === 'loading') {
     startY = e.touches ? e.touches[0].clientY : e.clientY;
     pulling = true;
     ready = false;
+    ptrSetHint('Trascina per aggiornare');
   };
 
   const onMove = (e) => {
@@ -4953,6 +5037,7 @@ if (document.readyState === 'loading') {
     ready = dy > TH;
     if (ready) dlog('[PTR] release_to_refresh');
     ptr.classList.toggle('ptr--ready', ready);
+    ptrSetHint(ready ? 'Rilascia per aggiornare' : 'Trascina per aggiornare');
   };
 
   const onEnd = () => {
@@ -4961,11 +5046,17 @@ if (document.readyState === 'loading') {
     pulling = false; ready = false; startY = null;
     ptr.classList.remove('ptr--pull', 'ptr--ready');
     ptr.style.removeProperty('--ptr-pull');
+    ptrSetHint(PTR_DEFAULT_TEXT);
     if (wasReady) triggerRefresh('ptr-drag');
   };
 
   const onWheel = (e) => {
-    if (window.scrollY > 0 || window.__isIngesting || window.__autoIngesting || pulling) return;
+    if (window.scrollY > 0 || pulling) return;
+    if (window.__isIngesting || window.__autoIngesting) {
+      const waitToken = ptrShowLoading(`ptr-wheel-wait-${Date.now()}`, 'Aggiornamento in corso…');
+      ptrWaitUntilIdle(waitToken);
+      return;
+    }
     if (e.deltaY < 0) {
       if (!wheelActive) dlog('[PTR] pull_start (wheel)');
       wheelActive = true;
@@ -4975,6 +5066,7 @@ if (document.readyState === 'loading') {
       wheelReady = wheelPull > TH;
       if (wheelReady) dlog('[PTR] release_to_refresh (wheel)');
       ptr.classList.toggle('ptr--ready', wheelReady);
+      ptrSetHint(wheelReady ? 'Rilascia per aggiornare' : 'Trascina per aggiornare');
       e.preventDefault();
       clearTimeout(wheelTimer);
       wheelTimer = setTimeout(onWheelEnd, 150);
@@ -4987,6 +5079,7 @@ if (document.readyState === 'loading') {
     wheelActive = false; wheelReady = false; wheelPull = 0;
     ptr.classList.remove('ptr--pull', 'ptr--ready');
     ptr.style.removeProperty('--ptr-pull');
+    ptrSetHint(PTR_DEFAULT_TEXT);
     if (wasReady) triggerRefresh('ptr-wheel');
   };
 

@@ -226,6 +226,9 @@
     padding: 0;
     margin: 0;
   }
+  .landing-hero.hero-hidden {
+    display: none !important;
+  }
   .hero-shell {
     position: relative;
     overflow: hidden;
