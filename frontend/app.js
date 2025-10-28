@@ -1300,7 +1300,8 @@ function showInitialSkeletons(n = 6) {
       <span class="loader-dot"></span>
       <span class="loader-dot"></span>
     </div>
-    <p>Sincronizzazione con la tua casella di posta in corso...</p>
+    <p class="loader-text">Stiamo preparando le tue newsletter migliori…</p>
+    <p class="loader-sub">Tienila aperta: aggiorniamo ogni nuova scoperta in automatico.</p>
   `;
   root.appendChild(loadingIndicator);
 
@@ -3186,6 +3187,18 @@ const renderWithFilters = () => {
 
     updateFeedCounter();
     updateTypeMenuCounters();
+
+    if (__firstPaintDone) {
+      const container = feedContainer || document.getElementById('feed-container');
+      if (container) {
+        const fragment = document.createDocumentFragment();
+        for (const it of allFeedItems) {
+          const node = cardNodes.get(String(it.email_id));
+          if (node) fragment.appendChild(node);
+        }
+        container.appendChild(fragment);
+      }
+    }
   });
 };
 
@@ -4187,7 +4200,7 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
       return;
     }
 
-    mergeFeedMemory(page);
+    mergeFeedMemory(page, { prepend });
     await upsertFeedItems(page, { append, prepend });
 
     if (prepend) {
@@ -4223,9 +4236,11 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
   }
 };
 
-function mergeFeedMemory(pageItems = []) {
+function mergeFeedMemory(pageItems = [], { prepend = false } = {}) {
   if (!Array.isArray(pageItems) || pageItems.length === 0) return;
   const MAX_CACHE = 1500;
+
+  const fresh = [];
 
   for (const it of pageItems) {
     const k = String(it.email_id);
@@ -4233,14 +4248,21 @@ function mergeFeedMemory(pageItems = []) {
       const idx = allFeedItems.findIndex(x => String(x.email_id) === k);
       if (idx >= 0) allFeedItems[idx] = it;
     } else {
-      allFeedItems.push(it);
+      fresh.push(it);
     }
     itemsById.set(k, it);
   }
 
+  if (fresh.length) {
+    if (prepend) {
+      allFeedItems = fresh.concat(allFeedItems);
+    } else {
+      allFeedItems = allFeedItems.concat(fresh);
+    }
+  }
+
   if (allFeedItems.length > MAX_CACHE) {
-    const dropCount = allFeedItems.length - MAX_CACHE;
-    const removed = allFeedItems.splice(0, dropCount);
+    const removed = allFeedItems.splice(MAX_CACHE);
     for (const it of removed) {
       itemsById.delete(String(it.email_id));
     }
@@ -4252,12 +4274,10 @@ function mergeFeedMemory(pageItems = []) {
     renderDomainDropdown(domainSearch?.value || "");
   }
 
-  // --- INIZIO BLOCCO LOG ---
   let breakIdx = -1;
   for (let i = 1; i < allFeedItems.length; i++) {
     const prev = new Date(allFeedItems[i - 1].received_date).getTime();
     const cur = new Date(allFeedItems[i].received_date).getTime();
-    // L'ordine atteso è decrescente (dal più recente al meno recente)
     if (!(prev >= cur)) {
       breakIdx = i;
       break;
@@ -4272,7 +4292,6 @@ function mergeFeedMemory(pageItems = []) {
       cur_dt: allFeedItems[breakIdx]?.received_date
     });
   }
-  // --- FINE BLOCCO LOG ---
 }
 
 
