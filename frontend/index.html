@@ -140,21 +140,76 @@
   
 
   <!-- Pre-login pulito -->
-  <section id="login-message" class="max-w-2xl mx-auto text-center py-12">
-    <div class="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-      <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-        <span class="material-symbols-outlined">mail</span>
+  <section id="login-message" class="landing-hero">
+    <div class="hero-shell">
+      <div class="hero-head">
+        <span class="hero-tag">Beta privata</span>
+        <h1 class="hero-title">La tua casella email diventa un feed curato in 60&nbsp;secondi</h1>
+        <p class="hero-lead">the gist raccoglie le newsletter che ami, elimina il rumore e ti consegna ogni giorno solo ciò che conta per crescere nel tuo lavoro.</p>
       </div>
-      <h2 class="text-2xl font-bold mb-2">Trasforma le tue newsletter in un feed</h2>
-        <p class="text-gray-600 mb-6">Accedi con Google per creare il tuo feed personale.</p>
 
+      <ul class="hero-benefits" role="list">
+        <li>
+          <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
+          <div>
+            <h3>Insight pronti da leggere</h3>
+            <p>Il nostro motore AI riassume ciascuna mail in poche righe, con tag tematici e immagini curate.</p>
+          </div>
+        </li>
+        <li>
+          <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
+          <div>
+            <h3>Privacy prima di tutto</h3>
+            <p>Accediamo in sola lettura: nessun invio, nessuna modifica alla tua posta. Puoi scollegarti in ogni momento.</p>
+          </div>
+        </li>
+        <li>
+          <span class="material-symbols-outlined" aria-hidden="true">insights</span>
+          <div>
+            <h3>Focus sulle opportunità</h3>
+            <p>Filtri intelligenti evidenziano promo utili, trend di settore e contatti importanti senza perdere tempo.</p>
+          </div>
+        </li>
+      </ul>
+
+      <div class="hero-cta">
         <a href="/auth/login"
-          class="inline-flex items-center justify-center rounded-full bg-black px-5 h-11 text-white font-semibold hover:bg-gray-800">
-          <span class="mr-2" aria-hidden="true">🔐</span>
+           class="cta-primary">
+          <span class="material-symbols-outlined" aria-hidden="true">mail_lock</span>
           Accedi con Google
         </a>
+        <button type="button" class="cta-secondary" data-action="show-demo">
+          <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+          Guarda una demo di 2 minuti
+        </button>
+      </div>
 
-<p class="text-xs text-gray-500 mt-4">Permessi di sola lettura, usati per generare il feed.</p>
+      <div class="hero-proof">
+        <div class="avatars" aria-hidden="true">
+          <span class="avatar">MA</span>
+          <span class="avatar">SR</span>
+          <span class="avatar">JG</span>
+          <span class="avatar more">+48</span>
+        </div>
+        <p><strong>Founder, marketer e creator</strong> lo usano ogni mattina per scovare insight e offerte nascoste prima degli altri.</p>
+      </div>
+
+      <div class="hero-metrics">
+        <div class="metric">
+          <span class="metric-value">2.4k+</span>
+          <span class="metric-label">Newsletter già sintetizzate</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">17 min</span>
+          <span class="metric-label">Tempo medio risparmiato al giorno</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">96%</span>
+          <span class="metric-label">Utenti che restano dopo la prima settimana</span>
+        </div>
+      </div>
+
+      <p class="hero-footnote"><span aria-hidden="true">🔒</span> Permessi di sola lettura e revocabili. Non invieremo mai email al tuo posto.</p>
     </div>
   </section>
 
