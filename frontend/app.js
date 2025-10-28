@@ -4701,6 +4701,8 @@ async function mainAppStart() {
     if (isLogged) {
       if (loginMessage) loginMessage.style.display = 'none';
       showSplash();
+      document.getElementById('app-header')?.classList.remove('hidden');
+      document.getElementById('app-footer')?.classList.remove('hidden');
       await loadUserSettings();
       await finalizePendingGPhotosSession();
       stopBoot();
@@ -4746,6 +4748,8 @@ async function mainAppStart() {
 
     } else {
       hideSplash(true);
+      document.getElementById('app-header')?.classList.add('hidden');
+      document.getElementById('app-footer')?.classList.add('hidden');
       if (loginMessage) loginMessage.style.display = 'block';
       stopBoot();
       return;
@@ -4754,6 +4758,8 @@ async function mainAppStart() {
   } catch (e) {
     console.error("[JS-DEBUG] mainAppStart: Errore critico durante l'avvio:", e);
     hideSplash(true);
+    document.getElementById('app-header')?.classList.add('hidden');
+    document.getElementById('app-footer')?.classList.add('hidden');
     if (loginMessage) loginMessage.style.display = 'block';
     stopBoot();
   }  finally {

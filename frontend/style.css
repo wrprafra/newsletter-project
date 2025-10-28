@@ -222,18 +222,19 @@
 
   /* --- HERO DI ONBOARDING --- */
   .landing-hero {
-    max-width: 72rem;
-    margin: 0 auto;
-    padding: 4rem 1.5rem 2rem;
+    width: 100%;
+    padding: 0;
+    margin: 0;
   }
   .hero-shell {
     position: relative;
     overflow: hidden;
-    border-radius: 28px;
+    border-radius: 0;
     background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15), transparent 55%),
                 radial-gradient(circle at 80% 10%, rgba(236, 72, 153, 0.18), transparent 45%),
                 linear-gradient(145deg, #0b1324, #111827 55%, #1f2937);
-    padding: clamp(2.5rem, 4vw, 4rem);
+    min-height: calc(100vh - 5rem);
+    padding: clamp(5rem, 9vw, 8rem) clamp(8vw, 14vw, 14rem) clamp(4rem, 8vw, 7rem);
     color: #e2e8f0;
     box-shadow: 0 40px 70px rgba(15, 23, 42, 0.35);
   }
@@ -282,10 +283,11 @@
   }
   .hero-benefits {
     display: grid;
-    gap: 1.5rem;
-    margin: 2rem 0 2.5rem;
+    gap: 1.75rem;
+    margin: 2.5rem 0 3rem;
     padding: 0;
     list-style: none;
+    max-width: 42rem;
   }
   .hero-benefits li {
     display: grid;
@@ -315,7 +317,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-bottom: 2.5rem;
+    margin: 2rem 0 2rem;
   }
   .hero-cta a,
   .hero-cta button {
@@ -353,7 +355,7 @@
     flex-wrap: wrap;
     gap: 0.75rem 1.25rem;
     align-items: center;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2.75rem;
     color: rgba(226, 232, 240, 0.78);
   }
   .hero-proof p {
@@ -385,8 +387,8 @@
   .hero-metrics {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 2.5rem;
+    gap: 1.5rem;
+    margin-bottom: 2.75rem;
   }
   .metric {
     background: rgba(15, 23, 42, 0.55);
@@ -413,14 +415,17 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    max-width: 28rem;
   }
 
   @media (max-width: 768px) {
     .hero-shell {
-      padding: 2.5rem 1.75rem 2.25rem;
+      min-height: calc(100vh - 4.5rem);
+      padding: 6rem 1.75rem 3rem;
     }
     .hero-benefits {
-      gap: 1.2rem;
+      gap: 1.3rem;
+      max-width: none;
     }
     .hero-benefits li {
       gap: 0.8rem;

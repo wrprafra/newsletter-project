@@ -50,37 +50,27 @@
     </button>
   </div>
 </div>
-<header id="app-header" class="sticky top-0 z-[80]">
-  <!-- Overlay per sfondo e blur, separato dallo sticky container -->
+<header id="app-header" class="sticky top-0 z-[80] hidden">
   <div class="hdr-bg" aria-hidden="true"></div>
-  
-  <!-- Contenuto dell'header, posizionato relativamente sopra l'overlay -->
   <div id="header-bar" class="relative max-w-2xl mx-auto grid grid-cols-2 items-center p-4 pb-3">
-    <!-- HINT BAR (invariato) -->
     <div id="picker-hint"
-     class="hidden col-span-2 border-t border-amber-200 bg-amber-50 text-amber-900 text-sm text-center px-4 py-2">
+         class="hidden col-span-2 border-t border-amber-200 bg-amber-50 text-amber-900 text-sm text-center px-4 py-2">
       <strong>Hai scelto le foto?</strong> Torna a questa scheda, aggiorneremo il feed automaticamente.
     </div>
-
-    <!-- SINISTRA: Fotocamera + Icona GPhotos (condizionale) -->
     <div id="header-left" class="flex items-center gap-3">
       <img src="img/the-gist-icon.png" alt="Logo" class="h-7 brand-logo" width="28" height="28" fetchpriority="high" decoding="async" />
       <span class="brand-title text-2xl font-bold text-gray-800 tracking-tight select-none whitespace-nowrap">the gist</span>
-
-      <!-- Mantengo gli elementi per non rompere JS, ma invisibili -->
       <button id="choose-photo-btn" type="button" class="hidden" aria-hidden="true" tabindex="-1"></button>
       <button id="gphotos-menu-btn" type="button" class="hidden" aria-hidden="true" tabindex="-1"></button>
     </div>
-
-    <!-- DESTRA: Nuovo Filtro Tipologie -->
     <div id="header-right" class="justify-self-end">
-          <button id="btnTypeFilter" type="button"
-                class="rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
-                aria-haspopup="menu" aria-controls="type-menu" aria-expanded="false"
-                aria-label="Filtra per tipologia" title="Filtra per tipologia">
-          <span class="material-symbols-outlined">filter_list</span>
-        </button>
-        </div>
+      <button id="btnTypeFilter" type="button"
+              class="rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
+              aria-haspopup="menu" aria-controls="type-menu" aria-expanded="false"
+              aria-label="Filtra per tipologia" title="Filtra per tipologia">
+        <span class="material-symbols-outlined">filter_list</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -136,23 +126,32 @@
 
 <!-- Live region usata da announce() nel JS -->
 <span id="sr-live" class="sr-only" aria-live="polite"></span>
-<main class="px-4 pt-6 pb-32">
-  
+<!-- Welcome hero -->
+<section id="login-message" class="landing-hero">
+  <div class="hero-shell">
+    <div class="hero-head">
+      <span class="hero-tag">Beta privata</span>
+      <h1 class="hero-title">La tua casella email diventa un feed curato in 60&nbsp;secondi</h1>
+      <p class="hero-lead">the gist raccoglie le newsletter che ami, elimina il rumore e ti consegna ogni giorno solo ciò che conta per crescere nel tuo lavoro.</p>
+    </div>
 
-  <!-- Pre-login pulito -->
-  <section id="login-message" class="landing-hero">
-    <div class="hero-shell">
-      <div class="hero-head">
-        <span class="hero-tag">Beta privata</span>
-        <h1 class="hero-title">La tua casella email diventa un feed curato in 60&nbsp;secondi</h1>
-        <p class="hero-lead">the gist raccoglie le newsletter che ami, elimina il rumore e ti consegna ogni giorno solo ciò che conta per crescere nel tuo lavoro.</p>
-      </div>
+    <div class="hero-cta">
+      <a href="/auth/login"
+         class="cta-primary">
+        <span class="material-symbols-outlined" aria-hidden="true">mail_lock</span>
+        Accedi con Google
+      </a>
+      <button type="button" class="cta-secondary" data-action="show-demo">
+        <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+        Guarda una demo di 2 minuti
+      </button>
+    </div>
 
-      <ul class="hero-benefits" role="list">
-        <li>
-          <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
-          <div>
-            <h3>Insight pronti da leggere</h3>
+    <ul class="hero-benefits" role="list">
+      <li>
+        <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
+        <div>
+          <h3>Insight pronti da leggere</h3>
             <p>Il nostro motore AI riassume ciascuna mail in poche righe, con tag tematici e immagini curate.</p>
           </div>
         </li>
@@ -169,26 +168,14 @@
             <h3>Focus sulle opportunità</h3>
             <p>Filtri intelligenti evidenziano promo utili, trend di settore e contatti importanti senza perdere tempo.</p>
           </div>
-        </li>
-      </ul>
+      </li>
+    </ul>
 
-      <div class="hero-cta">
-        <a href="/auth/login"
-           class="cta-primary">
-          <span class="material-symbols-outlined" aria-hidden="true">mail_lock</span>
-          Accedi con Google
-        </a>
-        <button type="button" class="cta-secondary" data-action="show-demo">
-          <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
-          Guarda una demo di 2 minuti
-        </button>
-      </div>
-
-      <div class="hero-proof">
-        <div class="avatars" aria-hidden="true">
-          <span class="avatar">MA</span>
-          <span class="avatar">SR</span>
-          <span class="avatar">JG</span>
+    <div class="hero-proof">
+      <div class="avatars" aria-hidden="true">
+        <span class="avatar">MA</span>
+        <span class="avatar">SR</span>
+        <span class="avatar">JG</span>
           <span class="avatar more">+48</span>
         </div>
         <p><strong>Founder, marketer e creator</strong> lo usano ogni mattina per scovare insight e offerte nascoste prima degli altri.</p>
@@ -207,11 +194,14 @@
           <span class="metric-value">96%</span>
           <span class="metric-label">Utenti che restano dopo la prima settimana</span>
         </div>
-      </div>
-
-      <p class="hero-footnote"><span aria-hidden="true">🔒</span> Permessi di sola lettura e revocabili. Non invieremo mai email al tuo posto.</p>
     </div>
+
+    <p class="hero-footnote"><span aria-hidden="true">🔒</span> Permessi di sola lettura e revocabili. Non invieremo mai email al tuo posto.</p>
+  </div>
   </section>
+
+<main class="px-4 pt-6 pb-32">
+  
 
   <!-- Feed (centrato) -->
   <section id="feed-container" class="max-w-2xl mx-auto space-y-6"></section>
@@ -272,18 +262,18 @@
 </div>
 
 
-<footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-<nav class="max-w-2xl mx-auto flex justify-around py-2" aria-label="Sezioni app">
-<button data-tab="feed" class="flex flex-col items-center text-gray-900" aria-current="page">
-<span class="material-symbols-outlined">dynamic_feed</span><span class="text-xs">Feed</span>
-</button>
-<button data-tab="favorites" class="flex flex-col items-center text-gray-500">
-<span class="material-symbols-outlined">favorite</span><span class="text-xs">Preferiti</span>
-</button>
-<button data-tab="profile" class="flex flex-col items-center text-gray-500">
-<span class="material-symbols-outlined">person</span><span class="text-xs">Profilo</span>
-</button>
-</nav>
+<footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 hidden" id="app-footer">
+  <nav class="max-w-2xl mx-auto flex justify-around py-2" aria-label="Sezioni app">
+    <button data-tab="feed" class="flex flex-col items-center text-gray-900" aria-current="page">
+      <span class="material-symbols-outlined">dynamic_feed</span><span class="text-xs">Feed</span>
+    </button>
+    <button data-tab="favorites" class="flex flex-col items-center text-gray-500">
+      <span class="material-symbols-outlined">favorite</span><span class="text-xs">Preferiti</span>
+    </button>
+    <button data-tab="profile" class="flex flex-col items-center text-gray-500">
+      <span class="material-symbols-outlined">person</span><span class="text-xs">Profilo</span>
+    </button>
+  </nav>
 </footer>
      <div id="profile-sheet" class="hidden fixed inset-0 z-[120]">
   <!-- Backdrop per chiudere al click -->
