@@ -723,7 +723,21 @@ def _cleanup_pending_auth(request: Request):
             ts = 0.0
         if ts and now - ts >= AUTH_PENDING_TTL:
             continue
+        if not isinstance(data, dict):
+            continue
+        if not all(k in data for k in ("pkce", "auth_url", "state")):
+            continue
         cleaned[nonce] = data
+
+    if not cleaned:
+        PENDING_AUTH.pop(sid, None)
+        request.session.pop("pending_auth", None)
+        if redis_client:
+            try:
+                redis_client.delete(_get_pending_auth_key(sid))
+            except Exception:
+                pass
+        return
 
     if cleaned != (current or {}):
         _save_pending_auth(request, cleaned)
@@ -2218,7 +2232,13 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
         raw_scope_param = request.query_params.get("scope")
         if raw_scope_param:
-            norm_scope = [s for s in raw_scope_param.split() if s]
+            norm_scope: list[str] = []
+            for item in raw_scope_param.split():
+                scope_item = item.strip()
+                if not scope_item or scope_item in {"email", "profile"}:
+                    continue
+                if scope_item not in norm_scope:
+                    norm_scope.append(scope_item)
             if norm_scope:
                 flow.oauth2session.scope = norm_scope
 
