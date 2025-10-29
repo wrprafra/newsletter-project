@@ -708,11 +708,27 @@ def _save_pending_auth(request: Request, data: dict):
     logging.info(f"[AUTH] save_pending_auth sid={sid} via={'redis+session' if ok else 'session-only'} keys={list(data.keys())}")
 
 def _cleanup_pending_auth(request: Request):
-    """
-    Non fa più nulla. La pulizia è gestita automaticamente dal TTL di Redis.
-    Manteniamo la funzione per non rompere le chiamate esistenti.
-    """
-    pass
+    sid = request.session.get("sid")
+    if not sid:
+        return
+
+    current = _load_pending_auth(request)
+    now = time.time()
+    cleaned: dict[str, dict] = {}
+
+    for nonce, data in (current or {}).items():
+        try:
+            ts = float(data.get("ts", 0))
+        except (TypeError, ValueError):
+            ts = 0.0
+        if ts and now - ts >= AUTH_PENDING_TTL:
+            continue
+        cleaned[nonce] = data
+
+    if cleaned != (current or {}):
+        _save_pending_auth(request, cleaned)
+    else:
+        PENDING_AUTH[sid] = dict(cleaned)
 
 def _gmail_service_for(request: Request):
     # Usa sempre l'user_id salvato in sessione (non più il sid)
