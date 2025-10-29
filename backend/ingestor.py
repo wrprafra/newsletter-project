@@ -4,7 +4,7 @@ import time
 import json
 import logging
 import random
-from typing import Any, cast
+from typing import Any, Dict, List, Mapping, cast
 import redis
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
@@ -85,7 +85,7 @@ def _enqueue_email(email_id: str, user_id: str) -> bool:
     redis_client.expire(f"ingestor:queued:{user_id}", 86400)
     return True
 
-def _reload_creds() -> dict:
+def _reload_creds() -> Dict[str, Dict[str, Any]]:
     """Ricarica il file delle credenziali in modo robusto, con retry."""
     for _ in range(3):
         try:
@@ -93,20 +93,20 @@ def _reload_creds() -> dict:
                 return json.load(f)
         except FileNotFoundError:
             logging.error(f"File credenziali '{CREDENTIALS_PATH}' non trovato.")
-            return {}
+            return cast(Dict[str, Dict[str, Any]], {})
         except json.JSONDecodeError:
             time.sleep(0.2)  # File potrebbe essere in fase di scrittura atomica
         except Exception as e:
             logging.error(f"Errore imprevisto durante il caricamento delle credenziali: {e}")
             break
-    return {}
+    return cast(Dict[str, Dict[str, Any]], {})
 
-def _save_creds_all(creds_all: dict):
+def _save_creds_all(creds_all: Mapping[str, Dict[str, Any]]) -> None:
     """Salva il dizionario completo delle credenziali in modo atomico e sicuro."""
     try:
         tmp_path = CREDENTIALS_PATH + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(creds_all, f, ensure_ascii=False, indent=2)
+            json.dump(dict(creds_all), f, ensure_ascii=False, indent=2)
         os.replace(tmp_path, CREDENTIALS_PATH)
         try:
             os.chmod(CREDENTIALS_PATH, 0o600)
@@ -164,7 +164,7 @@ def _rpush_safe(key: str, payload: str, tries: int = 3) -> bool:
     logging.error(f"rpush su Redis fallito persistentemente per la chiave {key}")
     return False
 
-def get_new_emails_for_user(user_id: str, creds_dict: dict) -> list[str]:
+def get_new_emails_for_user(user_id: str, creds_dict: Mapping[str, Any]) -> List[str]:
     """Ritorna gli ID email non ancora presenti nel DB per questo utente."""
     try:
         creds = Credentials.from_authorized_user_info(creds_dict)

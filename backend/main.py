@@ -7,15 +7,16 @@ import asyncio
 import httpx
 import json
 import ssl
-from filelock import FileLock, Timeout
 import http.client as http_client
 import io
 from email.utils import parseaddr
 from PIL import Image
 import redis
+from redis import Redis
+from redis import exceptions as redis_exceptions
 from fastapi.responses import HTMLResponse
 from bs4 import BeautifulSoup
-import logging, httplib2
+import logging
 from fastapi.middleware.gzip import GZipMiddleware
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from backend.database import db, initialize_db, Newsletter, DomainTypeOverride
@@ -26,20 +27,17 @@ from fastapi import Header, BackgroundTasks, Request, HTTPException, Response, A
 import socket
 import ipaddress
 import hashlib
-import urllib.parse
-from typing import Optional, cast
-from redis import Redis
 from urllib.parse import quote, urlparse, unquote, urljoin
 from collections import OrderedDict, Counter, deque
 import random
 import bleach
-from peewee import fn, DoesNotExist as PeeweeDoesNotExist, SQL
+from peewee import fn, DoesNotExist as PeeweeDoesNotExist
 from datetime import datetime, timezone
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import StreamingResponse, RedirectResponse, JSONResponse
 import typing as t
 from pydantic import BaseModel, Field
-from typing import Dict, Any, Tuple, Mapping
+from typing import Any, Dict, Tuple, DefaultDict, cast
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,24 +47,15 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv(), override=False)
-
-APP_ENV = os.getenv("APP_ENV", "dev").lower()
-IS_PROD = APP_ENV == "prod"
-os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
-if not IS_PROD:
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-import logging
-logging.info(f"[BOOT] SESSION_SECRET loaded: '{os.getenv('SESSION_SECRET')}'")
+from dotenv import load_dotenv
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 import openai
 from html import escape as html_escape
 import sys
 import boto3
 from botocore.config import Config as BotoConfig
 from googleapiclient.errors import HttpError
-from redis.exceptions import ConnectionError as RedisConnectionError
 from backend.processing_utils import (
     _walk_parts, 
     _decode_body, 
@@ -75,42 +64,14 @@ from backend.processing_utils import (
     get_ai_keyword,
     get_pixabay_image_by_query,
 )
-try:
-    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware # type: ignore[reportMissingImports]
-except ImportError:
-    ProxyHeadersMiddleware = None
-
-if not logging.getLogger().hasHandlers():
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(),
-                        format="%(asctime)s [BACKEND] %(levelname)s %(message)s")
-
-# Ottieni il logger che hai già configurato in logging_config.py
-log = logging.getLogger("BACKEND")
-
-THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "on").lower()
-DEDUP_THREADS = THREAD_DEDUP_MODE not in ("off", "0", "false")
-log.info(f"[CFG] Deduplicazione thread nel feed: {'ATTIVA' if DEDUP_THREADS else 'DISATTIVATA'}")
-
-# Disabilita il logging HTTP di default, lo attiveremo solo se necessario
-httplib2.debuglevel = 0
-
-def mask(s, keep=6):
-    if not s: return s
-    return s[:keep] + "…" + s[-keep:]
-
-def jdump(d):
-    try: return json.dumps(d, ensure_ascii=False)
-    except Exception: return str(d)
-
-def _norm_content_type(headers: Mapping[str, Any], default: str = "image/jpeg") -> str:
-    v = headers.get("content-type") or headers.get("Content-Type") or default
-    return str(v).split(";", 1)[0].lower()
 
 # --- GESTIONE CICLO DI VITA APP ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.info("Evento STARTUP: Inizio avvio applicazione...")
     load_settings_store()
+    # --- INIZIO MODIFICA ---
+    # Assicurati che questa riga sia presente. È il pezzo mancante.
     load_credentials_store()
     # --- FINE MODIFICA ---
     if db.is_closed():
@@ -131,37 +92,45 @@ async def lifespan(app: FastAPI):
     logging.info("Evento SHUTDOWN: Spegnimento completato.")
 
 app = FastAPI(lifespan=lifespan)
-
-@app.middleware("http")
-async def enforce_https(request: Request, call_next):
-    if IS_PROD:
-        xf_proto = request.headers.get("x-forwarded-proto") or request.headers.get("x-forwarded-protocol")
-        scheme = (xf_proto or request.url.scheme or "").lower()
-        host = (request.headers.get("host") or "").lower()
-        if host.endswith("thegist.tech") and scheme != "https":
-            target = request.url.replace(scheme="https")
-            return RedirectResponse(str(target), status_code=307)
-    return await call_next(request)
-
 router_settings = APIRouter(prefix="/api/settings", tags=["settings"])
 router_auth = APIRouter(prefix="/auth", tags=["authentication"])
 router_api = APIRouter(prefix="/api", tags=["api"])
 AUTH_PENDING_TTL = 1800
 
-def _assert_dev():
-    if IS_PROD:
-        raise HTTPException(status_code=404, detail="Endpoint non disponibile in produzione.")
-
+@app.get("/debug/auth-state")
+def debug_auth_state(request: Request):
+    sid = request.session.get("sid")
+    pa = _load_pending_auth(request)
+    return {"sid": sid, "pending_keys": list(pa.keys()), "has_session_pending": bool(request.session.get("pending_auth"))}
+    
 def _get_pending_auth_nonce_key(sid: str, nonce: str) -> str:
     return f"pending_auth:{sid}:{nonce}"
+
+def _load_pending_auth(request: Request) -> dict:
+    sid = request.session.get("sid")
+    if sid and redis_client:
+        try:
+            raw = redis_client.get(_get_pending_auth_key(sid))
+            if isinstance(raw, str):
+                d = json.loads(raw)
+            elif isinstance(raw, (bytes, bytearray)):
+                d = json.loads(raw.decode("utf-8"))
+            else:
+                d = {}
+                logging.info(f"[AUTH] load_pending_auth sid={sid} keys={list(d.keys())}")
+                return d
+        except Exception as e:
+            logging.warning(f"[AUTH] redis get failed: {e}")
+    d = request.session.get("pending_auth") or {}
+    logging.info(f"[AUTH] load_pending_auth(session) sid={sid} keys={list(d.keys())}")
+    return d
 
 def _clear_pending_auth(request: Request) -> None:
     sid = request.session.get("sid")
     if sid and redis_client:
         try: redis_client.delete(_get_pending_auth_key(sid))
         except Exception as e: logging.warning(f"[AUTH] redis del failed: {e}")
-    if "pending_auth" in request.session:
-        del request.session["pending_auth"]
+    request.session.pop("pending_auth", None)
 
 def _add_gmail_deep_link_fields(item_dict: dict) -> dict:
     """
@@ -209,19 +178,21 @@ def extract_dominant_hex(img_bytes: bytes) -> str:
     try:
         im = Image.open(io.BytesIO(img_bytes)).convert("RGBA").resize((64, 64))
         pal = im.convert("P", palette=Image.Palette.ADAPTIVE, colors=8)
-        
-        # --- INIZIO FIX ---
         palette = pal.getpalette() or []
         counts_raw = pal.getcolors() or []
-        counts = sorted(counts_raw, reverse=True)
+        counts: list[tuple[int, int]] = []
+        for entry in counts_raw:
+            if isinstance(entry, tuple) and len(entry) == 2:
+                counts.append((int(entry[0]), int(entry[1])))
+        counts.sort(reverse=True)
         
         for _, idx in counts:
-            # Controllo di sicurezza per evitare IndexError se la palette è malformata
             base_idx = idx * 3
             if base_idx + 2 >= len(palette):
                 continue
-            r, g, b = palette[base_idx : base_idx + 3]
-        # --- FINE FIX ---
+            r, g, b = palette[base_idx: base_idx + 3]
+
+            # --- INIZIO MODIFICA ---
 
             # 1. Ignora i colori che sono già quasi neri in partenza per evitare di accentuarli.
             original_luminance = (0.299 * r + 0.587 * g + 0.114 * b)
@@ -242,6 +213,8 @@ def extract_dominant_hex(img_bytes: bytes) -> str:
             if final_luminance < 25 or final_luminance > 120:
                 continue # Prova il prossimo colore, questo non ha il contrasto giusto.
 
+            # --- FINE MODIFICA ---
+
             return f"#{dark_r:02x}{dark_g:02x}{dark_b:02x}"
             
     except Exception as e:
@@ -252,10 +225,13 @@ def extract_dominant_hex(img_bytes: bytes) -> str:
 
 
 
-reconf = getattr(sys.stdout, "reconfigure", None)
+_stdout_obj = cast(Any, sys.stdout)
+reconf = getattr(_stdout_obj, "reconfigure", None)
 if callable(reconf):
-    try: reconf(encoding="utf-8")
-    except Exception: pass
+    try:
+        reconf(encoding="utf-8")
+    except Exception:
+        pass
     
 # image_cache: dict[str, tuple[bytes, str]] = {}
 
@@ -270,9 +246,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 logging.info("[CFG] OPENAI key present=%s len=%d", bool(OPENAI_API_KEY), len(OPENAI_API_KEY))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-SETTINGS_PATH = os.getenv("SETTINGS_PATH", "/app/data/user_settings.json")
-CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
-_credentials_lock = FileLock(CREDENTIALS_PATH + ".lock", timeout=5)
+SETTINGS_PATH = "user_settings.json"
+CREDENTIALS_PATH = "user_credentials.json"
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 CREDENTIALS_STORE: Dict[str, dict] = {}
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
@@ -308,11 +283,13 @@ PROXY_HTTP_CLIENT = httpx.AsyncClient(
 )
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_client: Redis | None = None
 try:
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-    redis_client.ping()
+    client: Redis = redis.from_url(REDIS_URL, decode_responses=True)
+    client.ping()
+    redis_client = client
     logging.info("API connessa a Redis con successo.")
-except RedisConnectionError as e:
+except redis_exceptions.ConnectionError as e:
     logging.error(f"API: Impossibile connettersi a Redis: {e}. Il kickstart potrebbe non funzionare.")
     redis_client = None # Imposta a None se la connessione fallisce
 
@@ -321,7 +298,7 @@ _TRANSPARENT_PNG = base64.b64decode(
 )
 # AUTH_STATE_STORE: dict[str, list[tuple[str, float]]] = defaultdict(list)  # sid -> [(state, ts), ...]
 # AUTH_STATE_TTL = 10 * 60  # 10 minuti
-PHOTOS_POOLS: dict[str, list[dict]] = defaultdict(list)   # user_id -> [mediaItems]
+PHOTOS_POOLS: DefaultDict[str, list[dict[str, Any]]] = defaultdict(list)   # user_id -> [mediaItems]
 PHOTOS_BEARERS: dict[str, str] = {}      
 _BANNED_KW = {
     "news", "newsletter", "update", "story", "blog", "article", "notizie", "aggiornamenti",
@@ -411,7 +388,7 @@ def create_reader_view_html(body_html: str, msg_id: str) -> str:
             cid = src[4:]
             img['src'] = f"/api/gmail/messages/{msg_id}/cid/{cid}"
         elif src.startswith('http'):
-            img['src'] = f"/api/img?u={urllib.parse.quote(src, safe='')}"
+            img['src'] = f"/api/img?u={quote(src, safe='')}"
             img['referrerpolicy'] = 'no-referrer'
             img['loading'] = 'lazy'
             # hardening: rimuovi eventuali handler inline
@@ -422,12 +399,12 @@ def create_reader_view_html(body_html: str, msg_id: str) -> str:
         img.attrs = {k: v for k, v in img.attrs.items() if k in ['src', 'alt', 'title', 'width', 'height', 'style']}
 
     # 2. Comprimi le citazioni di Gmail usando <details>
-    for quote in soup.select('blockquote, .gmail_quote'):
+    for quote_block in soup.select('blockquote, .gmail_quote'):
         details = soup.new_tag('details', attrs={'class': 'email-quote'})
         summary = soup.new_tag('summary')
         summary.string = "Mostra citazione"
         details.append(summary)
-        quote.wrap(details)
+        quote_block.wrap(details)
 
     safe_body = bleach.clean(
         str(soup),
@@ -615,18 +592,29 @@ def load_credentials_store():
 
 def save_credentials_store() -> None:
     try:
-        with _credentials_lock:
-            tmp_path = CREDENTIALS_PATH + ".tmp"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(CREDENTIALS_STORE, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, CREDENTIALS_PATH)
-            try:
-                os.chmod(CREDENTIALS_PATH, 0o600)
-            except (OSError, AttributeError):
-                pass
-    except Timeout:
-        logging.error("[CREDENTIALS] Timeout durante il tentativo di acquisire il lock per il salvataggio.")
+        # Definisci il percorso del file temporaneo
+        tmp_path = CREDENTIALS_PATH + ".tmp"
+
+        # 1. Scrivi i dati nel file temporaneo
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(CREDENTIALS_STORE, f, ensure_ascii=False, indent=2)
+
+        # 2. Rinomina atomicamente il file temporaneo a quello definitivo
+        # Questa operazione è molto più veloce e sicura di una scrittura diretta.
+        os.replace(tmp_path, CREDENTIALS_PATH)
+
+        # 3. Tenta di impostare permessi restrittivi (best-effort)
+        try:
+            # Imposta i permessi a lettura/scrittura solo per il proprietario
+            os.chmod(CREDENTIALS_PATH, 0o600)
+        except (OSError, AttributeError):
+            # Ignora l'errore: non è critico se fallisce (es. su Windows
+            # o in ambienti con permessi limitati).
+            pass
+
     except Exception as e:
+        # Se qualcosa va storto durante la scrittura o la rinomina, logga l'errore.
+        # Il file originale non sarà stato toccato.
         logging.error(f"[CREDENTIALS] Salvataggio credenziali fallito: {e}")
 
 def _get_pending_auth_key(sid: str) -> str:
@@ -644,15 +632,16 @@ def _pending_auth(request: Request) -> dict:
 def _save_pending_auth(request: Request, data: dict):
     sid = request.session.get("sid")
     if not sid: return
+    ok = False
     if redis_client:
         try:
             redis_client.set(_get_pending_auth_key(sid), json.dumps(data), ex=AUTH_PENDING_TTL)
-            logging.info(f"[AUTH] save_pending_auth sid={sid} via=redis keys={list(data.keys())}")
+            ok = True
         except Exception as e:
             logging.error(f"[AUTH] redis set failed: {e}")
-    else:
-        # Se Redis non è disponibile, logga un errore grave perché l'autenticazione fallirà.
-        logging.error("[AUTH] save_pending_auth failed: Redis client not available.")
+    # fallback sempre
+    request.session["pending_auth"] = data
+    logging.info(f"[AUTH] save_pending_auth sid={sid} via={'redis+session' if ok else 'session-only'} keys={list(data.keys())}")
 
 def _cleanup_pending_auth(request: Request):
     """
@@ -671,14 +660,14 @@ def _gmail_service_for(request: Request):
 
     # Fallback di migrazione: se in passato avevi salvato su 'sid', prova a recuperare e migrare
     if not creds_dict:
-        sid = request.session.get("sid")
-        old = CREDENTIALS_STORE.get(sid or "")
+        sid_raw = request.session.get("sid")
+        sid_key = sid_raw if isinstance(sid_raw, str) else ""
+        old = CREDENTIALS_STORE.get(sid_key)
         if old:
             creds_dict = old
             # migra le credenziali alla chiave user_id e salva su disco
             CREDENTIALS_STORE[user_id] = old
-            if sid:
-                CREDENTIALS_STORE.pop(sid, None)
+            CREDENTIALS_STORE.pop(sid_key, None)
             save_credentials_store()
 
     if not creds_dict:
@@ -847,138 +836,7 @@ IMG_ALLOWED_HOSTS = {h for h in [
     "lh3.googleusercontent.com",
 ] if h}
 
-FALLBACK_IMAGE_PATH = Path(__file__).resolve().parent.parent / "frontend" / "img" / "loading.gif"
-_FALLBACK_IMAGE_ENTRY: dict[str, Any] | None = None
-_IMAGE_REFRESH_TRACK: dict[tuple[str, str], float] = {}
-IMAGE_REFRESH_COOLDOWN = 300.0
-
-def _get_fallback_image_entry() -> dict[str, Any]:
-    """
-    Restituisce (con caching in memoria) i byte e le intestazioni di base
-    dell'immagine di fallback da usare quando l'upstream fallisce.
-    """
-    global _FALLBACK_IMAGE_ENTRY
-    if _FALLBACK_IMAGE_ENTRY is None:
-        try:
-            raw = FALLBACK_IMAGE_PATH.read_bytes()
-            ct = "image/gif"
-        except Exception:
-            # 1x1 GIF trasparente inline come ultima risorsa
-            raw = base64.b64decode("R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==")
-            ct = "image/gif"
-        etag = f'W/"fallback-{hashlib.sha1(raw).hexdigest()}"'
-        _FALLBACK_IMAGE_ENTRY = {"bytes": raw, "ct": ct, "etag": etag}
-    return _FALLBACK_IMAGE_ENTRY
-
-def _fallback_image_response(reason: str, *, upstream_url: str | None = None, status_code: int | None = None) -> Response:
-    """
-    Restituisce una risposta HTTP 200 con un placeholder per evitare che il frontend
-    debba gestire errori 4xx/5xx durante il rendering delle tile.
-    """
-    ent = _get_fallback_image_entry()
-    headers = {
-        "Content-Type": ent["ct"],
-        "Cache-Control": "public, max-age=60",
-        "ETag": ent["etag"],
-        "X-Cache-Status": "FALLBACK",
-        "X-Fallback-Reason": reason,
-        "Access-Control-Allow-Origin": "*",
-    }
-    if upstream_url:
-        headers["X-Original-URL"] = upstream_url
-    if status_code:
-        headers["X-Upstream-Status"] = str(status_code)
-    log.warning("[IMG][fallback] reason=%s upstream=%s status=%s", reason, upstream_url, status_code)
-    return Response(content=ent["bytes"], status_code=200, headers=headers)
-
-def _fallback_with_refresh(request: Request, email_id: str | None, reason: str, *, upstream_url: str | None = None, status_code: int | None = None) -> Response:
-    if email_id:
-        _schedule_pixabay_refresh(request, email_id, reason)
-    return _fallback_image_response(reason, upstream_url=upstream_url, status_code=status_code)
-
-def _schedule_pixabay_refresh(request: Request, email_id: str, reason: str) -> None:
-    try:
-        uid = _current_user_id(request)
-    except HTTPException:
-        return
-
-    key = (uid, email_id)
-    now = time.time()
-    last = _IMAGE_REFRESH_TRACK.get(key, 0.0)
-    if now - last < IMAGE_REFRESH_COOLDOWN:
-        return
-
-    _IMAGE_REFRESH_TRACK[key] = now
-    logging.debug("[IMG][refresh] schedule email_id=%s uid=%s reason=%s", email_id, uid, reason)
-
-    async def runner():
-        try:
-            await _refresh_pixabay_image_for_email(uid, email_id)
-        except Exception as exc:
-            logging.warning("[IMG][refresh] fallito per email_id=%s uid=%s: %s", email_id, uid, exc, exc_info=True)
-        finally:
-            _IMAGE_REFRESH_TRACK.pop(key, None)
-
-    asyncio.create_task(runner())
-
-async def _refresh_pixabay_image_for_email(uid: str, email_id: str) -> None:
-    try:
-        n = Newsletter.get((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
-    except Newsletter.DoesNotExist:
-        logging.debug("[IMG][refresh] email_id=%s uid=%s non trovato", email_id, uid)
-        return
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        kw = await get_ai_keyword(n.full_content_html or "", client)
-        if not kw:
-            kw = (n.ai_title or n.original_subject or n.source_domain or "newsletter")
-
-        if not kw:
-            logging.debug("[IMG][refresh] nessuna keyword disponibile per email_id=%s", email_id)
-            return
-
-        image_url = await get_pixabay_image_by_query(client, kw)
-        if not image_url:
-            logging.warning("[IMG][refresh] Pixabay non ha restituito risultati per email_id=%s kw=%r", email_id, kw)
-            return
-
-        try:
-            resp = await client.get(image_url, timeout=20.0, follow_redirects=True)
-            resp.raise_for_status()
-            body_bytes = resp.content
-        except Exception as exc:
-            logging.warning("[IMG][refresh] download fallito per email_id=%s: %s", email_id, exc)
-            return
-
-        ct = (resp.headers.get("content-type", "image/jpeg").split(";", 1)[0]).lower()
-        accent_hex: str | None = None
-        try:
-            accent_hex = extract_dominant_hex(body_bytes)
-        except Exception:
-            accent_hex = None
-
-        final_url = image_url
-        try:
-            r2_client = _get_r2()
-            if r2_client:
-                ext = "jpg"
-                if ct.endswith("png"): ext = "png"
-                elif ct.endswith("webp"): ext = "webp"
-                kw_for_key = (kw or n.ai_title or n.original_subject or "newsletter")
-                key = make_r2_key_from_kw(kw_for_key, ext=ext)
-                final_url = upload_bytes_to_r2(body_bytes, key, content_type=ct)
-        except Exception as exc:
-            logging.warning("[IMG][refresh] upload su R2 fallito per email_id=%s: %s", email_id, exc)
-
-        is_complete = bool(n.ai_title and n.ai_summary_markdown and final_url and accent_hex)
-
-        (Newsletter.update(image_url=final_url, accent_hex=accent_hex, is_complete=is_complete)
-         .where((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
-         ).execute()
-
-        logging.info("[IMG][refresh] email_id=%s aggiornato (reason=fallback)", email_id)
-
-image_cache = OrderedDict()  # url -> {"ts": float, "bytes": bytes, "ct": str, "etag": str|None}
+image_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()  # url -> {"ts": float, "bytes": bytes, "ct": str, "etag": str|None}
 
 def _cache_get(url: str) -> dict | None:
     """Recupera un'immagine dalla cache se è valida."""
@@ -1066,16 +924,10 @@ def load_settings_store():
 
 def save_settings_store():
     try:
-        tmp_path = SETTINGS_PATH + ".tmp"
-        with open(tmp_path, "w", encoding="utf-8") as f:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(SETTINGS_STORE, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, SETTINGS_PATH)
-        try:
-            os.chmod(SETTINGS_PATH, 0o600)
-        except (OSError, AttributeError):
-            pass
-    except Exception as e:
-        logging.error(f"[SETTINGS] Salvataggio impostazioni fallito: {e}")
+    except Exception:
+        pass
 
 def slugify_kw(s: str) -> str:
     s = re.sub(r"\s+", " ", (s or "").strip().lower())
@@ -1184,10 +1036,10 @@ async def get_feed_item(email_id: str, request: Request):
              .where((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
              .get())
     except PeeweeDoesNotExist:
-        raise HTTPException(status_code=404, detail="Newsletter not found")
+        raise HTTPException(status_code=404, detail="Item not found")
 
     item = {
-        "id": n.email_id,
+        "id": n.id,
         "email_id": n.email_id,
         "user_id": n.user_id,
         "sender_name": n.sender_name,
@@ -1212,24 +1064,21 @@ async def get_feed_item(email_id: str, request: Request):
 
     
 @app.get("/api/img")
-async def api_img(
-    request: Request,
-    u: str = Query(..., description="URL assoluto dell'immagine"),
-    email_id: str | None = Query(default=None, alias="email_id"),
-):
-    return await proxy_image(u, request, email_id=email_id)
+async def api_img(request: Request, u: str = Query(..., description="URL assoluto dell'immagine")):
+    return await proxy_image(u, request)
 
-async def proxy_image(u: str, request: Request, email_id: str | None = None):
+async def proxy_image(u: str, request: Request):
     """
-    Proxy per immagini sicuro con allowlist, gestione manuale dei redirect (anti-SSRF),
-    e download in streaming per prevenire attacchi OOM.
+    Proxy per immagini con cache in memoria, retry con backoff esponenziale,
+    e gestione degli header di caching.
     """
     url = unquote(u)
     
+    # Controllo di sicurezza per evitare loop
     if "/api/img" in url:
         raise HTTPException(status_code=400, detail="Loop di proxy rilevato")
 
-    # Controlla la cache
+    # Controlla prima la cache
     cached_item = _cache_get(url)
     if cached_item:
         inm = (request.headers.get("if-none-match") or "").strip()
@@ -1239,94 +1088,76 @@ async def proxy_image(u: str, request: Request, email_id: str | None = None):
                 "Cache-Control": "public, max-age=31536000, immutable"
             })
         
-        # --- FIX: Ricostruisci il dizionario 'headers' qui ---
         headers = {
             "Content-Type": cached_item["ct"],
             "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
             "ETag": cached_item.get("etag") or "",
-            "X-Cache-Status": "HIT",
-            "Access-Control-Allow-Origin": "*", # Aggiungi CORS anche qui per coerenza
+            "X-Cache-Status": "HIT"
         }
         return Response(content=cached_item["bytes"], headers=headers)
 
-    # Validazione e gestione manuale dei redirect
+    # Validazione dell'URL
     try:
-        current_url = url
-        max_redirects = 5
-        r: httpx.Response | None = None
-        for _ in range(max_redirects):
-            parsed = urlparse(current_url)
-            if parsed.scheme.lower() not in ("http", "https"):
-                raise HTTPException(status_code=400, detail="Schema non supportato")
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="Schema non supportato")
+        if not parsed.hostname or _is_private_host(parsed.hostname):
+            raise HTTPException(status_code=400, detail="Host non consentito")
+    except Exception:
+        raise HTTPException(status_code=400, detail="URL non valido")
+
+    # Logica di Retry con Backoff
+    backoffs = [0.2, 0.6, 1.4]  # Secondi di attesa tra i tentativi
+    last_error = None
+
+    for i, wait in enumerate(backoffs):
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+                r = await client.get(url, headers={"User-Agent": "NewsletterFeedProxy/1.0"})
             
-            # --- FIX DI SICUREZZA: CONTROLLO ALLOWLIST ---
-            if not parsed.hostname or _is_private_host(parsed.hostname) or parsed.hostname not in IMG_ALLOWED_HOSTS:
-                raise HTTPException(status_code=400, detail="Host non consentito")
+            # Se la richiesta ha successo (200 OK)
+            if r.status_code == 200:
+                content = r.content
+                if len(content) > IMG_PROXY_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="Immagine troppo grande")
 
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-                r = await client.get(current_url, headers={"User-Agent": "NewsletterFeedProxy/1.0"})
+                ct = r.headers.get("content-type", "application/octet-stream").split(";", 1)[0].strip().lower()
+                if not ct.startswith("image/"):
+                    raise HTTPException(status_code=415, detail="Content-Type non supportato")
 
-            if r.is_redirect:
-                loc = r.headers.get("location")
-                if not loc:
-                    raise HTTPException(status_code=502, detail="Redirect non valido dall'upstream")
+                etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
                 
-                current_url = urljoin(current_url, loc)
-                # Il controllo del nuovo host verrà fatto all'inizio del prossimo ciclo
+                # Salva nella cache in memoria
+                _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
+                
+                # Restituisci la risposta al client
+                response_headers = {
+                    "Content-Type": ct,
+                    "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
+                    "ETag": etag,
+                    "X-Cache-Status": "MISS"
+                }
+                return Response(content=content, headers=response_headers)
+
+            # Se l'errore è temporaneo (429, 5xx), ritenta
+            if r.status_code in {429, 500, 502, 503, 504}:
+                logging.warning(f"[PROXY] Errore temporaneo {r.status_code} per {url}. Riprovo tra {wait:.1f}s...")
+                last_error = f"Upstream error: {r.status_code}"
+                await asyncio.sleep(wait + random.uniform(0, 0.2))
                 continue
             
-            # Se non è un redirect, esci dal loop e processa la risposta
+            # Se l'errore non è recuperabile (es. 404 Not Found), esci subito
+            last_error = f"Upstream client error: {r.status_code}"
             break
-        else:
-            raise HTTPException(status_code=400, detail="Troppi redirect")
 
-    except HTTPException:
-        raise
-    except httpx.RequestError as e:
-        log.warning("[IMG][proxy] network error for %s: %s", url, e)
-        return _fallback_with_refresh(request, email_id, "network_error", upstream_url=url, status_code=None)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"URL non valido o host non consentito: {e}")
+        except httpx.RequestError as e:
+            logging.warning(f"[PROXY] Errore di rete per {url}: {e}. Riprovo tra {wait:.1f}s...")
+            last_error = f"Network error: {e}"
+            await asyncio.sleep(wait + random.uniform(0, 0.2))
+    
+    # Se tutti i tentativi falliscono, restituisci un errore 502
+    raise HTTPException(status_code=502, detail=last_error or "Impossibile recuperare l'immagine upstream")
 
-    # --- FIX DI SICUREZZA: DOWNLOAD IN STREAMING CON LIMITE ---
-    if r is None:
-        return _fallback_with_refresh(request, email_id, "empty_response", upstream_url=current_url, status_code=None)
-
-    if r.status_code == 200:
-        total_bytes = 0
-        chunks = []
-        try:
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                async with client.stream("GET", current_url, headers={"User-Agent": "NewsletterFeedProxy/1.0"}, follow_redirects=True) as s:
-                    s.raise_for_status()
-                    ct = (s.headers.get("content-type", "application/octet-stream").split(";", 1)[0]).lower()
-                    if not ct.startswith("image/"):
-                        raise HTTPException(415, "Content-Type non supportato")
-                    
-                    async for chunk in s.aiter_bytes():
-                        total_bytes += len(chunk)
-                        if total_bytes > IMG_PROXY_MAX_BYTES:
-                            raise HTTPException(413, "Immagine troppo grande")
-                        chunks.append(chunk)
-            content = b"".join(chunks)
-        except httpx.HTTPStatusError as e:
-            return _fallback_with_refresh(request, email_id, "upstream_status_error", upstream_url=current_url, status_code=e.response.status_code)
-        except Exception as e:
-            return _fallback_with_refresh(request, email_id, "download_error", upstream_url=current_url, status_code=None)
-
-        etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
-        _cache_put(url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
-        
-        response_headers = {
-            "Content-Type": ct,
-            "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
-            "ETag": etag,
-            "X-Cache-Status": "MISS",
-            "Access-Control-Allow-Origin": "*", # <-- FIX CORS
-        }
-        return Response(content=content, headers=response_headers)
-
-    return _fallback_with_refresh(request, email_id, "upstream_http_error", upstream_url=current_url, status_code=r.status_code)
 
 @app.get("/api/gmail/messages/{msg_id}/html")
 def gmail_message_html(msg_id: str, request: Request):
@@ -1410,58 +1241,40 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
     return Response(content=data, media_type=ctype,
                     headers={"Cache-Control":"public,max-age=31536000,immutable"})
 
-APP_ENV = os.getenv("APP_ENV", "dev").lower()
-IS_PROD = APP_ENV == "prod"
+SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")  # es: ".thegist.tech"
+IS_PROD = bool(SESSION_DOMAIN)
 
-# Impostazioni dei cookie basate sull'ambiente
-COOKIE_NAME = "__Host-nl_sess" if IS_PROD else "nl_sess"
-COOKIE_SECURE = IS_PROD
-COOKIE_SAMESITE = "none" if IS_PROD else "lax"
-
-# Impostazioni URI basate sull'ambiente
-REDIRECT_URI = os.getenv("REDIRECT_URI") or (
-    "https://app.thegist.tech/auth/callback" if IS_PROD
-    else "http://localhost:8000/auth/callback"
-)
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN") or (
-    "https://app.thegist.tech" if IS_PROD
-    else "http://localhost:5173"
-)
-
-# Lista delle origini consentite per CORS (definita una sola volta)
-FRONTEND_ORIGINS = list(set([
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+FRONTEND_ORIGINS = [
     FRONTEND_ORIGIN,
-    "https://app.thegist.tech",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:8000",
-]))
+]
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").strip().lower() in {"true","1","t","yes","y"}
 
-log.info("[CFG] APP_ENV: %s (IS_PROD=%s)", APP_ENV, IS_PROD)
-log.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
-log.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
-# --- FINE CONFIGURAZIONE DINAMICA ---
-
-# Define SESSION_HTTPS_ONLY before use
-SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "0").lower() in ("1", "true", "yes")
-
+logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
+logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
 logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
 # ⬇️ middleware DOPO aver creato l’app
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
-    session_cookie=COOKIE_NAME,
-    same_site=COOKIE_SAMESITE,
-    https_only=COOKIE_SECURE,
+    session_cookie="nl_sess",
+    same_site="lax",
+    https_only=SESSION_HTTPS_ONLY,
     max_age=60*60*24*7,
-    domain=None,
+    domain=SESSION_DOMAIN if IS_PROD else None,
 )
-# Log corretto con i valori dinamici
-log.info(
-    "[CFG] SessionMiddleware configurato con: cookie=%s, samesite=%s, https_only=%s",
-    COOKIE_NAME, COOKIE_SAMESITE, COOKIE_SECURE
-)
+
+FRONTEND_ORIGINS = [
+    os.getenv("FRONTEND_ORIGIN", "https://app.thegist.tech"),
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -1473,11 +1286,8 @@ app.add_middleware(
 )
 
 # --- COSTANTI E VARIABILI GLOBALI ---
-CLIENT_SECRETS_FILE = "/app/data/credentials.json"
+CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
 SCOPES = [
-    "openid",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
     "https://www.googleapis.com/auth/photoslibrary.readonly",
@@ -1494,29 +1304,15 @@ class UserSettingsIn(BaseModel):
     preferred_image_source: t.Optional[str] = Field(default=None, description="pixabay | google_photos")
     hidden_domains: t.Optional[list[str]] = Field(default=None, description="lista domini da nascondere")
 
-@router_api.get("/auth/me")
+@router_api.get("/auth/me")  # Spostato su router_api per mantenere il prefisso /api
 async def auth_me(request: Request):
-    # --- NUOVO LOG ---
-    log.info(
-        "[AUTH/ME] Richiesta ricevuta. Sessione: sid=%s, user_id=%s. Cookie header: %s",
-        request.session.get('sid'), request.session.get('user_id'), request.headers.get('cookie')
-    )
-    
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
 
-    if not user_id:
-        log.warning("[AUTH/ME] user_id non trovato in sessione. Rispondo 401.")
-        return JSONResponse({"detail": "Utente non autenticato."}, status_code=401)
+    if not user_id or user_id not in CREDENTIALS_STORE:
+        return JSONResponse({"email": None, "logged_in": False}, status_code=401)
 
-    response_data = {
-        "user_id": user_id,
-        "email": email,
-        "has_creds": bool(CREDENTIALS_STORE.get(user_id))
-    }
-    log.info("[AUTH/ME] Utente autenticato. Rispondo 200 con: %s", jdump(response_data))
-    return response_data
-
+    return {"email": email, "logged_in": True}
 
 @router_settings.get("")
 def get_settings(request: Request):
@@ -1562,11 +1358,6 @@ def update_settings(payload: UserSettingsIn, request: Request):
     SETTINGS_STORE[user_id] = current
     save_settings_store()
     return {"ok": True, "settings": current}
-
-TRUSTED_PROXIES = os.getenv("TRUSTED_PROXIES", "*").split(",")
-if ProxyHeadersMiddleware:
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=TRUSTED_PROXIES)
-log.info("[CFG] ProxyHeadersMiddleware (riordinato) configurato con trusted_hosts: %s", TRUSTED_PROXIES)
     
 app.include_router(router_settings)
 app.include_router(router_auth)
@@ -1589,8 +1380,8 @@ async def proxy_photo(photo_id: str, request: Request, w: int = 1600, h: int = 9
     if not item:
         raise HTTPException(status_code=404, detail="Foto non trovata in pool")
 
-    base = str(item.get("baseUrl") or "").strip()
-    auth = str(item.get("authUrl") or "").strip()
+    base = (item.get("baseUrl") or "").strip()
+    auth = (item.get("authUrl") or "").strip()
     suffix = f"=w{w}-h{h}-{mode}"
 
     key = f"{uid}:{photo_id}:{w}:{h}:{mode}"  # cache separata per utente
@@ -1628,8 +1419,7 @@ async def proxy_photo(photo_id: str, request: Request, w: int = 1600, h: int = 9
                 raise HTTPException(413, "Immagine troppo grande")
 
             if r.status_code == 200:
-                ct_header = r.headers.get("content-type") or "image/jpeg"
-                ct = str(ct_header).split(";", 1)[0].lower()
+                ct = r.headers.get("Content-Type", "image/jpeg")
                 body = r.content
                 _photos_cache_put(key, {"ts": time.time(), "bytes": body, "ct": ct})
                 return StreamingResponse(io.BytesIO(body), media_type=ct,
@@ -2169,34 +1959,39 @@ async def create_photos_picker_session(request: Request, authorization: str = He
 # --- ENDPOINTS ---
 @app.get("/auth/login")
 async def auth_login(request: Request):
-    # ---> [LOG 1 - Dalle note] Controlla le variabili di configurazione all'inizio
-    log.info("[AUTH/LOGIN] cfg redirect_uri=%s origin=%s", REDIRECT_URI, FRONTEND_ORIGIN)
-
     ua = request.headers.get("user-agent","-")
     logging.info("[AUTH/LOGIN] ua=%s scheme=%s host=%s", ua, request.url.scheme, request.url.hostname)
     sid = request.session.get("sid")
     if not sid:
         sid = str(uuid.uuid4())
         request.session["sid"] = sid
+
+    # L'URL di reindirizzamento viene costruito dinamicamente a partire dalla richiesta.
+    # Grazie a --proxy-headers e Caddy, questo genererà https://app.thegist.tech/auth/callback
     
-    if "pending_auth" in request.session:
-        request.session.pop("pending_auth")
+    _cleanup_pending_auth(request)
+    pa = _pending_auth(request)
+
+    if pa:
+        existing_nonce, data = next(reversed(list(pa.items())))
+        auth_url = data.get("auth_url")
+        if auth_url:
+            logging.info("[AUTH/LOGIN] Riutilizzo auth in sospeso per sid=%s", sid)
+            return RedirectResponse(auth_url, status_code=302)
 
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
 
     flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
     
-    # ---> [LOG 2 - Dalle note] Controlla i parametri letti dal file credentials.json
-    ci = flow.client_config.get("client_id")
-    ru = flow.redirect_uri
-    log.info("[AUTH/LOGIN] flow client_id=%s redirect_uri=%s", mask(ci), ru)
-
+    # <-- INIZIO MODIFICA PKCE -->
+    # 1. Genera il code_verifier e il code_challenge per PKCE
     code_verifier = secrets.token_urlsafe(96)[:128]
     code_challenge = base64.urlsafe_b64encode(
         hashlib.sha256(code_verifier.encode()).digest()
     ).rstrip(b'=').decode()
 
+    # 2. Genera l'URL di base
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -2206,232 +2001,170 @@ async def auth_login(request: Request):
         code_challenge_method="S256"
     )
 
+    pa[nonce] = {
+        "pkce": code_verifier,   # <— salva davvero il verifier
+        "auth_url": auth_url,
+        "ts": time.time(),
+    }
+    _save_pending_auth(request, pa)
+
+    # 3. Salva il code_verifier su Redis per il recupero nel callback
     if not redis_client:
         logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     try:
-        # Lega il PKCE code_verifier direttamente al nonce
-        nonce_key = _get_pending_auth_nonce_key(sid, nonce)
-        redis_client.setex(nonce_key, AUTH_PENDING_TTL, code_verifier)
-        
-        log.info("[AUTH/LOGIN] PKCE verifier per sid=%s, nonce=%s salvato in Redis.", sid, mask(nonce))
-
+        entry = {"pkce": code_verifier}
+        # NOTA: Uso redis_client.setex (sincrono), non await redis.setex
+        redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
     except Exception as e:
-        logging.error(f"[AUTH/LOGIN] Salvataggio nonce/PKCE su Redis fallito: {e}")
+        logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
+    # <-- FINE MODIFICA PKCE -->
 
-    # --- FIX: La creazione della risposta era stata rimossa per errore ---
+    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, REDIRECT_URI)
+    
+    # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
-    # --------------------------------------------------------------------
+    response.set_cookie(
+        "__Host-nl_pkce",
+        value=code_verifier,
+        max_age=600,      # 10 minuti bastano
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="none",
+    )
 
     return response
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request, bg: BackgroundTasks):
-    # --- LOG 1: Stato iniziale al callback ---
-    log.info(
-        "[AUTH/CALLBACK] Inizio. Sessione iniziale: sid=%s, user_id=%s. Headers: %s",
-        request.session.get('sid'), request.session.get('user_id'),
-        jdump({"cookie": request.headers.get("cookie"), "referer": request.headers.get("referer")})
-    )
-
+    ua = request.headers.get("user-agent","-")
+    logging.info("[AUTH/CALLBACK] ua=%s scheme=%s cookies_present=%s", ua, request.url.scheme, bool(request.cookies))
     code = request.query_params.get("code")
-    state_from_qs = request.query_params.get("state")
+    state = request.query_params.get("state")
+    if not code or not state:
+        logging.error("[AUTH/CALLBACK] Parametri 'code' o 'state' mancanti.")
+        return RedirectResponse("/?auth_error=missing_params", status_code=303)
 
-    if not code or not state_from_qs:
-        log.error("[AUTH/CALLBACK] Parametri 'code' o 'state' mancanti.")
-        return RedirectResponse("/?auth_error=missing_params", status_code=303, headers={"Cache-Control":"no-store"})
+    state = cast(str, state)
 
-    used_key = f"auth:state:used:{state_from_qs}"
-    state_flag: str | None = None
-    if redis_client:
-        try:
-            state_flag = cast(str | None, redis_client.get(used_key))
-        except Exception as e:
-            log.warning("[AUTH/CALLBACK] Impossibile leggere lo stato Redis per %s: %s", used_key, e)
+    logging.info("[AUTH/CALLBACK] code_present=%s, cookies_present=%s", bool(code), bool(request.cookies))
 
-    if state_flag:
-        log.info("[AUTH/CALLBACK] Stato %s già presente (%s). Tento di reidratare la sessione per il doppio callback.", state_from_qs, state_flag)
-        sid = request.session.get("sid")
-        mapped_uid = None
-
-        if sid and redis_client:
-            try:
-                if state_flag == "pending":
-                    for _ in range(60):
-                        mapped_uid = redis_client.get(f"sid_user:{sid}")
-                        if mapped_uid:
-                            break
-                        await asyncio.sleep(0.1)
-                else:
-                    mapped_uid = redis_client.get(f"sid_user:{sid}")
-            except Exception as e:
-                log.warning(f"[AUTH/CALLBACK] Errore nel recupero del mapping sid_user da Redis: {e}")
-
-        if mapped_uid:
-            request.session["user_id"] = mapped_uid
-            request.session.setdefault("user_email", request.session.get("user_email") or "")
-            log.info(f"[AUTH/CALLBACK] Sessione reidratata con successo per sid={sid}, user_id={mapped_uid}.")
-            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
-
-        log.warning(f"[AUTH/CALLBACK] Stato duplicato rilevato ma nessun mapping user_id per sid={sid}.")
-        if state_flag == "pending" and redis_client:
-            try:
-                redis_client.delete(used_key)
-            except Exception:
-                pass
-        return RedirectResponse("/?auth_error=session_pending", status_code=303, headers={"Cache-Control":"no-store"})
-
-    sid_from_state, nonce = (state_from_qs.split(".", 1) if "." in state_from_qs else (None, None))
+    sid_from_state, nonce = (state.split(".", 1) if "." in state else (None, None))
     sid_from_session = request.session.get("sid")
 
-    if nonce is None:
-        return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
-
-    if not sid_from_session:
-        log.error("[AUTH/CALLBACK] Sessione persa. Impossibile verificare lo stato.")
-        return RedirectResponse("/?auth_error=session_lost", status_code=303, headers={"Cache-Control":"no-store"})
-
-    if sid_from_session != sid_from_state:
-        log.warning("[AUTH/CALLBACK] Mismatch di SID: sessione=%s, state=%s.", sid_from_session, sid_from_state)
-        return RedirectResponse("/?auth_error=state_mismatch", status_code=303, headers={"Cache-Control":"no-store"})
-
-    pkce_verifier = None
-    nonce_key = _get_pending_auth_nonce_key(sid_from_session, nonce)
-    if redis_client and nonce:
-        try:
-            pkce_verifier = redis_client.get(nonce_key)
-        except Exception as e:
-            log.error("[AUTH/CALLBACK] Errore nel recupero del PKCE verifier da Redis: %s", e)
-            # Non bloccare, procedi e lascia che il controllo successivo fallisca in modo sicuro
+    if not sid_from_session and sid_from_state:
+        request.session["sid"] = sid_from_state
+        sid_from_session = sid_from_state
+        logging.info("[AUTH/CALLBACK] SID ripristinato dallo 'state': %s", sid_from_session)
     
-    if not pkce_verifier:
-        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Potrebbe essere scaduto o già usato.", mask(nonce))
+    if not sid_from_session:
+        logging.error("[AUTH/CALLBACK] ERRORE CRITICO: SID non trovato né in sessione né nello 'state'. Impossibile procedere.")
+        return RedirectResponse("/?auth_error=session_lost", status_code=303)
 
-    if not pkce_verifier:
-        log.warning("[AUTH/CALLBACK] PKCE verifier non trovato in Redis per nonce=%s. Il login potrebbe essere scaduto (>30 min) o già utilizzato.", mask(nonce))
-        user_id_in_session = request.session.get("user_id")
-        if user_id_in_session and CREDENTIALS_STORE.get(user_id_in_session):
-            log.info("[AUTH/CALLBACK] Utente già autenticato in questa sessione. Idempotenza OK.")
-            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
-        else:
-            log.error("[AUTH/CALLBACK] Nonce non valido e nessun utente in sessione. Blocco.")
-            return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
+    if sid_from_state and sid_from_session != sid_from_state:
+        logging.warning("[AUTH/CALLBACK] Mismatch di SID tra sessione (%s) e state (%s). Potenziale attacco CSRF o sessione corrotta.", sid_from_session, sid_from_state)
+        return RedirectResponse("/?auth_error=state_mismatch", status_code=303)
 
-    if redis_client:
-        try:
-            redis_client.setex(used_key, 600, "pending")
-        except Exception as e:
-            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come pending: %s", e)
+    _cleanup_pending_auth(request)
+    pa = _pending_auth(request)
+    pending_entry: Dict[str, Any] | None = pa.get(nonce) if nonce else None
+
+    if not nonce or not pending_entry:
+        logging.warning("[AUTH/CALLBACK] Nonce non valido o scaduto. sid=%s, nonce_fornito=%s, pending_keys=%s", sid_from_session, nonce, list(pa.keys()))
+        # Se le credenziali esistono già, potrebbe essere un doppio callback, lo permettiamo.
+        user_id_value = request.session.get("user_id")
+        if isinstance(user_id_value, str) and CREDENTIALS_STORE.get(user_id_value):
+            logging.info("[AUTH/CALLBACK] Nonce non valido ma utente già loggato. Procedo.")
+            return RedirectResponse("/?authenticated=true", status_code=303)
+        return RedirectResponse("/?auth_error=invalid_nonce", status_code=303)
+
+    nonce = cast(str, nonce)
+
+    flow: Flow | None = None
+    pkce_verifier: str | None = None
 
     try:
-        flow = Flow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI
-        )
+        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+        
+        pkce_verifier = pending_entry.get("pkce") if pending_entry else None
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
+
+        logging.info(
+            "OAUTH: Inizio scambio token.",
+            extra={
+                "redirect_uri": REDIRECT_URI,
+                "state_prefix": state[:8],
+                "has_verifier": bool(pkce_verifier),
+            },
+        )
+
+        # Esegui lo scambio del token
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
-    except InvalidGrantError as e:
-        log.warning("[AUTH/CALLBACK] fetch_token ha restituito InvalidGrantError: %s", e)
 
-        existing_user_id = request.session.get("user_id")
-        sid = request.session.get("sid")
-
-        if not existing_user_id and sid and redis_client:
-            try:
-                mapped_uid = redis_client.get(f"sid_user:{sid}")
-                if mapped_uid:
-                    existing_user_id = mapped_uid
-                    request.session["user_id"] = mapped_uid
-                    request.session.setdefault("user_email", request.session.get("user_email") or "")
-                    log.info("[AUTH/CALLBACK] Sessione reidratata da Redis per sid=%s → user_id=%s", sid, mapped_uid)
-            except Exception as redis_err:
-                log.warning("[AUTH/CALLBACK] Impossibile reidratare la sessione da Redis dopo InvalidGrantError: %s", redis_err)
-
-        if existing_user_id:
-            log.info("[AUTH/CALLBACK] Token già consumato, proseguo con sessione esistente per user_id=%s", existing_user_id)
-            if redis_client:
-                try:
-                    redis_client.setex(used_key, 600, "1")
-                except Exception as mark_err:
-                    log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come usato dopo InvalidGrantError: %s", mark_err)
-                try:
-                    redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
-                except Exception as del_err:
-                    log.debug("[AUTH/CALLBACK] Eliminazione nonce fallita (già rimossa?): %s", del_err)
-            _clear_pending_auth(request)
-            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control": "no-store"})
-
-        log.error("[AUTH/CALLBACK] InvalidGrantError senza sessione esistente: %s", e, exc_info=True)
-        if redis_client:
-            try:
-                redis_client.delete(used_key)
-            except Exception as del_err:
-                log.debug("[AUTH/CALLBACK] Cleanup stato fallito dopo InvalidGrantError: %s", del_err)
-        return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
-    except Exception as e:
-        log.error("[AUTH/CALLBACK] Errore durante fetch_token: %s", e, exc_info=True)
-        if redis_client:
-            try:
-                redis_client.delete(used_key)
-            except Exception as del_err:
-                log.debug("[AUTH/CALLBACK] Cleanup stato fallito dopo eccezione fetch_token: %s", del_err)
-        return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
-
-    try:
+        # Ottieni il profilo utente per avere email e user_id
         profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
         profile = profile_service.userinfo().get().execute()
+        
         email = profile.get("email")
-        user_id = profile.get("id")
+        user_id = profile.get("id") # L'ID numerico di Google è un identificatore stabile
+
         if not email or not user_id:
-            raise ValueError("Email o ID utente non presenti nel profilo Google.")
+            raise ValueError("Impossibile recuperare email o ID utente dal profilo Google.")
+
+        # Salva le informazioni corrette nella sessione
+        request.session["user_email"] = email
+        request.session["user_id"] = user_id
+
+        # Salva le credenziali usando l'ID UTENTE come chiave
+        CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
+        save_credentials_store()
+        
+        # Pulisci il nonce usato
+        pa.pop(nonce, None)
+        
+        # Avvia i processi in background se è un nuovo utente
+        is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
+        if is_new_user:
+            logging.info(f"Nuovo utente registrato: {email} (ID: {user_id}). Avvio ingestione iniziale.")
+            bg.add_task(kickstart_initial_ingestion, user_id)
+        
+        await ensure_user_defaults(user_id)
+
+        logging.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
+        return RedirectResponse("/?authenticated=true", status_code=303)
+
+    except InvalidGrantError as e:
+        client_id_from_flow = "N/A"
+        if flow is not None:
+            try:
+                client_id_from_flow = flow.client_config.get("client_id", "N/A")
+            except Exception:
+                pass
+        logging.error(
+            "OAUTH: InvalidGrantError durante lo scambio del token.",
+            extra={
+                "reason": getattr(e, "description", str(e))[:200],
+                "hint": getattr(e, "uri", None),
+                "redirect_uri_usato": REDIRECT_URI,
+                "has_verifier": bool(pkce_verifier),
+                "client_id_tail": client_id_from_flow[-6:],
+            },
+        )
+        # In caso di errore, reindirizza alla pagina di login con un messaggio chiaro
+        return RedirectResponse("/?auth_error=invalid_grant", status_code=303)
+
     except Exception as e:
-        log.error("[AUTH/CALLBACK] Errore durante la chiamata a userinfo: %s", e, exc_info=True)
-        return RedirectResponse("/?auth_error=userinfo_failed", status_code=303, headers={"Cache-Control":"no-store"})
+        logging.error(f"[AUTH/CALLBACK] ERRORE CRITICO DURANTE FETCH_TOKEN: {e}", exc_info=True)
+        return RedirectResponse(f"/?auth_error=unknown_error", status_code=303)
 
-    # --- LOG 2: Dati utente pronti per essere salvati in sessione ---
-    log.info("[AUTH/CALLBACK] Profilo recuperato. Salvo in sessione: user_id=%s, email=%s", 
-             user_id, mask(email, keep=3) if IS_PROD else email)
-    request.session["user_email"] = str(email or "")
-    request.session["user_id"] = str(user_id or "")
-    
-    # --- LOG 3: Verifica della sessione subito dopo la scrittura ---
-    log.info(
-        "[AUTH/CALLBACK] Sessione aggiornata: sid=%s, user_id=%s, email=%s",
-        request.session.get('sid'), request.session.get('user_id'), request.session.get('user_email')
-    )
-
-    CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
-    save_credentials_store()
-    
-    if redis_client:
-        try:
-            redis_client.setex(used_key, 600, "1")
-            redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
-            sid = request.session.get("sid")
-            if sid:
-                # TTL di 10 minuti è più che sufficiente per coprire il doppio callback
-                redis_client.setex(f"sid_user:{sid}", 600, user_id)
-                log.info(f"[AUTH/CALLBACK] Salvato mapping temporaneo in Redis: sid_user:{sid} -> {user_id}")
-        except Exception as e:
-            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come usato: %s", e)
-    
-    _clear_pending_auth(request)
-    
-    is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
-    if is_new_user:
-        log.info(f"[AUTH/CALLBACK] Nuovo utente: {email}. Avvio ingestione iniziale.")
-        asyncio.create_task(kickstart_initial_ingestion(user_id))
-    
-    await ensure_user_defaults(user_id)
-
-    response = RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
-    log.info(
-        "[AUTH/CALLBACK] Autenticazione completata. Invio redirect a /?authenticated=true. Headers di risposta: %s",
-        jdump(dict(response.headers))
-    )
-    return response
+    finally:
+        # Pulisci sempre lo stato temporaneo dalla sessione per evitare riutilizzi
+        request.session.pop("_code_in_flight", None)
+        request.session.pop("_oauth_lock", None)
 
 async def get_user_settings(user_id: str) -> dict | None:
     # usa lo store già esistente su file (SETTINGS_STORE)
@@ -2586,205 +2319,101 @@ def get_ingestion_state(user_id: str) -> dict:
     )
     return {"running": bool(active_job), "job_id": active_job}
 
-@router_api.get("/feed/_debug/stats")
-async def feed_debug_stats(request: Request):
-    """
-    Restituisce statistiche di diagnostica sul feed dell'utente corrente.
-    """
-    uid = _current_user_id(request)
-    total = Newsletter.select().where(Newsletter.user_id == uid).count()
-    
-    visible_query = (Newsletter
-                     .select()
-                     .where((Newsletter.user_id == uid) &
-                            (Newsletter.is_complete == True) &
-                            (Newsletter.is_deleted == False)))
-    visible = visible_query.count()
-    
-    unseen_query = (Newsletter
-                    .select()
-                    .where((Newsletter.user_id == uid) &
-                           (Newsletter.enriched == True) &
-                           (Newsletter.is_complete == False) &
-                           (Newsletter.is_deleted == False)))
-    unseen = unseen_query.count()
-    
-    # Trova i thread con duplicati visibili
-    dup_query = (Newsletter
-                 .select(Newsletter.thread_id, fn.COUNT(SQL('*')).alias("c"))
-                 .where((Newsletter.user_id == uid) & (Newsletter.is_deleted == False))
-                 .group_by(Newsletter.thread_id)
-                 .having(fn.COUNT(SQL('*')) > 1))
-    
-    dup_threads = [r.thread_id for r in dup_query]
-    
-    return {
-        "user_id": uid,
-        "total_records": total,
-        "visible_in_feed": visible,
-        "enriched_but_not_visible": unseen,
-        "threads_with_visible_duplicates": dup_threads,
-        "count_threads_with_duplicates": len(dup_threads)
-    }
-
-@router_api.get("/debug/snapshot")
-async def debug_snapshot(request: Request):
-    """Endpoint di diagnostica protetto per uno snapshot rapido dello stato del sistema."""
-    user_id = _current_user_id(request)
-    
-    try:
-        # Conteggi dal Database
-        inc_q = Newsletter.select().where((Newsletter.user_id == user_id) & (Newsletter.is_complete == False))
-        cmp_q = Newsletter.select().where((Newsletter.user_id == user_id) & (Newsletter.is_complete == True))
-        noimg_q = Newsletter.select().where((Newsletter.user_id == user_id) & ((Newsletter.image_url.is_null(True)) | (Newsletter.image_url == '')))
-        
-        incomplete_count = inc_q.count()
-        complete_count = cmp_q.count()
-        missing_image_count = noimg_q.count()
-
-        # Dati da Redis
-        qlen = cast(int, redis_client.llen("email_queue") or 0) if redis_client else -1
-        block_until_raw = redis_client.get("pixabay:block_until_epoch") if redis_client else None
-        block_until = int(block_until_raw) if isinstance(block_until_raw, (str, bytes, int)) else 0
-
-        heartbeat_raw = redis_client.get("worker:heartbeat") if redis_client else None
-        heartbeat = int(heartbeat_raw) if isinstance(heartbeat_raw, (str, bytes, int)) else None
-
-        # Impostazioni utente
-        settings = SETTINGS_STORE.get(user_id, {})
-        preferred_source = settings.get("preferred_image_source", "pixabay")
-
-        snap = {
-            "user_id": user_id,
-            "db": {"incomplete": incomplete_count, "complete": complete_count, "missing_image": missing_image_count},
-            "queue": {"email_queue_len": qlen},
-            "pixabay": {
-                "key_present": bool(os.getenv("PIXABAY_KEY")),
-                "blocked_until_epoch": block_until,
-                "seconds_until_unblocked": max(0, block_until - int(time.time()))
-            },
-            "worker": {"last_heartbeat_epoch": heartbeat},
-            "settings": {"preferred_image_source": preferred_source}
-        }
-        logging.info(f"[SNAPSHOT] User {user_id}: {json.dumps(snap)}")
-        return JSONResponse(snap)
-    except Exception as e:
-        logging.error(f"Errore durante la creazione dello snapshot: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Errore interno durante la creazione dello snapshot.")
-    
 @app.get("/api/feed")
-async def get_feed(request: Request,
-                   bg: BackgroundTasks,
-                   page_size: int = Query(20, ge=1, le=50),
-                   before: str | None = Query(None)):
+async def get_feed(
+    request: Request,
+    bg: BackgroundTasks,
+    page_size: int = Query(20, ge=1, le=50),
+    before: str | None = Query(None, description="cursor: 'ISOZ|<email_id>'"),
+):
     rid = getattr(request.state, "request_id", "-")
     user_id = get_user_id_from_session(request)
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Non autenticato")
 
     log_feed(rid, "in", user_id=user_id, before=before, limit=page_size)
-    t0 = time.perf_counter()
+    t0_total = time.perf_counter()
 
     settings = SETTINGS_STORE.get(user_id, {"hidden_domains": []})
     hidden = set(settings.get("hidden_domains", []))
 
-    q = (Newsletter
-         .select()
-         .where(
-             (Newsletter.user_id == user_id) &
-             (Newsletter.is_complete == True) &
-             (Newsletter.is_deleted == False) &
-             (Newsletter.received_date.is_null(False))
-         )
-         .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc()))
+    base_q = (Newsletter
+        .select(
+            Newsletter.email_id, Newsletter.user_id,
+            Newsletter.sender_name, Newsletter.sender_email,
+            Newsletter.original_subject, Newsletter.ai_title, Newsletter.ai_summary_markdown,
+            Newsletter.image_url, Newsletter.received_date,
+            Newsletter.is_favorite, Newsletter.accent_hex,
+            Newsletter.tag, Newsletter.type_tag, Newsletter.topic_tag,
+            Newsletter.source_domain, Newsletter.thread_id, Newsletter.rfc822_message_id,
+            Newsletter.is_complete    
+        )
+        .where(
+            (Newsletter.user_id == user_id) &
+            (Newsletter.is_complete == True) &
+            (Newsletter.is_deleted == False) &
+            (Newsletter.received_date.is_null(False))
+        )
+        .order_by(Newsletter.received_date.desc(), Newsletter.email_id.desc())
+    )
 
     if hidden:
-        q = q.where(~(Newsletter.source_domain.in_(list(hidden))))
+        base_q = base_q.where(~(Newsletter.source_domain.in_(list(hidden))))
 
     if before:
-        last_dt, last_id = _parse_cursor(before)
-        if last_dt and last_id:
-            q = q.where(
+        last_dt, last_email = _parse_cursor(before)
+        if last_dt and last_email:
+            base_q = base_q.where(
                 (Newsletter.received_date < last_dt) |
-                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_id))
+                ((Newsletter.received_date == last_dt) & (Newsletter.email_id < last_email))
             )
 
-    # --- Raccolta fino a capienza con dedup ---
-    CHUNK = 200
+    t0_db = time.perf_counter()
+    rows = list(base_q.limit(page_size + 1).dicts())
+    t_db_ms = (time.perf_counter() - t0_db) * 1000
+
+    has_more = len(rows) > page_size
+    # 1. Definisci page_raw con i dati della pagina corrente (prima della deduplica)
+    page_raw = rows[:page_size]
+    
+    # 2. Esegui la deduplica partendo da page_raw
     seen_threads = set()
-    acc: list[dict] = []
-    offset = 0
-
-    while len(acc) < page_size + 1:
-        batch = list(q.limit(CHUNK).offset(offset).dicts())
-        if not batch:
-            break
-        offset += CHUNK
-
-        for it in batch:
-            tid = it.get("thread_id")
-            if DEDUP_THREADS and tid:
-                if tid in seen_threads:
-                    continue
-                seen_threads.add(tid)
-            acc.append(it)
-            if len(acc) >= page_size + 1:
-                break
-
-    # Page e has_more corretti
-    page_items = acc[:page_size]
-    has_more_db = len(acc) > page_size
-
-    # Cursor sull’ultimo elemento INVIATO
+    page = [] # Questa sarà la lista finale e pulita
+    for item in page_raw:
+        tid = item.get("thread_id")
+        if tid and tid in seen_threads:
+            continue
+        
+        if tid:
+            seen_threads.add(tid)
+        page.append(item)
+    
+    # 3. Calcola il cursore basandoti sull'ultimo elemento di page_raw
     next_cursor = None
-    if has_more_db and page_items:
-        last = page_items[-1]
-        next_cursor = f"{_iso_utc(last['received_date'])}|{last['email_id']}"
+    if has_more:
+        # Usiamo l'ultimo elemento *prima* della deduplica per garantire una paginazione corretta
+        last_item_for_cursor = page_raw[-1]
+        next_cursor = f"{_iso_utc(last_item_for_cursor['received_date'])}|{last_item_for_cursor['email_id']}"
 
-    # Serializzazione finale
+    # 4. Prepara la pagina finale per la risposta JSON
     final_page = []
-    for it in page_items:
-        it["received_date"] = _iso_utc(it.get("received_date"))
-        it = _add_gmail_deep_link_fields(it)
-        final_page.append(it)
+    for item in page: # Itera sulla lista 'page' già deduplicata
+        item["received_date"] = _iso_utc(item.get("received_date"))
+        item = _add_gmail_deep_link_fields(item)
+        final_page.append(item)
 
-    # --- INIZIO MODIFICA ---
-    # Controlla se c'è altro lavoro in arrivo
-    queue_len = int(cast(int, redis_client.llen("email_queue") or 0)) if redis_client else 0
-    ingestor_busy = bool(redis_client.get("ingestor:lock")) if redis_client else False
-    pending_more = (Newsletter
-                    .select(Newsletter.email_id)
-                    .where((Newsletter.user_id == user_id) &
-                           (Newsletter.is_deleted == False) &
-                           (Newsletter.is_complete == False))
-                    .limit(1)
-                   ).exists()
-
-    has_more = has_more_db or pending_more or ingestor_busy or (queue_len > 0)
-    state = get_ingestion_state(user_id) # get_ingestion_state è già robusto
-    # --- FINE MODIFICA ---
-
-    dur_ms = int((time.perf_counter() - t0) * 1000)
-    log_feed(
-        rid, "out",
-        user_id=user_id,
-        page_len=len(final_page),
-        has_more=has_more,
-        pending_more=pending_more,
-        next_cursor=next_cursor,
-        first_dt=_iso_utc(final_page[0]['received_date']) if final_page else None,
-        last_dt=_iso_utc(final_page[-1]['received_date']) if final_page else None,
-        dur_ms=dur_ms
-    )
+    state = get_ingestion_state(user_id)
+    
+    dur_total_ms = (time.perf_counter() - t0_total) * 1000
+    log_feed(rid, "out", has_more=has_more, page_len=len(page), dur_ms=int(dur_total_ms), db_ms=int(t_db_ms))
 
     resp = JSONResponse({
         "feed": final_page,
         "next_cursor": next_cursor,
         "has_more": has_more,
-        "pending_more": pending_more, # Aggiunto nuovo flag
         "ingest": state,
     })
-    resp.headers["Server-Timing"] = f"db;dur={dur_ms}"
+    resp.headers["Server-Timing"] = f"db;dur={t_db_ms:.0f}"
     return resp
 
 @app.get("/api/_diag/feed-stats")
@@ -2913,15 +2542,14 @@ async def run_ingest_job(job_id: str, user_id: str, batch: int, image_source: st
     try:
         INGEST_JOBS[job_id]["state"] = "running"
         if not user_id:
-            job_user = INGEST_JOBS.get(job_id, {}).get("user_id")
-            if not isinstance(job_user, str):
-                raise RuntimeError("user_id mancante per job")
+            job_user = INGEST_JOBS[job_id].get("user_id")
+            if not isinstance(job_user, str) or not job_user:
+                raise RuntimeError("user_id mancante nel job di ingest")
             user_id = job_user
 
         if not redis_client:
             raise RuntimeError("Redis non disponibile")
 
-        load_credentials_store() # Questa funzione già esiste e fa il lavoro
         creds_dict = CREDENTIALS_STORE.get(user_id)
         if not creds_dict:
             raise RuntimeError(f"Credenziali mancanti per user_id={user_id}")
@@ -3028,7 +2656,7 @@ async def ingest_pull(body: IngestPullBody, request: Request, bg: BackgroundTask
     job_id = uuid.uuid4().hex
     INGEST_JOBS[job_id] = {"state":"queued","total":0,"done":0,"errors":0,"user_id":user_id}
     logging.info(f"[PULL] start user={user_id} job_id={job_id} batch={body.batch} img_src={body.image_source} pages={body.pages} target={body.target}")
-    asyncio.create_task(run_ingest_job(job_id, user_id, body.batch, body.image_source, body.pages, body.target))
+    bg.add_task(run_ingest_job, job_id, user_id, body.batch, body.image_source, body.pages, body.target)
     return {"job_id": job_id, "status": "started"}
 
 class IngestStartBody(BaseModel):
@@ -3151,14 +2779,15 @@ async def update_images(body: UpdateImagesRequest, request: Request):
 
                     if source == "google_photos":
                         item = pool[(start_index + i) % len(pool)]
-                        photo_id = str(item.get("id") or "")
+                        photo_id = (item.get("id") or "").strip()
                         if photo_id:
                             base = str(request.base_url).rstrip('/')
                             new_image_url = f"{base}/api/photos/proxy/{photo_id}?w=1600&h=900&mode=no"
                     else:  # Pixabay
                         image_query = await get_ai_keyword(n.full_content_html or "", client)
                         if not image_query:
-                            image_query = (n.ai_title or n.original_subject or n.source_domain or "newsletter")
+                            image_query = n.ai_title or n.original_subject or n.source_domain or "newsletter"
+                        new_image_url = await get_pixabay_image_by_query(client, image_query)
 
                     if not new_image_url:
                         failed_items.append({"email_id": email_id, "error": "no_image_found"})
@@ -3291,7 +2920,7 @@ async def get_image_query(email_id: str, request: Request):
             (Newsletter.email_id == email_id) & (Newsletter.user_id == uid)
         )
     except PeeweeDoesNotExist:
-        raise HTTPException(status_code=404, detail="Newsletter not found")
+        raise HTTPException(status_code=404, detail="Newsletter non trovata.")
 
     html = n.full_content_html or ""
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -3307,7 +2936,7 @@ async def toggle_favorite(email_id: str, request: Request):
             (Newsletter.email_id == email_id) & (Newsletter.user_id == uid)
         )
     except PeeweeDoesNotExist:
-        raise HTTPException(status_code=404, detail="Newsletter not found.")
+        raise HTTPException(status_code=404, detail="Newsletter non trovata.")
 
     newsletter.is_favorite = not newsletter.is_favorite
     newsletter.save()
@@ -3323,7 +2952,7 @@ async def set_tag(email_id: str, payload: TagIn, request: Request):
     try:
         n = Newsletter.get((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
     except PeeweeDoesNotExist:
-        raise HTTPException(status_code=404, detail="Newsletter not found.")
+        raise HTTPException(status_code=404, detail="Newsletter non trovata.")
 
     t = (payload.tag or "").strip()
     if len(t) > 32:
@@ -3338,18 +2967,18 @@ async def set_tag(email_id: str, payload: TagIn, request: Request):
 async def logout(request: Request):
     user_id = request.session.get("user_id")
 
-    # --- INIZIO FIX ---
-    if user_id:
-        # Rimuovi credenziali e persisti su disco
-        CREDENTIALS_STORE.pop(user_id, None)
-        save_credentials_store()
+    if not user_id or user_id not in CREDENTIALS_STORE:
+        raise HTTPException(status_code=401, detail="Non autenticato")
 
-        # Pulisci pool e bearer per-utente
-        PHOTOS_POOLS.pop(user_id, None)
-        PHOTOS_BEARERS.pop(user_id, None)
-    # --- FINE FIX ---
+    # Rimuovi credenziali e persisti su disco
+    CREDENTIALS_STORE.pop(user_id, None)
+    save_credentials_store()
 
-    # Svuota la sessione in ogni caso
+    # Pulisci pool e bearer per-utente
+    PHOTOS_POOLS.pop(user_id, [])
+    PHOTOS_BEARERS.pop(user_id, None)
+
+    # Svuota la sessione
     try:
         request.session.clear()
     except Exception:
