@@ -56,6 +56,7 @@ import sys
 import boto3
 from botocore.config import Config as BotoConfig
 from googleapiclient.errors import HttpError
+import shutil
 from backend.processing_utils import (
     _walk_parts, 
     _decode_body, 
@@ -278,12 +279,21 @@ _client_secrets_candidate = _resolve_in_data_dir(os.getenv("CLIENT_SECRETS_FILE"
 _embedded_client_secrets = _BASE_DIR / "credentials.json"
 if not _client_secrets_candidate.exists():
     if _embedded_client_secrets.exists():
-        logging.warning(
-            "[CFG] CLIENT_SECRETS_FILE '%s' non trovato. Uso fallback '%s'.",
-            _client_secrets_candidate,
-            _embedded_client_secrets,
-        )
-        _client_secrets_candidate = _embedded_client_secrets
+        try:
+            _client_secrets_candidate.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(_embedded_client_secrets, _client_secrets_candidate)
+            logging.warning(
+                "[CFG] CLIENT_SECRETS_FILE '%s' non trovato. Copiato fallback '%s'.",
+                _client_secrets_candidate,
+                _embedded_client_secrets,
+            )
+        except Exception as e:
+            logging.warning(
+                "[CFG] Copia fallback client secrets fallita (%s). Uso direttamente '%s'.",
+                e,
+                _embedded_client_secrets,
+            )
+            _client_secrets_candidate = _embedded_client_secrets
     else:
         logging.error(
             "[CFG] CLIENT_SECRETS_FILE mancante. Percorsi provati: '%s' e fallback '%s'.",

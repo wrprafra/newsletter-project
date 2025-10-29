@@ -25,6 +25,7 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from email.utils import parsedate_to_datetime, parseaddr
 from pathlib import Path
+import shutil
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
@@ -61,6 +62,24 @@ if _credentials_path_env:
         _credentials_path = (DATA_DIR / _credentials_path).resolve()
 else:
     _credentials_path = (DATA_DIR / "user_credentials.json").resolve()
+
+_fallback_credentials = _BASE_DIR / "user_credentials.json"
+if not _credentials_path.exists() and _fallback_credentials.exists():
+    try:
+        _credentials_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(_fallback_credentials, _credentials_path)
+        logging.warning(
+            "File credenziali '%s' assente. Copiato fallback '%s'.",
+            _credentials_path,
+            _fallback_credentials,
+        )
+    except Exception as exc:
+        logging.warning(
+            "Impossibile copiare fallback credenziali da '%s' a '%s': %s",
+            _fallback_credentials,
+            _credentials_path,
+            exc,
+        )
 
 CREDENTIALS_PATH = str(_credentials_path)
 if _credentials_path.exists():
