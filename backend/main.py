@@ -1368,7 +1368,6 @@ app.add_middleware(
 )
 
 # --- COSTANTI E VARIABILI GLOBALI ---
-CLIENT_SECRETS_FILE = str(Path(__file__).resolve().parent / "credentials.json")
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
