@@ -2309,6 +2309,39 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             flow.code_verifier = pkce_verifier
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
+    except InvalidGrantError as e:
+        log.warning("[AUTH/CALLBACK] fetch_token ha restituito InvalidGrantError: %s", e)
+
+        existing_user_id = request.session.get("user_id")
+        sid = request.session.get("sid")
+
+        if not existing_user_id and sid and redis_client:
+            try:
+                mapped_uid = redis_client.get(f"sid_user:{sid}")
+                if mapped_uid:
+                    existing_user_id = mapped_uid
+                    request.session["user_id"] = mapped_uid
+                    request.session.setdefault("user_email", request.session.get("user_email") or "")
+                    log.info("[AUTH/CALLBACK] Sessione reidratata da Redis per sid=%s → user_id=%s", sid, mapped_uid)
+            except Exception as redis_err:
+                log.warning("[AUTH/CALLBACK] Impossibile reidratare la sessione da Redis dopo InvalidGrantError: %s", redis_err)
+
+        if existing_user_id:
+            log.info("[AUTH/CALLBACK] Token già consumato, proseguo con sessione esistente per user_id=%s", existing_user_id)
+            if redis_client:
+                try:
+                    redis_client.setex(used_key, 600, "1")
+                except Exception as mark_err:
+                    log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come usato dopo InvalidGrantError: %s", mark_err)
+                try:
+                    redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
+                except Exception as del_err:
+                    log.debug("[AUTH/CALLBACK] Eliminazione nonce fallita (già rimossa?): %s", del_err)
+            _clear_pending_auth(request)
+            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control": "no-store"})
+
+        log.error("[AUTH/CALLBACK] InvalidGrantError senza sessione esistente: %s", e, exc_info=True)
+        return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
     except Exception as e:
         log.error("[AUTH/CALLBACK] Errore durante fetch_token: %s", e, exc_info=True)
         return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})

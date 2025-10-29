@@ -112,6 +112,19 @@ function hideSplash(force = false) {
 window.__hideSplashScreen = hideSplash;
 window.__showSplashScreen = showSplash;
 
+// Evita doppie navigazioni verso /auth/login se l'utente clicca ripetutamente
+document.addEventListener('click', (event) => {
+  const loginLink = event.target.closest('a[href="/auth/login"]');
+  if (!loginLink) return;
+  if (loginLink.dataset.authLock === '1') {
+    event.preventDefault();
+    return;
+  }
+  loginLink.dataset.authLock = '1';
+  loginLink.setAttribute('aria-disabled', 'true');
+  loginLink.classList.add('cta-disabled');
+}, true);
+
 // Flag di stato dell'applicazione
 let __activeTopic = null;
 let __activeSender = null;
