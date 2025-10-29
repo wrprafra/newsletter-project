@@ -24,6 +24,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from email.utils import parsedate_to_datetime, parseaddr
+from pathlib import Path
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
@@ -42,13 +43,43 @@ logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THR
 
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
-CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "/app/data/user_credentials.json")
-try:
-    with open(CREDENTIALS_PATH, "r") as f:
-        ALL_USER_CREDENTIALS = json.load(f)
-except FileNotFoundError:
-    logging.error(f"File credenziali '{CREDENTIALS_PATH}' non trovato. Il worker non può partire.")
-    exit()
+_BASE_DIR = Path(__file__).resolve().parent
+_DEFAULT_DATA_DIR = _BASE_DIR.parent / "data"
+_data_dir_env = os.getenv("DATA_DIR")
+if _data_dir_env:
+    _candidate_data_dir = Path(_data_dir_env)
+    if not _candidate_data_dir.is_absolute():
+        _candidate_data_dir = (_BASE_DIR.parent / _candidate_data_dir).resolve()
+else:
+    _candidate_data_dir = _DEFAULT_DATA_DIR
+DATA_DIR = _candidate_data_dir
+
+_credentials_path_env = os.getenv("CREDENTIALS_PATH")
+if _credentials_path_env:
+    _credentials_path = Path(_credentials_path_env)
+    if not _credentials_path.is_absolute():
+        _credentials_path = (DATA_DIR / _credentials_path).resolve()
+else:
+    _credentials_path = (DATA_DIR / "user_credentials.json").resolve()
+
+CREDENTIALS_PATH = str(_credentials_path)
+if _credentials_path.exists():
+    try:
+        with open(_credentials_path, "r", encoding="utf-8") as f:
+            ALL_USER_CREDENTIALS = json.load(f)
+    except Exception as exc:
+        logging.error("Impossibile leggere le credenziali da '%s': %s", _credentials_path, exc)
+        ALL_USER_CREDENTIALS = {}
+else:
+    logging.warning(
+        "File credenziali '%s' non trovato. Avvio il worker con archivio vuoto: processerò solo utenti nuovi.",
+        _credentials_path,
+    )
+    try:
+        _credentials_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        logging.debug("Impossibile creare la directory credenziali '%s': %s", _credentials_path.parent, exc)
+    ALL_USER_CREDENTIALS = {}
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 try:
@@ -94,12 +125,14 @@ def bootstrap_requeue(max_items: int = REQUEUE_BOOT_MAX):
 def _save_credentials_all(creds_all: dict):
     """Salva il dizionario completo delle credenziali in modo atomico e sicuro."""
     try:
-        tmp_path = CREDENTIALS_PATH + ".tmp"
+        target_path = Path(CREDENTIALS_PATH)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = target_path.with_suffix(target_path.suffix + ".tmp")
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(creds_all, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, CREDENTIALS_PATH)
+        os.replace(tmp_path, target_path)
         try:
-            os.chmod(CREDENTIALS_PATH, 0o600)
+            os.chmod(target_path, 0o600)
         except (OSError, AttributeError):
             pass
     except Exception as e:

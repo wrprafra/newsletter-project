@@ -246,8 +246,52 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 logging.info("[CFG] OPENAI key present=%s len=%d", bool(OPENAI_API_KEY), len(OPENAI_API_KEY))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PIXABAY_KEY = os.getenv("PIXABAY_KEY")
-SETTINGS_PATH = "user_settings.json"
-CREDENTIALS_PATH = "user_credentials.json"
+_BASE_DIR = Path(__file__).resolve().parent
+_DEFAULT_DATA_DIR = _BASE_DIR.parent / "data"
+_data_dir_env = os.getenv("DATA_DIR")
+if _data_dir_env:
+    _candidate_data_dir = Path(_data_dir_env)
+    if not _candidate_data_dir.is_absolute():
+        _candidate_data_dir = (_BASE_DIR.parent / _candidate_data_dir).resolve()
+else:
+    _candidate_data_dir = _DEFAULT_DATA_DIR
+try:
+    _candidate_data_dir.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    logging.warning("[CFG] Impossibile creare DATA_DIR '%s': %s", _candidate_data_dir, e)
+DATA_DIR = _candidate_data_dir
+
+
+def _resolve_in_data_dir(value: str | None, default_filename: str) -> Path:
+    """Restituisce un Path assoluto, usando DATA_DIR come base se necessario."""
+    if value:
+        candidate = Path(value)
+        if candidate.is_absolute():
+            return candidate
+        return (DATA_DIR / candidate).resolve()
+    return (DATA_DIR / default_filename).resolve()
+
+
+SETTINGS_PATH = str(_resolve_in_data_dir(os.getenv("SETTINGS_PATH"), "user_settings.json"))
+CREDENTIALS_PATH = str(_resolve_in_data_dir(os.getenv("CREDENTIALS_PATH"), "user_credentials.json"))
+_client_secrets_candidate = _resolve_in_data_dir(os.getenv("CLIENT_SECRETS_FILE"), "credentials.json")
+_embedded_client_secrets = _BASE_DIR / "credentials.json"
+if not _client_secrets_candidate.exists():
+    if _embedded_client_secrets.exists():
+        logging.warning(
+            "[CFG] CLIENT_SECRETS_FILE '%s' non trovato. Uso fallback '%s'.",
+            _client_secrets_candidate,
+            _embedded_client_secrets,
+        )
+        _client_secrets_candidate = _embedded_client_secrets
+    else:
+        logging.error(
+            "[CFG] CLIENT_SECRETS_FILE mancante. Percorsi provati: '%s' e fallback '%s'.",
+            _client_secrets_candidate,
+            _embedded_client_secrets,
+        )
+CLIENT_SECRETS_FILE = str(_client_secrets_candidate)
+
 SETTINGS_STORE: Dict[str, Dict[str, Any]] = {}
 CREDENTIALS_STORE: Dict[str, dict] = {}
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
@@ -588,12 +632,14 @@ def load_credentials_store():
             logging.warning(f"[CREDENTIALS] Impossibile caricare le credenziali: {e}")
             CREDENTIALS_STORE = {}
     else:
+        logging.info(f"[CREDENTIALS] Nessun file trovato in {CREDENTIALS_PATH}, avvio archivio vuoto.")
         CREDENTIALS_STORE = {}
 
 def save_credentials_store() -> None:
     try:
+        os.makedirs(Path(CREDENTIALS_PATH).parent, exist_ok=True)
         # Definisci il percorso del file temporaneo
-        tmp_path = CREDENTIALS_PATH + ".tmp"
+        tmp_path = str(Path(CREDENTIALS_PATH + ".tmp"))
 
         # 1. Scrivi i dati nel file temporaneo
         with open(tmp_path, "w", encoding="utf-8") as f:
@@ -919,11 +965,13 @@ def load_settings_store():
         except Exception:
             SETTINGS_STORE = {}
     else:
+        logging.info("[SETTINGS] Nessuna configurazione persistente trovata, uso defaults.")
         SETTINGS_STORE = {}
 
 
 def save_settings_store():
     try:
+        os.makedirs(Path(SETTINGS_PATH).parent, exist_ok=True)
         with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(SETTINGS_STORE, f, ensure_ascii=False, indent=2)
     except Exception:
@@ -1982,7 +2030,11 @@ async def auth_login(request: Request):
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
 
-    flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+    try:
+        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+    except FileNotFoundError:
+        logging.error("[AUTH/LOGIN] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
+        raise HTTPException(status_code=503, detail="Configurazione OAuth mancante. Contatta l'amministratore.")
     
     # <-- INIZIO MODIFICA PKCE -->
     # 1. Genera il code_verifier e il code_challenge per PKCE
@@ -2087,6 +2139,9 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
     try:
         flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+    except FileNotFoundError:
+        logging.error("[AUTH/CALLBACK] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
+        return RedirectResponse("/?auth_error=missing_oauth_config", status_code=303)
         
         pkce_verifier = pending_entry.get("pkce") if pending_entry else None
         if pkce_verifier:
