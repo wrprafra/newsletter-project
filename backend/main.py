@@ -132,6 +132,8 @@ def _clear_pending_auth(request: Request) -> None:
         try: redis_client.delete(_get_pending_auth_key(sid))
         except Exception as e: logging.warning(f"[AUTH] redis del failed: {e}")
     request.session.pop("pending_auth", None)
+    if sid:
+        PENDING_AUTH.pop(sid, None)
 
 def _add_gmail_deep_link_fields(item_dict: dict) -> dict:
     """
@@ -683,7 +685,12 @@ def _pending_auth(request: Request) -> dict:
     if not sid:
         sid = str(uuid.uuid4())
         request.session["sid"] = sid
-    return PENDING_AUTH.setdefault(sid, {})
+    store = PENDING_AUTH.get(sid)
+    if store is None:
+        restored = _load_pending_auth(request)
+        store = dict(restored) if restored else {}
+        PENDING_AUTH[sid] = store
+    return store
 
 def _save_pending_auth(request: Request, data: dict):
     sid = request.session.get("sid")
@@ -697,6 +704,7 @@ def _save_pending_auth(request: Request, data: dict):
             logging.error(f"[AUTH] redis set failed: {e}")
     # fallback sempre
     request.session["pending_auth"] = data
+    PENDING_AUTH[sid] = data
     logging.info(f"[AUTH] save_pending_auth sid={sid} via={'redis+session' if ok else 'session-only'} keys={list(data.keys())}")
 
 def _cleanup_pending_auth(request: Request):
@@ -2151,8 +2159,30 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
 
         pkce_verifier = pending_entry.get("pkce") if pending_entry else None
+        if not pkce_verifier and sid_from_session and nonce and redis_client:
+            try:
+                raw = redis_client.get(_get_pending_auth_nonce_key(sid_from_session, nonce))
+                if isinstance(raw, bytes):
+                    raw = raw.decode("utf-8")
+                if isinstance(raw, str) and raw:
+                    restored_entry = json.loads(raw)
+                    pkce_verifier = (restored_entry or {}).get("pkce") or pkce_verifier
+            except Exception as e:
+                logging.warning("[AUTH/CALLBACK] Impossibile recuperare PKCE da Redis: %s", e)
+        if not pkce_verifier:
+            cookie_pkce = (request.cookies.get("__Host-nl_pkce") or "").strip()
+            if cookie_pkce:
+                pkce_verifier = cookie_pkce
+                logging.info("[AUTH/CALLBACK] Recuperato PKCE dal cookie di backup.")
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
+        else:
+            logging.warning(
+                "[AUTH/CALLBACK] PKCE mancante per sid=%s nonce=%s. Impossibile proseguire.",
+                sid_from_session,
+                nonce,
+            )
+            return RedirectResponse("/?auth_error=pkce_missing", status_code=303)
 
         logging.info(
             "OAUTH: Inizio scambio token.",
@@ -2187,7 +2217,13 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
         # Pulisci il nonce usato
         pa.pop(nonce, None)
-
+        _save_pending_auth(request, pa)
+        if sid_from_session and redis_client:
+            try:
+                redis_client.delete(_get_pending_auth_nonce_key(sid_from_session, nonce))
+            except Exception as e:
+                logging.warning("[AUTH/CALLBACK] Impossibile eliminare PKCE da Redis: %s", e)
+        
         # Avvia i processi in background se è un nuovo utente
         is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
         if is_new_user:
