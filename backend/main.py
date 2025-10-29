@@ -2077,18 +2077,19 @@ async def auth_login(request: Request):
     ).rstrip(b'=').decode()
 
     # 2. Genera l'URL di base
-    auth_url, _ = flow.authorization_url(
+    auth_url, raw_state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
-        state=state,
         code_challenge=code_challenge,
         code_challenge_method="S256"
     )
+    parsed_state = raw_state or state
 
     pa[nonce] = {
-        "pkce": code_verifier,   # <— salva davvero il verifier
+        "pkce": code_verifier,
         "auth_url": auth_url,
+        "state": parsed_state,
         "ts": time.time(),
     }
     _save_pending_auth(request, pa)
@@ -2098,7 +2099,7 @@ async def auth_login(request: Request):
         logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     try:
-        entry = {"pkce": code_verifier}
+        entry = {"pkce": code_verifier, "state": parsed_state}
         # NOTA: Uso redis_client.setex (sincrono), non await redis.setex
         redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
     except Exception as e:
@@ -2167,6 +2168,10 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
     nonce = cast(str, nonce)
 
+    stored_state = pending_entry.get("state")
+    if stored_state:
+        state = stored_state
+
     flow: Flow | None = None
     pkce_verifier: str | None = None
 
@@ -2182,6 +2187,9 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
                 if isinstance(raw, str) and raw:
                     restored_entry = json.loads(raw)
                     pkce_verifier = (restored_entry or {}).get("pkce") or pkce_verifier
+                    stored_state = (restored_entry or {}).get("state") or stored_state
+                    if stored_state:
+                        state = stored_state
             except Exception as e:
                 logging.warning("[AUTH/CALLBACK] Impossibile recuperare PKCE da Redis: %s", e)
         if not pkce_verifier:
