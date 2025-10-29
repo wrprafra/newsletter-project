@@ -2258,7 +2258,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         if sid and redis_client:
             try:
                 if state_flag == "pending":
-                    for _ in range(15):
+                    for _ in range(60):
                         mapped_uid = redis_client.get(f"sid_user:{sid}")
                         if mapped_uid:
                             break
