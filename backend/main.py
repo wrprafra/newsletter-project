@@ -2243,27 +2243,44 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=missing_params", status_code=303, headers={"Cache-Control":"no-store"})
 
     used_key = f"auth:state:used:{state_from_qs}"
-    if redis_client and redis_client.get(used_key):
-        log.info("[AUTH/CALLBACK] Stato già processato. Tento di reidratare la sessione per il doppio callback.")
-        
+    state_flag: str | None = None
+    if redis_client:
+        try:
+            state_flag = cast(str | None, redis_client.get(used_key))
+        except Exception as e:
+            log.warning("[AUTH/CALLBACK] Impossibile leggere lo stato Redis per %s: %s", used_key, e)
+
+    if state_flag:
+        log.info("[AUTH/CALLBACK] Stato %s già presente (%s). Tento di reidratare la sessione per il doppio callback.", state_from_qs, state_flag)
         sid = request.session.get("sid")
         mapped_uid = None
+
         if sid and redis_client:
             try:
-                mapped_uid = redis_client.get(f"sid_user:{sid}")
+                if state_flag == "pending":
+                    for _ in range(15):
+                        mapped_uid = redis_client.get(f"sid_user:{sid}")
+                        if mapped_uid:
+                            break
+                        await asyncio.sleep(0.1)
+                else:
+                    mapped_uid = redis_client.get(f"sid_user:{sid}")
             except Exception as e:
                 log.warning(f"[AUTH/CALLBACK] Errore nel recupero del mapping sid_user da Redis: {e}")
 
         if mapped_uid:
             request.session["user_id"] = mapped_uid
-            # Opzionale ma sicuro: assicurati che l'email non venga persa se era già presente
             request.session.setdefault("user_email", request.session.get("user_email") or "")
             log.info(f"[AUTH/CALLBACK] Sessione reidratata con successo per sid={sid}, user_id={mapped_uid}.")
-        else:
-            log.warning(f"[AUTH/CALLBACK] Nessun mapping user_id trovato per sid={sid}. Il cookie potrebbe non essere aggiornato.")
+            return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
 
-        # Usa il redirect 303 originale qui, è sicuro perché la sessione è stata corretta
-        return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control":"no-store"})
+        log.warning(f"[AUTH/CALLBACK] Stato duplicato rilevato ma nessun mapping user_id per sid={sid}.")
+        if state_flag == "pending" and redis_client:
+            try:
+                redis_client.delete(used_key)
+            except Exception:
+                pass
+        return RedirectResponse("/?auth_error=session_pending", status_code=303, headers={"Cache-Control":"no-store"})
 
     sid_from_state, nonce = (state_from_qs.split(".", 1) if "." in state_from_qs else (None, None))
     sid_from_session = request.session.get("sid")
@@ -2300,6 +2317,12 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         else:
             log.error("[AUTH/CALLBACK] Nonce non valido e nessun utente in sessione. Blocco.")
             return RedirectResponse("/?auth_error=invalid_nonce", status_code=303, headers={"Cache-Control":"no-store"})
+
+    if redis_client:
+        try:
+            redis_client.setex(used_key, 600, "pending")
+        except Exception as e:
+            log.warning("[AUTH/CALLBACK] Impossibile marcare lo stato come pending: %s", e)
 
     try:
         flow = Flow.from_client_secrets_file(
@@ -2341,9 +2364,19 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             return RedirectResponse("/?authenticated=true", status_code=303, headers={"Cache-Control": "no-store"})
 
         log.error("[AUTH/CALLBACK] InvalidGrantError senza sessione esistente: %s", e, exc_info=True)
+        if redis_client:
+            try:
+                redis_client.delete(used_key)
+            except Exception as del_err:
+                log.debug("[AUTH/CALLBACK] Cleanup stato fallito dopo InvalidGrantError: %s", del_err)
         return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
     except Exception as e:
         log.error("[AUTH/CALLBACK] Errore durante fetch_token: %s", e, exc_info=True)
+        if redis_client:
+            try:
+                redis_client.delete(used_key)
+            except Exception as del_err:
+                log.debug("[AUTH/CALLBACK] Cleanup stato fallito dopo eccezione fetch_token: %s", del_err)
         return RedirectResponse("/?auth_error=token_exchange_failed", status_code=303, headers={"Cache-Control":"no-store"})
 
     try:
