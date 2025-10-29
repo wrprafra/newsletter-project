@@ -2149,10 +2149,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
 
     try:
         flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
-    except FileNotFoundError:
-        logging.error("[AUTH/CALLBACK] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
-        return RedirectResponse("/?auth_error=missing_oauth_config", status_code=303)
-        
+
         pkce_verifier = pending_entry.get("pkce") if pending_entry else None
         if pkce_verifier:
             flow.code_verifier = pkce_verifier
@@ -2173,9 +2170,9 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         # Ottieni il profilo utente per avere email e user_id
         profile_service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
         profile = profile_service.userinfo().get().execute()
-        
+
         email = profile.get("email")
-        user_id = profile.get("id") # L'ID numerico di Google è un identificatore stabile
+        user_id = profile.get("id")  # L'ID numerico di Google è un identificatore stabile
 
         if not email or not user_id:
             raise ValueError("Impossibile recuperare email o ID utente dal profilo Google.")
@@ -2187,20 +2184,24 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         # Salva le credenziali usando l'ID UTENTE come chiave
         CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
         save_credentials_store()
-        
+
         # Pulisci il nonce usato
         pa.pop(nonce, None)
-        
+
         # Avvia i processi in background se è un nuovo utente
         is_new_user = not any(Newsletter.select().where(Newsletter.user_id == user_id).limit(1))
         if is_new_user:
             logging.info(f"Nuovo utente registrato: {email} (ID: {user_id}). Avvio ingestione iniziale.")
             bg.add_task(kickstart_initial_ingestion, user_id)
-        
+
         await ensure_user_defaults(user_id)
 
         logging.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
         return RedirectResponse("/?authenticated=true", status_code=303)
+
+    except FileNotFoundError:
+        logging.error("[AUTH/CALLBACK] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
+        return RedirectResponse("/?auth_error=missing_oauth_config", status_code=303)
 
     except InvalidGrantError as e:
         client_id_from_flow = "N/A"
