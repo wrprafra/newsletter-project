@@ -14,9 +14,17 @@ jobs:
 
       - name: Free disk space
         run: |
+          echo "Disk usage before cleanup:"
+          df -h
           sudo rm -rf /usr/local/lib/android || true
-          docker system prune -af || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/hostedtoolcache || true
+          sudo rm -rf /usr/local/share/boost || true
           sudo rm -rf /tmp/* || true
+          sudo docker system prune -af || true
+          sudo docker volume prune -f || true
+          echo "Disk usage after cleanup:"
+          df -h
 
       - name: Login GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
