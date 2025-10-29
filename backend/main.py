@@ -2208,6 +2208,12 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             },
         )
 
+        raw_scope_param = request.query_params.get("scope")
+        if raw_scope_param:
+            norm_scope = [s for s in raw_scope_param.split() if s]
+            if norm_scope:
+                flow.oauth2session.scope = norm_scope
+
         # Esegui lo scambio del token
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
