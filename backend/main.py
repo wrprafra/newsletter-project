@@ -1539,23 +1539,70 @@ class ImportLatestBody(BaseModel):
     mode: t.Optional[str] = "replace"  # "replace" oppure "append"
 
 @app.post("/api/log", status_code=204)
-async def receive_log(log_entry: LogEntry):
+async def receive_log(request: Request):
     """
-    Endpoint per ricevere log dal frontend e scriverli nel file di log del backend.
+    Endpoint robusto per ricevere log dal frontend.
+    Accetta sia il payload tipizzato { level, message } sia fallback generici.
+    Non deve mai generare 422: logga e ritorna 204.
     """
-    # Usa un logger specifico per i log del browser per distinguerli
     browser_logger = logging.getLogger("BROWSER")
-    
-    # Mappa i livelli di log (opzionale ma utile)
+
+    # Mappa livelli conosciuti
     level_map = {
         "error": logging.ERROR,
         "warn": logging.WARNING,
+        "warning": logging.WARNING,
         "info": logging.INFO,
-        "debug": logging.DEBUG
+        "debug": logging.DEBUG,
     }
-    log_level = level_map.get(log_entry.level.lower(), logging.INFO)
-    
-    browser_logger.log(log_level, log_entry.message)
+
+    level = "info"
+    message = None
+
+    try:
+        # Prova prima come JSON
+        data = await request.json()
+        if isinstance(data, dict):
+            level = str(data.get("level") or level).lower()
+            # Preferisci la chiave "message" se presente
+            msg_val = data.get("message")
+            if msg_val is None:
+                # Se non presente, serializza tutto il dict
+                message = json.dumps(data, default=json_serial, ensure_ascii=False)
+            else:
+                # Assicurati di avere una stringa loggabile
+                if not isinstance(msg_val, str):
+                    try:
+                        message = json.dumps(msg_val, default=json_serial, ensure_ascii=False)
+                    except Exception:
+                        message = str(msg_val)
+                else:
+                    message = msg_val
+        else:
+            # Qualsiasi altra forma (lista, ecc.) → serializza
+            try:
+                message = json.dumps(data, default=json_serial, ensure_ascii=False)
+            except Exception:
+                message = str(data)
+    except Exception:
+        # Se non è JSON valido, prendi il corpo raw come testo
+        try:
+            message = (await request.body()).decode("utf-8", errors="replace")
+        except Exception:
+            message = "<unreadable body>"
+
+    # Fallback nel caso qualcosa sia andato storto
+    if message is None:
+        message = "<empty log message>"
+
+    log_level = level_map.get(level, logging.INFO)
+    try:
+        browser_logger.log(log_level, message)
+    except Exception:
+        # Non far mai fallire l'endpoint
+        logging.log(log_level, f"[BROWSER] {message}")
+
+    return Response(status_code=204)
 
 @app.post("/api/photos/import/latest")
 async def import_latest(body: ImportLatestBody, request: Request, authorization: str = Header(None)):

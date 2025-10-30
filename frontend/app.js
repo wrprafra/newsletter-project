@@ -4228,13 +4228,13 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
       }
     });
     console.log('[FEED][resp]', res.status, url);
-      const data = res.ok ? await res.json() : null;
-      if (!data || !data.feed) {
-      console.error('[FEED][bad-json]', res.status, url, await res.text());
-      // Interrompi l'esecuzione se la risposta non è valida
+    const data = res.ok ? await res.json() : null;
+    if (!data || typeof data !== 'object' || !('feed' in data)) {
+      // Evita di rileggere il body (già consumato) per non generare errori
+      console.error('[FEED][bad-json]', res.status, url);
       __inFlight = false;
       return;
-      }
+    }
     console.log('[feed.fetch.ms]', Math.round(performance.now() - t0_fetch), res.headers.get('server-timing'));
 
 
@@ -4876,8 +4876,10 @@ async function mainAppStart() {
 
     if (isLogged) {
       if (loginMessage) {
+        // Nascondi in modo robusto l'hero di login per evitare overlay
         loginMessage.style.display = 'none';
         loginMessage.classList.add('hero-hidden');
+        try { loginMessage.classList.add('hidden'); } catch {}
       }
       showSplash();
       document.getElementById('app-header')?.classList.remove('hidden');
