@@ -64,7 +64,7 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030e';
+window.__ASSET_VERSION = '20251030g';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 try {
   fetch(`${window.API_URL}/log`, {
@@ -232,6 +232,16 @@ function ptrHideLoading(token) {
   if (PTR_LOADERS.size === 0) {
     ptr.classList.remove('ptr--loading');
   }
+  ptrUpdateHint();
+}
+
+// Failsafe: rimuove qualsiasi stato di loading del PTR
+function ptrForceClear() {
+  try {
+    PTR_LOADERS.clear();
+  } catch {}
+  const ptr = document.getElementById('ptr');
+  if (ptr) ptr.classList.remove('ptr--loading');
   ptrUpdateHint();
 }
 
@@ -1473,6 +1483,7 @@ async function autoIngestAndLoad(options = {}) {
   __autoIngesting = true;
   const releasePtr = () => {
     if (token) ptrHideLoading(token);
+    else if (!window.__isIngesting && !window.__autoIngesting) ptrForceClear();
   };
   try {
     const payload = { batch: 5, pages: 1, target: 25, ...apiParams };
@@ -1688,12 +1699,14 @@ function handleIngestionState(jobId, { onDone, onError } = {}) {
     feLog('info', 'sse.closed', { jobId });
   };
 
-  const finish = (isSuccess, meta) => {
-    if (finished) return;
-    finished = true;
-    __sseOpen = false;
-    try { processSseUpdateQueue(); } catch {} // <-- MODIFICA: Esegui un ultimo flush della coda
-    toggleLoadingMessage(false);
+    const finish = (isSuccess, meta) => {
+      if (finished) return;
+      finished = true;
+      __sseOpen = false;
+      try { processSseUpdateQueue(); } catch {} // <-- MODIFICA: Esegui un ultimo flush della coda
+      toggleLoadingMessage(false);
+      // Failsafe: se non ci sono ingestion attive, pulisci qualsiasi loader PTR rimasto
+      if (!window.__isIngesting && !window.__autoIngesting) ptrForceClear();
     
     const waiters = (es?.__waiters || []);
     for (const w of waiters) {
@@ -1812,6 +1825,11 @@ function isStandaloneDisplayMode() {
 }
 
 // app.js
+function buildPlaceholderUrl(emailId) {
+  const seed = encodeURIComponent(String(emailId || 'ph'));
+  return `https://picsum.photos/seed/${seed}/800/450`;
+}
+
 function setCardImage(imgEl, url, isInternal) {
   if (!imgEl || !url) return;
 
@@ -1819,8 +1837,6 @@ function setCardImage(imgEl, url, isInternal) {
   if (currentEffectiveSrc === url) {
     return;
   }
-
-  // Rimosso il controllo 'imgLocked' che bloccava gli aggiornamenti
 
   imgEl.loading = 'lazy';
   imgEl.decoding = 'async';
@@ -1846,14 +1862,41 @@ function setCardImage(imgEl, url, isInternal) {
       imgEl.setAttribute('crossorigin', 'anonymous');
       imgEl.setAttribute('referrerpolicy', 'no-referrer');
     }
-  } catch (e) {}
+  } catch {}
 
-  // Rimosso l'event listener che impostava 'imgLocked'
-  
   const updatingClass = 'updating-image';
   const done = () => imgEl.classList.remove(updatingClass);
   imgEl.addEventListener('load', done, { once: true });
-  imgEl.addEventListener('error', done, { once: true });
+
+  // Pipeline di fallback robusta: proxy → originale → placeholder
+  const emailId = imgEl.dataset.emailId || imgEl.closest('.feed-card')?.dataset.emailId || '';
+  const original = (() => {
+    try {
+      const u = new URL(url, window.location.origin);
+      return u.pathname.startsWith('/api/img') ? (u.searchParams.get('u') || '') : '';
+    } catch { return ''; }
+  })();
+
+  let step = 0; // 0: primary, 1: original, 2: placeholder
+  const tryNext = () => {
+    step++;
+    // Rimuovi eventuale srcset quando vai su placeholder
+    if (step >= 2) imgEl.removeAttribute('srcset');
+    if (step === 1 && original) {
+      // prova URL originale diretto
+      try { imgEl.setAttribute('crossorigin', 'anonymous'); imgEl.setAttribute('referrerpolicy', 'no-referrer'); } catch {}
+      imgEl.src = original;
+      return;
+    }
+    // placeholder finale
+    imgEl.dataset.fallback = '1';
+    imgEl.src = buildPlaceholderUrl(emailId);
+  };
+
+  imgEl.addEventListener('error', () => {
+    done();
+    if (step < 2) tryNext();
+  }, { once: true });
 
   imgEl.classList.add(updatingClass);
   imgEl.src = url;
@@ -4341,30 +4384,25 @@ function mergeFeedMemory(pageItems = [], { prepend = false } = {}) {
     }
   }
 
+  // Assicura ordinamento temporale stabile (più recenti in alto).
+  // Tie-break su email_id (desc) per un cursore coerente con il backend.
+  const cmp = (a, b) => {
+    const ta = Date.parse(a?.received_date) || 0;
+    const tb = Date.parse(b?.received_date) || 0;
+    if (tb !== ta) return tb - ta;
+    const ida = String(a?.email_id ?? '');
+    const idb = String(b?.email_id ?? '');
+    return idb.localeCompare(ida);
+  };
+  allFeedItems.sort(cmp);
+
   recomputeDomainCounts(allFeedItems);
 
   if (domainDropdown && !domainDropdown.classList.contains('hidden')) {
     renderDomainDropdown(domainSearch?.value || "");
   }
 
-  let breakIdx = -1;
-  for (let i = 1; i < allFeedItems.length; i++) {
-    const prev = new Date(allFeedItems[i - 1].received_date).getTime();
-    const cur = new Date(allFeedItems[i].received_date).getTime();
-    if (!(prev >= cur)) {
-      breakIdx = i;
-      break;
-    }
-  }
-  if (breakIdx >= 0) {
-    feLog('warn', 'order.break', {
-      i: breakIdx,
-      prev_id: allFeedItems[breakIdx - 1]?.email_id,
-      prev_dt: allFeedItems[breakIdx - 1]?.received_date,
-      cur_id: allFeedItems[breakIdx]?.email_id,
-      cur_dt: allFeedItems[breakIdx]?.received_date
-    });
-  }
+  // Dopo il sort non dovremmo avere discontinuità.
 }
 
 

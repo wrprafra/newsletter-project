@@ -25,6 +25,8 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from email.utils import parsedate_to_datetime, parseaddr
 from pathlib import Path
+import boto3
+from botocore.config import Config as BotoConfig
 import shutil
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
@@ -43,6 +45,52 @@ THREAD_DEDUP_MODE = os.getenv("THREAD_DEDUP_MODE", "skip").lower()
 logging.info(f"Modalità deduplicazione thread impostata: THREAD_DEDUP_MODE={THREAD_DEDUP_MODE}")
 
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+
+# --- R2 (Cloudflare) ---
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
+R2_BUCKET = os.getenv("R2_BUCKET", "newsletter-images-dev")
+R2_PUBLIC_BASE_URL = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+
+def _r2_client():
+    if not (R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_BUCKET and R2_PUBLIC_BASE_URL):
+        return None
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        config=BotoConfig(signature_version="s3v4"),
+        region_name="auto",
+    )
+
+_R2_CLIENT = None
+def _get_r2():
+    global _R2_CLIENT
+    if _R2_CLIENT is None:
+        try:
+            _R2_CLIENT = _r2_client()
+        except Exception:
+            _R2_CLIENT = None
+    return _R2_CLIENT
+
+def _slugify_kw(s: str) -> str:
+    import re as _re
+    s = _re.sub(r"\s+", " ", (s or "").strip().lower())
+    s = s.replace("&", " e ")
+    s = _re.sub(r"[^a-z0-9\- ]", "", s)
+    s = s.replace(" ", "-")
+    s = _re.sub(r"-{2,}", "-", s).strip("-")
+    return s or "news"
+
+def _r2_public_url(key: str) -> str:
+    return f"{R2_PUBLIC_BASE_URL}/{key.lstrip('/')}"
+
+def _make_r2_key(keyword: str, ext: str = "jpg") -> str:
+    ts = datetime.utcnow()
+    slug = _slugify_kw(keyword)
+    return f"{ts:%Y/%m}/{uuid.uuid4().hex}_{slug}.{ext}"
 
 _BASE_DIR = Path(__file__).resolve().parent
 _DEFAULT_DATA_DIR = _BASE_DIR.parent / "data"
@@ -388,6 +436,24 @@ async def process_job(job_payload: dict):
                                 redis_client.setex("pixabay:block_until_epoch", PIXABAY_BLOCK_SEC, until)
                                 image_url = None
                         if image_url:
+                            # Prova a re-hostare immediatamente su R2 per ridurre errori futuri
+                            try:
+                                r2c = _get_r2()
+                                if r2c and image_url:
+                                    resp = await SHARED_HTTP_CLIENT.get(image_url, timeout=15.0, follow_redirects=True)
+                                    resp.raise_for_status()
+                                    body_bytes = resp.content
+                                    ct = (resp.headers.get('content-type') or 'image/jpeg').split(';',1)[0].lower()
+                                    ext = 'jpg'
+                                    if ct.endswith('png'): ext = 'png'
+                                    elif ct.endswith('webp'): ext = 'webp'
+                                    key = _make_r2_key(kw, ext=ext)
+                                    r2c.put_object(Bucket=R2_BUCKET, Key=key, Body=body_bytes, ContentType=ct)
+                                    image_url = _r2_public_url(key)
+                                    logw("r2_upload_ok", email_id=email_id, key=key)
+                            except Exception as e:
+                                logw("r2_upload_fail", email_id=email_id, error=str(e))
+
                             redis_client.setex(cache_key, PIXABAY_CACHE_TTL, image_url)
                             logw("pixabay_hit", email_id=email_id, image_url=image_url)
                         else:
