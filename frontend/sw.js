@@ -1,6 +1,7 @@
 // sw.js — Progressive runtime caching (safe + fast)
 
-const VERSION = 'v2.3'; // Versione incrementata per forzare l'aggiornamento
+const VERSION = 'v2.4'; // Versione incrementata per forzare l'aggiornamento
+const ASSET_VERSION = '20251030a';
 const C_STATIC = `static-${VERSION}`;
 const C_IMAGES = `images-${VERSION}`;
 const C_API    = `api-${VERSION}`;
@@ -9,10 +10,12 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/app.js',
+  `/app.js?v=${ASSET_VERSION}`,
   '/feed-api.js',
   '/feed-store.js',
   '/feed-view.js',
   '/style.css',
+  `/style.css?v=${ASSET_VERSION}`,
   '/manifest.json', // <-- FIX 1: Aggiunto manifest.json
   '/img/the-gist-icon.png',
   '/img/loading.gif',

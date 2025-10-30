@@ -64,6 +64,8 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
+window.__ASSET_VERSION = '20251030a';
+console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 
 function dlog(group, obj = {}) {
   if (!window.__DEBUG_FEED) return;
