@@ -1340,7 +1340,14 @@ def gmail_message_cid(msg_id: str, cid: str, request: Request):
 SESSION_DOMAIN = os.getenv("SESSION_DOMAIN")  # es: ".thegist.tech"
 IS_PROD = bool(SESSION_DOMAIN)
 
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
+"""
+OAuth redirect handling
+Prefer a dynamic redirect based on the incoming request (proxy-aware) to avoid
+production misconfigurations when REDIRECT_URI is not set. If REDIRECT_URI is
+provided explicitly via ENV it will be honored; otherwise we derive it at
+runtime using request.url_for("auth_callback").
+"""
+REDIRECT_URI_ENV = os.getenv("REDIRECT_URI") or None
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 FRONTEND_ORIGINS = [
     FRONTEND_ORIGIN,
@@ -1350,7 +1357,7 @@ FRONTEND_ORIGINS = [
 ]
 SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "False").strip().lower() in {"true","1","t","yes","y"}
 
-logging.info("[CFG] REDIRECT_URI: %s", REDIRECT_URI)
+logging.info("[CFG] REDIRECT_URI_ENV: %s", REDIRECT_URI_ENV)
 logging.info("[CFG] FRONTEND_ORIGIN: %s", FRONTEND_ORIGIN)
 logging.info("[CFG] SESSION_HTTPS_ONLY: %s", SESSION_HTTPS_ONLY)
 
@@ -2099,6 +2106,18 @@ async def create_photos_picker_session(request: Request, authorization: str = He
         raise HTTPException(status_code=502, detail="Errore di rete verso PhotosPicker")
     
 # --- ENDPOINTS ---
+def _effective_redirect_uri(request: Request) -> str:
+    """Compute the effective OAuth redirect URI.
+    If an explicit REDIRECT_URI is configured, use it; otherwise derive from the
+    current request (honors proxy headers thanks to --proxy-headers).
+    """
+    try:
+        return REDIRECT_URI_ENV or str(request.url_for("auth_callback"))
+    except Exception:
+        # Fallback to localhost if url_for fails for any reason (dev only path)
+        return "http://localhost:8000/auth/callback"
+
+
 @app.get("/auth/login")
 async def auth_login(request: Request):
     ua = request.headers.get("user-agent","-")
@@ -2125,7 +2144,12 @@ async def auth_login(request: Request):
     state = f"{sid}.{nonce}"
 
     try:
-        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+        effective_redirect = _effective_redirect_uri(request)
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRETS_FILE,
+            scopes=SCOPES,
+            redirect_uri=effective_redirect,
+        )
     except FileNotFoundError:
         logging.error("[AUTH/LOGIN] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
         raise HTTPException(status_code=503, detail="Configurazione OAuth mancante. Contatta l'amministratore.")
@@ -2169,7 +2193,7 @@ async def auth_login(request: Request):
         raise HTTPException(status_code=500, detail="Auth store non disponibile")
     # <-- FINE MODIFICA PKCE -->
 
-    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, REDIRECT_URI)
+    logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, effective_redirect)
     
     # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
@@ -2245,7 +2269,12 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     pkce_verifier: str | None = None
 
     try:
-        flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI)
+        effective_redirect = _effective_redirect_uri(request)
+        flow = Flow.from_client_secrets_file(
+            CLIENT_SECRETS_FILE,
+            scopes=SCOPES,
+            redirect_uri=effective_redirect,
+        )
 
         pkce_verifier = pending_entry.get("pkce") if pending_entry else None
         if not pkce_verifier and sid_from_session and nonce and redis_client:
@@ -2279,7 +2308,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         logging.info(
             "OAUTH: Inizio scambio token.",
             extra={
-                "redirect_uri": REDIRECT_URI,
+                "redirect_uri": effective_redirect,
                 "state_prefix": state[:8],
                 "has_verifier": bool(pkce_verifier),
             },
@@ -2355,7 +2384,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             extra={
                 "reason": getattr(e, "description", str(e))[:200],
                 "hint": getattr(e, "uri", None),
-                "redirect_uri_usato": REDIRECT_URI,
+                "redirect_uri_usato": effective_redirect,
                 "has_verifier": bool(pkce_verifier),
                 "client_id_tail": client_id_from_flow[-6:],
             },
