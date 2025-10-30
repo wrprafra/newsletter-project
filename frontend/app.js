@@ -64,8 +64,40 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030a';
+window.__ASSET_VERSION = '20251030b';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
+try {
+  fetch(`${window.API_URL}/log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      level: 'info',
+      message: `[FRONTEND_BOOT] ${window.__ASSET_VERSION} ua=${navigator.userAgent || 'n/a'}`
+    })
+  }).catch(() => {});
+} catch (err) {
+  console.warn('[FRONTEND_BOOT] ping fallito', err);
+}
+
+window.addEventListener('error', (event) => {
+  try {
+    logToServer('error', '[window.error]', {
+      message: event.message || null,
+      filename: event.filename || null,
+      lineno: event.lineno || null,
+      colno: event.colno || null
+    });
+  } catch (_) {}
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  try {
+    logToServer('error', '[window.unhandledrejection]', {
+      reason: event.reason ? String(event.reason) : null
+    });
+  } catch (_) {}
+});
 
 function dlog(group, obj = {}) {
   if (!window.__DEBUG_FEED) return;

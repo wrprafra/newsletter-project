@@ -1,7 +1,7 @@
 // sw.js — Progressive runtime caching (safe + fast)
 
-const VERSION = 'v2.4'; // Versione incrementata per forzare l'aggiornamento
-const ASSET_VERSION = '20251030a';
+const VERSION = 'v2.5'; // Versione incrementata per forzare l'aggiornamento
+const ASSET_VERSION = '20251030b';
 const C_STATIC = `static-${VERSION}`;
 const C_IMAGES = `images-${VERSION}`;
 const C_API    = `api-${VERSION}`;
