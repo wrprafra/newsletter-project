@@ -24,7 +24,11 @@ async function logToServer(level, ...args) {
         return redact(String(a));
       }
     });
-    const payload = safeStringify({ level, message });
+    const messageString = message.map(part => {
+      if (typeof part === 'string') return part;
+      try { return JSON.stringify(part); } catch { return String(part); }
+    }).join(' | ');
+    const payload = safeStringify({ level, message: messageString });
 
     if (document.visibilityState === 'hidden' && navigator.sendBeacon) {
       const blob = new Blob([payload], { type: 'application/json' });
@@ -1151,6 +1155,7 @@ FEED_STATE.everLoaded = false;
     console.log('[CFG] BACKEND_BASE:', window.BACKEND_BASE);
     
     // 3. Segna l'applicazione come pronta per iniziare
+    console.log('[CFG] Boot ready via fetch.');
     window.__markBootReady?.();
     window.__markBootReady = undefined;
 
@@ -4775,9 +4780,11 @@ async function mainAppStart() {
   feedContainer = document.getElementById('feed-container');
   loginMessage  = document.getElementById('login-message');
 
+  console.log('[JS-DEBUG] mainAppStart: attendo bootReady...');
   while (!__bootReady) {
     await new Promise(r => setTimeout(r, 50));
   }
+  console.log('[JS-DEBUG] mainAppStart: bootReady OK.');
   
   const stopBoot = () => document.body.classList.remove('booting');
 
@@ -4786,6 +4793,7 @@ async function mainAppStart() {
     const didAuth = url.searchParams.get('authenticated') === 'true';
 
     async function checkAuthOnce() {
+      console.log('[JS-DEBUG] checkAuthOnce: chiamata /api/auth/me');
       const r = await fetch(`${window.BACKEND_BASE}/api/auth/me`, {
         credentials: 'include',
         cache: 'no-store'
