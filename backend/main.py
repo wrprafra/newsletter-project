@@ -1406,6 +1406,10 @@ class UserSettingsIn(BaseModel):
     preferred_image_source: t.Optional[str] = Field(default=None, description="pixabay | google_photos")
     hidden_domains: t.Optional[list[str]] = Field(default=None, description="lista domini da nascondere")
 
+# Feature flag: abilita/disabilita PKCE per OAuth (default: abilitato).
+# Se disabilitato, il flusso usa client_secret del client web e non imposta code_challenge.
+OAUTH_PKCE_ENABLED = os.getenv("OAUTH_PKCE_ENABLED", "true").strip().lower() in {"1","true","yes","on"}
+
 @router_api.get("/auth/me")  # Spostato su router_api per mantenere il prefisso /api
 async def auth_me(request: Request):
     user_id = request.session.get("user_id")
@@ -2154,58 +2158,64 @@ async def auth_login(request: Request):
         logging.error("[AUTH/LOGIN] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
         raise HTTPException(status_code=503, detail="Configurazione OAuth mancante. Contatta l'amministratore.")
     
-    # <-- INIZIO MODIFICA PKCE -->
-    # 1. Genera il code_verifier e il code_challenge per PKCE
-    code_verifier = secrets.token_urlsafe(96)[:128]
-    code_challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(code_verifier.encode()).digest()
-    ).rstrip(b'=').decode()
+    # <-- INIZIO MODIFICA: PKCE opzionale -->
+    use_pkce = OAUTH_PKCE_ENABLED
+    code_verifier = None
+    extra_kwargs = {
+        "access_type": "offline",
+        "include_granted_scopes": "true",
+        "prompt": "consent",
+        "state": state,
+    }
+    if use_pkce:
+        code_verifier = secrets.token_urlsafe(96)[:128]
+        code_challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode()).digest()
+        ).rstrip(b'=').decode()
+        extra_kwargs.update({
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+        })
 
     # 2. Genera l'URL di base
-    auth_url, raw_state = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent",
-        state=state,
-        code_challenge=code_challenge,
-        code_challenge_method="S256"
-    )
+    auth_url, raw_state = flow.authorization_url(**extra_kwargs)
     parsed_state = raw_state or state
 
     pa[nonce] = {
-        "pkce": code_verifier,
+        **({"pkce": code_verifier} if use_pkce and code_verifier else {}),
         "auth_url": auth_url,
         "state": parsed_state,
         "ts": time.time(),
     }
     _save_pending_auth(request, pa)
 
-    # 3. Salva il code_verifier su Redis per il recupero nel callback
-    if not redis_client:
-        logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce.")
-        raise HTTPException(status_code=500, detail="Auth store non disponibile")
-    try:
-        entry = {"pkce": code_verifier, "state": parsed_state}
-        # NOTA: Uso redis_client.setex (sincrono), non await redis.setex
-        redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
-    except Exception as e:
-        logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
-        raise HTTPException(status_code=500, detail="Auth store non disponibile")
+    # 3. Salva il code_verifier su Redis per il recupero nel callback (solo se PKCE attivo)
+    if use_pkce:
+        if not redis_client:
+            logging.error("[AUTH/LOGIN] Redis non disponibile: impossibile salvare il nonce (PKCE on).")
+            raise HTTPException(status_code=500, detail="Auth store non disponibile")
+        try:
+            entry = {"pkce": code_verifier, "state": parsed_state}
+            redis_client.setex(_get_pending_auth_nonce_key(sid, nonce), AUTH_PENDING_TTL, json.dumps(entry))
+        except Exception as e:
+            logging.error(f"[AUTH/LOGIN] Redis setex failed: {e}")
+            raise HTTPException(status_code=500, detail="Auth store non disponibile")
     # <-- FINE MODIFICA PKCE -->
 
     logging.info("[AUTH/LOGIN] saved sid=%s nonce=%s redirect_uri=%s", sid, nonce, effective_redirect)
     
     # 4. Prepara la risposta con il cookie di backup (logica invariata ma ora corretta)
     response = RedirectResponse(auth_url, status_code=303, headers={"Cache-Control":"no-store"})
-    response.set_cookie(
-        "__Host-nl_pkce",
-        value=code_verifier,
-        max_age=600,      # 10 minuti bastano
-        path="/",
-        secure=True,
-        httponly=True,
-        samesite="none",
-    )
+    if use_pkce and code_verifier:
+        response.set_cookie(
+            "__Host-nl_pkce",
+            value=code_verifier,
+            max_age=600,      # 10 minuti bastano
+            path="/",
+            secure=True,
+            httponly=True,
+            samesite="none",
+        )
 
     return response
 
@@ -2276,34 +2286,35 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             redirect_uri=effective_redirect,
         )
 
-        pkce_verifier = pending_entry.get("pkce") if pending_entry else None
-        if not pkce_verifier and sid_from_session and nonce and redis_client:
-            try:
-                raw = redis_client.get(_get_pending_auth_nonce_key(sid_from_session, nonce))
-                if isinstance(raw, bytes):
-                    raw = raw.decode("utf-8")
-                if isinstance(raw, str) and raw:
-                    restored_entry = json.loads(raw)
-                    pkce_verifier = (restored_entry or {}).get("pkce") or pkce_verifier
-                    stored_state = (restored_entry or {}).get("state") or stored_state
-                    if stored_state:
-                        state = stored_state
-            except Exception as e:
-                logging.warning("[AUTH/CALLBACK] Impossibile recuperare PKCE da Redis: %s", e)
-        if not pkce_verifier:
-            cookie_pkce = (request.cookies.get("__Host-nl_pkce") or "").strip()
-            if cookie_pkce:
-                pkce_verifier = cookie_pkce
-                logging.info("[AUTH/CALLBACK] Recuperato PKCE dal cookie di backup.")
-        if pkce_verifier:
-            flow.code_verifier = pkce_verifier
-        else:
-            logging.warning(
-                "[AUTH/CALLBACK] PKCE mancante per sid=%s nonce=%s. Impossibile proseguire.",
-                sid_from_session,
-                nonce,
-            )
-            return RedirectResponse("/?auth_error=pkce_missing", status_code=303)
+        if OAUTH_PKCE_ENABLED:
+            pkce_verifier = pending_entry.get("pkce") if pending_entry else None
+            if not pkce_verifier and sid_from_session and nonce and redis_client:
+                try:
+                    raw = redis_client.get(_get_pending_auth_nonce_key(sid_from_session, nonce))
+                    if isinstance(raw, bytes):
+                        raw = raw.decode("utf-8")
+                    if isinstance(raw, str) and raw:
+                        restored_entry = json.loads(raw)
+                        pkce_verifier = (restored_entry or {}).get("pkce") or pkce_verifier
+                        stored_state = (restored_entry or {}).get("state") or stored_state
+                        if stored_state:
+                            state = stored_state
+                except Exception as e:
+                    logging.warning("[AUTH/CALLBACK] Impossibile recuperare PKCE da Redis: %s", e)
+            if not pkce_verifier:
+                cookie_pkce = (request.cookies.get("__Host-nl_pkce") or "").strip()
+                if cookie_pkce:
+                    pkce_verifier = cookie_pkce
+                    logging.info("[AUTH/CALLBACK] Recuperato PKCE dal cookie di backup.")
+            if pkce_verifier:
+                flow.code_verifier = pkce_verifier
+            else:
+                logging.warning(
+                    "[AUTH/CALLBACK] PKCE mancante per sid=%s nonce=%s. Impossibile proseguire (PKCE on).",
+                    sid_from_session,
+                    nonce,
+                )
+                return RedirectResponse("/?auth_error=pkce_missing", status_code=303)
 
         logging.info(
             "OAUTH: Inizio scambio token.",
