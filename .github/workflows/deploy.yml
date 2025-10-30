@@ -29,13 +29,21 @@ jobs:
       - name: Login GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
-      - name: Build image
+      - name: Build image (latest + timestamp tag)
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:latest"
-          docker build -t "$IMAGE" .
+          IMAGE_BASE="ghcr.io/${{ github.repository }}"
+          TAG_LATEST="latest"
+          TAG_TS="$(date +%Y%m%d%H%M%S)"
+          echo "Building $IMAGE_BASE:$TAG_LATEST and $IMAGE_BASE:$TAG_TS"
+          docker build -t "$IMAGE_BASE:$TAG_LATEST" -t "$IMAGE_BASE:$TAG_TS" .
 
-      - name: Push image
-        run: docker push "ghcr.io/${{ github.repository }}:latest"
+      - name: Push image (latest + timestamp)
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository }}"
+          TAG_LATEST="latest"
+          TAG_TS="$(date +%Y%m%d%H%M%S)"
+          docker push "$IMAGE_BASE:$TAG_LATEST"
+          docker push "$IMAGE_BASE:$TAG_TS"
 
   deploy:
     needs: build-push
@@ -83,6 +91,17 @@ jobs:
             # Login a GHCR per poter scaricare l'immagine privata
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
+            # Aggiorna/crea .env con chiavi frontend/session richieste
+            touch .env
+            cp -a .env ".env.bak.$(date +%Y%m%d%H%M%S)" || true
+            set_env() { k="$1"; v="$2"; if grep -qE "^$k=" .env; then sed -i -E "s|^$k=.*|$k=$v|" .env; else printf '%s=%s\n' "$k" "$v" >> .env; fi; }
+            set_env FRONTEND_ORIGIN https://app.thegist.tech
+            set_env REDIRECT_URI https://app.thegist.tech/auth/callback
+            set_env SESSION_DOMAIN .thegist.tech
+            set_env SESSION_HTTPS_ONLY True
+            echo "--- .env (chiavi aggiornate) ---"
+            grep -E '^(FRONTEND_ORIGIN|REDIRECT_URI|SESSION_DOMAIN|SESSION_HTTPS_ONLY)=' .env || true
+
             # Scarica l'ultima versione dell'immagine e avvia i container
             docker compose pull
             docker compose up -d
@@ -92,3 +111,15 @@ jobs:
             docker compose ps
             echo "--- Log recenti dell'app ---"
             docker compose logs --no-color --tail=100 app || true
+
+            # Sanity check: /debug/oauth-config deve mostrare il redirect corretto
+            echo "--- Sanity: /debug/oauth-config ---"
+            if command -v curl >/dev/null 2>&1; then
+              cfg_json=$(curl -fsS https://app.thegist.tech/debug/oauth-config || true)
+              echo "$cfg_json" | sed -E 's/.{160}/&\n/g' || true
+              if echo "$cfg_json" | grep -q '"redirect_uri_effective"\s*:\s*"https://app.thegist.tech/auth/callback"'; then
+                echo "Sanity OK: redirect_uri_effective corretto"
+              else
+                echo "ATTENZIONE: redirect_uri_effective non corrisponde, verifica proxy/ENV" >&2
+              fi
+            fi

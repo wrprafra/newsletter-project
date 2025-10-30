@@ -4836,10 +4836,31 @@ async function mainAppStart() {
       return r.json();
     }
 
+    // Rimuovi subito il marker dall'URL per evitare confusione visiva
+    if (didAuth) {
+      try {
+        url.searchParams.delete('authenticated');
+        history.replaceState({}, '', url.toString());
+      } catch {}
+    }
+
+    // Se torniamo dal login, attendi in modo più robusto la sessione
     let me = await checkAuthOnce();
     if (!me && didAuth) {
-      for (let i = 0; i < 6 && !me; i++) {
-        await new Promise(r => setTimeout(r, 200));
+      // Ottimismo UI: mostra skeleton e header mentre aspettiamo i cookie
+      try {
+        document.getElementById('login-message')?.classList.add('hero-hidden');
+        document.getElementById('login-message')?.setAttribute('style','display:none');
+        document.getElementById('app-header')?.classList.remove('hidden');
+        document.getElementById('app-footer')?.classList.remove('hidden');
+        document.getElementById('ptr')?.classList.remove('hidden');
+        showSplash();
+        showInitialSkeletons();
+      } catch {}
+
+      const MAX_ATTEMPTS = 40; // ~10s con 250ms
+      for (let i = 0; i < MAX_ATTEMPTS && !me; i++) {
+        await new Promise(r => setTimeout(r, 250));
         me = await checkAuthOnce();
       }
     }
@@ -4922,11 +4943,7 @@ async function mainAppStart() {
 
       }, 250);
 
-      // Pulisce l'URL dal parametro di autenticazione dopo il primo caricamento
-      try {
-          url.searchParams.delete('authenticated');
-          history.replaceState({}, '', url.toString());
-      } catch {}
+      // Parametro già ripulito sopra se presente
 
     } else {
       hideSplash(true);
