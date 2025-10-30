@@ -34,6 +34,26 @@ PIXABAY_FALLBACK_IMAGE_URL = os.getenv(
 )
 
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
+
+# Adattatori di prompt per tipologia (usati da get_ai_summary)
+TYPE_PROMPT_ADAPTERS: dict[str, str] = {
+    "newsletter": (
+        "Adatta il tono a una newsletter editoriale. Evidenzia 1–2 takeaway pratici. "
+        "Se presenti più temi/sezioni, costruisci un titolo sintetico che li unisce. "
+        "Evita CTA e marketingese."
+    ),
+    "promo": (
+        "Metti in evidenza: valore dell'offerta (es. %/prezzo), scadenza/urgenza e requisiti (codice, piano, area). "
+        "Titolo orientato al beneficio. Linguaggio sobrio, niente emoji."
+    ),
+    "personali": (
+        "Riassumi in 2–3 punti cosa viene richiesto/proposto e quali azioni sono attese. "
+        "Titolo = azione principale. Evita saluti e dettagli superflui."
+    ),
+    "informative": (
+        "Punta su fatti chiave: cosa cambia, per chi e da quando. Titolo chiaro e diretto."
+    ),
+}
 TOPIC_VOCAB = [
     "tecnologia", "ai", "coding", "design", "marketing", "ecommerce", "finanza",
     "investimenti", "legale", "fiscale", "lavoro", "carriera", "formazione",
@@ -246,11 +266,14 @@ def extract_domain_from_from_header(h: Optional[str]) -> str:
     
 # --- FUNZIONI DI ARRICCHIMENTO (AI E IMMAGINI) ---
 
-async def get_ai_summary(content: str, client: httpx.AsyncClient) -> dict:
+async def get_ai_summary(content: str, client: httpx.AsyncClient, type_tag: str | None = None) -> dict:
     raw = content or ""
     clean_content = clean_html(raw)[:4000]
 
-    instructions = """
+    type_tag_norm = (type_tag or "").strip().lower()
+    adapter = TYPE_PROMPT_ADAPTERS.get(type_tag_norm, "")
+
+    instructions = f"""
 Developer: # Ruolo e Obiettivo
 
 Sintetizzare il contenuto delle newsletter in un riassunto adatto a un feed in stile Instagram. Obiettivo: dare subito un’idea chiara del tema e un beneficio pratico per il lettore (es. come applicarlo in UX/copy/design).
@@ -307,6 +330,7 @@ Esempio previsto:
   "title": "Illusione della parola ripetuta",
   "summary_markdown": "Perché il cervello **salta** parole comuni.\n\nCos’è (breve), come influisce su **lettura** e **attenzione**. Indicazioni di **layout** applicabili."
 }
+{("\n\nAdattamento specifico per tipologia:\n" + adapter) if adapter else ""}
 """
 
     user_input = f"Testo da analizzare:\n---\n{clean_html(content)[:4000]}\n---"
@@ -512,13 +536,26 @@ def root_domain_py(url: str) -> str:
         return ".".join(parts[-2:])
     return host
 
-async def get_ai_keyword(content: str, client: httpx.AsyncClient) -> str:
+async def get_ai_keyword(content: str, client: httpx.AsyncClient, type_tag: str | None = None) -> str:
     base = clean_html(content)[:2000]
-    instructions = """
+    t = (type_tag or "").strip().lower()
+    adapter = {
+        # Offerte: oggetti/prodotti/beneficio visivo (es. "discount tag", "checkout", "gift box")
+        "promo": "Scegli una keyword visuale legata a offerta/prodotto/beneficio (es. coupon, price tag, delivery, gift).",
+        # Personali: azione/oggetto della comunicazione (es. "meeting notes", "calendar", "reply letter")
+        "personali": "Scegli una keyword visuale che evochi l'azione richiesta (es. reply, calendar, checklist, contract).",
+        # Informative: oggetto/fatto (es. "shield", "policy document", "update bell")
+        "informative": "Scegli un simbolo neutro e chiaro del cambiamento/comunicazione (es. document, shield, update bell).",
+        # Newsletter editoriali: tema/ambito (es. "growth chart", "design sketch", "code editor")
+        "newsletter": "Scegli un oggetto che rappresenti il tema (es. growth chart, code editor, design sketch).",
+    }.get(t, "")
+
+    instructions = f"""
     Analizza il testo di una newsletter. Restituisci un oggetto JSON con una singola chiave "keyword".
     Il valore deve essere una frase di 1-3 parole in inglese, concreta e visivamente rappresentabile.
     Evita termini generici come "news" o "update" e nomi di brand.
-    """ # Il prompt rimane invariato
+    {adapter}
+    """
     try:
         if not OPENAI_API_KEY: raise ValueError("OpenAI API Key non trovata.")
         payload = {

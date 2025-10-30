@@ -64,6 +64,9 @@ from backend.processing_utils import (
     extract_domain_from_from_header,
     get_ai_keyword,
     get_pixabay_image_by_query,
+    get_ai_summary,
+    classify_type_and_topic,
+    SHARED_HTTP_CLIENT,
 )
 
 def _is_internal_image_url(u: str, request: Request | None = None) -> bool:
@@ -3241,6 +3244,68 @@ async def get_image_query(email_id: str, request: Request):
         kw = await get_ai_keyword(html, client)
     logging.info("[DBG] image-query for %s (uid=%s) -> %r", email_id, uid, kw)
     return {"email_id": email_id, "image_query": kw}
+
+class RecomputeBody(BaseModel):
+    email_ids: list[str] | None = None
+    limit: int = 100
+    only_missing: bool = True
+    reclassify: bool = False
+
+@app.post("/api/feed/recompute-summaries")
+async def recompute_summaries(body: RecomputeBody, request: Request):
+    """Rigenera title/summary per le email selezionate, usando i prompt adattivi per tipologia.
+    Se reclassify=True ricalcola anche i tag (type/topic) prima del riassunto.
+    """
+    uid = _current_user_id(request)
+    try:
+        q = Newsletter.select().where(Newsletter.user_id == uid)
+        if body.email_ids:
+            q = q.where(Newsletter.email_id.in_(body.email_ids))
+        elif body.only_missing:
+            q = q.where(
+                (Newsletter.ai_title.is_null(True)) | (Newsletter.ai_title == "") |
+                (Newsletter.ai_summary_markdown.is_null(True)) | (Newsletter.ai_summary_markdown == "")
+            )
+
+        q = q.order_by(Newsletter.received_date.desc()).limit(max(1, min(300, body.limit)))
+
+        updated = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for n in q:
+                html = n.full_content_html or ""
+
+                # 1) (opzionale) ricalcola i tag
+                type_tag = n.type_tag or None
+                topic_tag = n.topic_tag or None
+                if body.reclassify or not type_tag:
+                    meta = f"FROM: {n.sender_email}\nSUBJECT: {n.original_subject}\n\n"
+                    tags = await classify_type_and_topic(meta + html, SHARED_HTTP_CLIENT)
+                    type_tag = tags.get("type_tag") or type_tag
+                    topic_tag = tags.get("topic_tag") or topic_tag
+
+                # 2) rigenera riassunto con adattatore per tipo
+                s = await get_ai_summary(html, SHARED_HTTP_CLIENT, type_tag=type_tag)
+                title = (s.get('title') or '').strip()
+                summ  = (s.get('summary_markdown') or '').strip()
+
+                if title:
+                    n.ai_title = title
+                if summ:
+                    n.ai_summary_markdown = summ
+                if type_tag:
+                    n.type_tag = type_tag
+                if topic_tag:
+                    n.topic_tag = topic_tag
+
+                # is_complete se abbiamo tutto e un'immagine
+                n.is_complete = bool(n.ai_title and n.ai_summary_markdown and (n.image_url or ''))
+                n.save()
+                updated.append(n.email_id)
+
+        return {"ok": True, "updated": updated}
+    except Exception as e:
+        logging.error(f"recompute_summaries error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Recompute failed")
 
 @app.post("/api/feed/{email_id}/rehost")
 async def rehost_one_image(email_id: str, request: Request):

@@ -397,8 +397,13 @@ async def process_job(job_payload: dict):
                 logw("content_fallback_used", email_id=email_id, reason="Empty HTML body")
 
             async with ENRICH_SEM:
-                ai_summary = await get_ai_summary(content_for_ai, SHARED_HTTP_CLIENT)
-                ai_keyword = await get_ai_keyword(content_for_ai, SHARED_HTTP_CLIENT)
+                # 1) Classifica velocemente per scegliere il prompt adatto
+                meta_head = f"FROM: {header_map.get('from','')}\nSUBJECT: {header_map.get('subject','')}\n\n"
+                tags = await classify_type_and_topic(meta_head + content_for_ai, SHARED_HTTP_CLIENT)
+
+                # 2) Riassunto e keyword, usando il tipo per adattare il prompt
+                ai_summary = await get_ai_summary(content_for_ai, SHARED_HTTP_CLIENT, type_tag=tags.get('type_tag'))
+                ai_keyword = await get_ai_keyword(content_for_ai, SHARED_HTTP_CLIENT, type_tag=tags.get('type_tag'))
 
                 logw("ai_results", 
                  email_id=email_id, 
@@ -459,8 +464,7 @@ async def process_job(job_payload: dict):
                         else:
                             logw("pixabay_miss", email_id=email_id, keyword=kw, reason="API returned no results or error occurred")
 
-                meta = f"FROM: {header_map.get('from','')}\nSUBJECT: {header_map.get('subject','')}\n\n"
-                tags = await classify_type_and_topic(meta + content_for_ai, SHARED_HTTP_CLIENT)
+                # 'tags' già calcolati sopra; eventuali override applicati più sotto
 
             sender_email = parseaddr(header_map.get('from',''))[1].lower()
             sender_domain = (sender_email.split('@')[-1]).lower()

@@ -919,15 +919,16 @@
 }
 /* già nascondiamo il blocco sinistro, ma teniamolo */
 
-.icon-btn[aria-pressed="true"] {
-    background-color: transparent !important;
-}
+.icon-btn[aria-pressed="true"] { background-color: transparent !important; }
 
-/* Stile unificato per le icone attive (es. cuore pieno e più spesso) */
+/* Icone header: visibili sempre (colore scuro di default) */
+.icon-btn .material-symbols-outlined { color: #111827; /* gray-900 */ }
+
+/* Cuore attivo (filled) ben visibile */
 .icon-btn[aria-pressed="true"] .material-symbols-outlined,
 .material-symbols-outlined.ms-filled {
   font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24 !important;
-  color: #fff !important;
+  color: #dc2626 !important; /* rosso visibile */
 }
 
 /* helpers per header compatto */

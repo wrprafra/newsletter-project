@@ -64,7 +64,7 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030k';
+window.__ASSET_VERSION = '20251030n';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 try {
   fetch(`${window.API_URL}/log`, {
@@ -201,6 +201,7 @@ function saveActiveReads(){ try{ localStorage.setItem(readFilterKey(), JSON.stri
 
 const PTR_DEFAULT_TEXT = 'Tira per aggiornare';
 const PTR_LOADERS = new Map();
+const ADMIN_EMAIL = 'escounpo@gmail.com';
 
 function ptrUpdateHint() {
   const ptr = document.getElementById('ptr');
@@ -1098,10 +1099,12 @@ function hydrateTile(el, item) {
   const imgEl = card.querySelector('.card-image');
   if (imgEl) {
       imgEl.addEventListener('load', () => {
+        imgEl.classList.add('is-loaded');
         card.classList.remove('opacity-0');
         feLog('info', 'gate.reveal.ok', { email_id: item.email_id });
       }, { once: true });
       imgEl.addEventListener('error', () => {
+        imgEl.classList.add('is-loaded');
         card.classList.remove('opacity-0'); // Mostra comunque in caso di errore
         feLog('warn', 'image.load.fail', { email_id: item.email_id });
       }, { once: true });
@@ -1865,7 +1868,7 @@ function setCardImage(imgEl, url, isInternal) {
   } catch {}
 
   const updatingClass = 'updating-image';
-  const done = () => imgEl.classList.remove(updatingClass);
+  const done = () => { imgEl.classList.remove(updatingClass); imgEl.classList.add('is-loaded'); };
   imgEl.addEventListener('load', done, { once: true });
 
   // Pipeline di fallback robusta: proxy → originale → placeholder
@@ -1894,6 +1897,7 @@ function setCardImage(imgEl, url, isInternal) {
   };
 
   imgEl.addEventListener('error', () => {
+    // rimuovi overlay e garantisci visibilità dell'area immagine
     done();
     if (step < 2) tryNext();
   }, { once: true });
@@ -2310,6 +2314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     domainSelectAll  = document.getElementById('domain-select-all');
     domainClearAll   = document.getElementById('domain-clear-all');
     updateFeedBtn = document.getElementById('update-feed-btn');
+    const adminRefreshBtn = document.getElementById('btn-admin-refresh');
     logoutBtn = document.getElementById('logout-btn');
     profileSheet = document.getElementById('profile-sheet');
     hideMenu = document.getElementById('hide-menu');
@@ -2336,6 +2341,52 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenSheetBackdrop?.addEventListener('click', closeHiddenSheet);
     initTypeMenu();
     document.querySelectorAll('.icon-btn').forEach(attachRipple);
+
+    // Admin: refresh testi + immagini
+    adminRefreshBtn?.addEventListener('click', async () => {
+      if (window.__ME?.email !== ADMIN_EMAIL) return;
+      const btn = adminRefreshBtn;
+      const setBusy = (on, label) => {
+        btn.disabled = !!on; btn.classList.toggle('opacity-50', !!on);
+        if (label && btn.childNodes && btn.childNodes.length>1) {
+          const textNode = btn.childNodes[1];
+          try { textNode.textContent = ' ' + label; } catch {}
+        }
+      };
+      try {
+        setBusy(true, 'Aggiorno immagini (R2)…');
+        for (let i=0;i<40;i++){
+          const r = await fetch(`${window.API_URL}/feed/rehost-external-images`,{
+            method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({limit: 200, only_not_r2: true})
+          });
+          const d = await r.json().catch(()=>({}));
+          console.log('[Admin] rehost batch', i, d);
+          if (!d.updated || d.updated.length===0) break;
+          await new Promise(s=>setTimeout(s,250));
+        }
+
+        setBusy(true, 'Rigenero testi…');
+        for (let i=0;i<40;i++){
+          const r = await fetch(`${window.API_URL}/feed/recompute-summaries`,{
+            method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({limit: 150, only_missing: false, reclassify: false})
+          });
+          const d = await r.json().catch(()=>({}));
+          console.log('[Admin] recompute batch', i, d);
+          if (!d.updated || d.updated.length===0) break;
+          await new Promise(s=>setTimeout(s,250));
+        }
+
+        showToast('Aggiornamento testi e immagini completato ✓', 'ok');
+        try { window.fetchFeed?.({reset:true,force:true}); } catch {}
+      } catch (e) {
+        console.error('[Admin] refresh error', e);
+        showToast('Aggiornamento fallito', 'error');
+      } finally {
+        setBusy(false, 'Aggiorna testi e immagini');
+      }
+    });
 
     
     const allTabs = footerNav?.querySelectorAll('button[data-tab]');
@@ -4965,6 +5016,7 @@ async function mainAppStart() {
     }
 
     const isLogged = !!(me && (me.email || me.user_id));
+    window.__ME = me || null;
     console.log(`[JS-DEBUG] mainAppStart: Controllo autenticazione. Utente loggato: ${isLogged}`);
 
     EVER_KEY = EVER_KEY_PREFIX + (me?.email || 'anonymous');
@@ -5005,6 +5057,13 @@ async function mainAppStart() {
       document.getElementById('app-header')?.classList.remove('hidden');
       document.getElementById('app-footer')?.classList.remove('hidden');
       document.getElementById('ptr')?.classList.remove('hidden');
+      try {
+        // Mostra pulsante admin se l'utente è quello richiesto
+        if (me?.email === ADMIN_EMAIL) {
+          const b = document.getElementById('btn-admin-refresh');
+          if (b) b.classList.remove('hidden');
+        }
+      } catch {}
       await loadUserSettings();
       await finalizePendingGPhotosSession();
       stopBoot();
