@@ -64,7 +64,7 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030d';
+window.__ASSET_VERSION = '20251030e';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 try {
   fetch(`${window.API_URL}/log`, {
@@ -250,7 +250,8 @@ function ptrSetHint(text) {
   if (PTR_LOADERS.size > 0) return;
   const ptr = document.getElementById('ptr');
   const hint = typeof text === 'string' && text.length ? text : PTR_DEFAULT_TEXT;
-  ptr?.querySelector('.ptr-text')?.textContent = hint;
+  const txt = ptr ? ptr.querySelector('.ptr-text') : null;
+  if (txt) txt.textContent = hint;
 }
 
 // let WINDOW_GMAIL_POPUP = null;
