@@ -83,27 +83,56 @@ def _is_internal_image_url(u: str, request: Request | None = None) -> bool:
         return False
 
 async def _rehost_to_r2(src_url: str, keyword: str | None, client: httpx.AsyncClient) -> tuple[str | None, str | None]:
-    """Scarica src_url e lo carica su R2; ritorna (public_url, accent_hex) oppure (None, None)."""
-    try:
-        r2_client = _get_r2()
-        if not r2_client:
-            return None, None
-        r = await client.get(src_url, timeout=20.0, follow_redirects=True)
+    """Scarica src_url e lo carica su R2.
+    Se il download fallisce (es. 400/403 da pixabay), prova a ricavare una nuova immagine via Pixabay
+    usando la keyword e carica quella su R2. Ritorna (public_url, accent_hex) oppure (None, None).
+    """
+    r2_client = _get_r2()
+    if not r2_client:
+        return None, None
+
+    async def _download(u: str) -> tuple[bytes, str]:
+        r = await client.get(u, timeout=20.0, follow_redirects=True)
         r.raise_for_status()
         body = r.content
         ct = (r.headers.get('content-type') or 'image/jpeg').split(';',1)[0].lower()
-        ext = 'jpg'
-        if ct.endswith('png'): ext = 'png'
-        elif ct.endswith('webp'): ext = 'webp'
-        key = make_r2_key_from_kw(keyword or 'newsletter', ext=ext)
-        # carica
+        return body, ct
+
+    body: bytes | None = None
+    ct: str | None = None
+
+    # 1) Tenta con l'URL originale
+    try:
+        body, ct = await _download(src_url)
+    except Exception as e1:
+        logging.info(f"[REHOST] download src failed → try pixabay. src={src_url} err={e1}")
+        # 2) Fallback: usa Pixabay con una keyword plausibile
+        try:
+            fb_kw = (keyword or 'newsletter').strip() or 'newsletter'
+            fb_url = await get_pixabay_image_by_query(client, fb_kw)
+            if fb_url:
+                body, ct = await _download(fb_url)
+        except Exception as e2:
+            logging.warning(f"[REHOST] fallback pixabay failed. kw={keyword!r} err={e2}")
+            return None, None
+
+    ct = (ct or 'image/jpeg').split(';',1)[0].lower()
+    ext = 'jpg'
+    if ct.endswith('png'): ext = 'png'
+    elif ct.endswith('webp'): ext = 'webp'
+
+    key = make_r2_key_from_kw(keyword or 'newsletter', ext=ext)
+    try:
         _get_r2().put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=ct)
-        url = r2_public_url(key)
-        accent = extract_dominant_hex(body)
-        return url, accent
     except Exception as e:
-        logging.warning(f"[REHOST] R2 upload failed for {src_url}: {e}")
+        logging.warning(f"[REHOST] R2 put_object failed: {e}")
         return None, None
+    url = r2_public_url(key)
+    try:
+        accent = extract_dominant_hex(body)
+    except Exception:
+        accent = None
+    return url, accent
 
 # --- GESTIONE CICLO DI VITA APP ---
 @asynccontextmanager

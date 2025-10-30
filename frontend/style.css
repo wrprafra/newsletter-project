@@ -899,6 +899,13 @@
   }
   /* Assicura che la classe 'hidden' di Tailwind vinca sempre */
   #gphotos-menu-btn.hidden { display: none !important; }
+
+/* Icon buttons (filter, favorite) */
+.icon-btn { position: relative; overflow: hidden; background-color: transparent; }
+.icon-btn:hover { background-color: rgba(0,0,0,0.06); }
+.icon-btn[aria-pressed="true"] { background-color: transparent !important; }
+.icon-btn .ripple-circle { position:absolute; border-radius:50%; transform:scale(0); opacity:.35; background:#000; animation:ripple .45s ease-out forwards; pointer-events:none; }
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
 .feed-card {
   content-visibility: auto;
   /* Stima un'altezza media per una card completa */

@@ -22,13 +22,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Il tuo CSS personalizzato viene caricato dopo -->
-  <link rel="stylesheet" href="style.css?v=20251030i">
+  <link rel="stylesheet" href="style.css?v=20251030k">
 
   <script src="https://apis.google.com/js/api.js?onload=onGapiLoad" async defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" defer></script>
   <!-- Ricordati di aggiornare anche sw.js/APP_SHELL quando cambi la versione -->
-  <script src="app.js?v=20251030i" defer></script>
+  <script src="app.js?v=20251030k" defer></script>
 </head>
 <body>
 <div id="splash-screen" class="splash-screen" role="status" aria-live="polite">
@@ -66,13 +66,13 @@
     </div>
     <div id="header-right" class="justify-self-end flex items-center gap-1">
       <button id="btnTypeFilter" type="button"
-              class="rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
+              class="icon-btn rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
               aria-haspopup="menu" aria-controls="type-menu" aria-expanded="false"
               aria-label="Filtra per tipologia" title="Filtra per tipologia">
         <span class="material-symbols-outlined">filter_list</span>
       </button>
       <button id="btnFavHeader" type="button"
-              class="rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
+              class="icon-btn rounded-full h-10 w-10 hover:bg-gray-100 flex items-center justify-center"
               aria-pressed="false" aria-label="Mostra preferiti" title="Preferiti">
         <span class="material-symbols-outlined">favorite</span>
       </button>
@@ -342,9 +342,6 @@
   <nav class="max-w-2xl mx-auto flex justify-around py-2" aria-label="Sezioni app">
     <button data-tab="feed" class="flex flex-col items-center text-gray-900" aria-current="page">
       <span class="material-symbols-outlined">dynamic_feed</span><span class="text-xs">Feed</span>
-    </button>
-    <button data-tab="favorites" class="flex flex-col items-center text-gray-500">
-      <span class="material-symbols-outlined">favorite</span><span class="text-xs">Preferiti</span>
     </button>
     <button data-tab="profile" class="flex flex-col items-center text-gray-500">
       <span class="material-symbols-outlined">person</span><span class="text-xs">Profilo</span>

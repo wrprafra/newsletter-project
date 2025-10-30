@@ -64,7 +64,7 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030i';
+window.__ASSET_VERSION = '20251030k';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 try {
   fetch(`${window.API_URL}/log`, {
@@ -2273,6 +2273,25 @@ function throttle(fn, ms = 800) {
     }
   };
 }
+
+function attachRipple(el) {
+  try {
+    el.classList.add('icon-btn');
+    el.style.position = 'relative';
+    el.style.overflow = 'hidden';
+    el.addEventListener('click', (ev) => {
+      const rect = el.getBoundingClientRect();
+      const d = Math.max(rect.width, rect.height);
+      const span = document.createElement('span');
+      span.className = 'ripple-circle';
+      span.style.width = span.style.height = `${d}px`;
+      span.style.left = `${ev.clientX - rect.left - d/2}px`;
+      span.style.top  = `${ev.clientY - rect.top  - d/2}px`;
+      el.appendChild(span);
+      setTimeout(() => { try { span.remove(); } catch {} }, 480);
+    }, { passive: true });
+  } catch {}
+}
     
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Popola le variabili globali del DOM (necessario per tutte le funzioni)
@@ -2316,6 +2335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeHiddenSheetBtn?.addEventListener('click', closeHiddenSheet);
     hiddenSheetBackdrop?.addEventListener('click', closeHiddenSheet);
     initTypeMenu();
+    document.querySelectorAll('.icon-btn').forEach(attachRipple);
 
     
     const allTabs = footerNav?.querySelectorAll('button[data-tab]');
@@ -2994,6 +3014,9 @@ window.setupInfiniteScroll = function setupInfiniteScroll() {
     const entry = entries[0];
     if (!entry || !entry.isIntersecting) return;
 
+    // Nessun auto-load/ingest nella vista "Preferiti"
+    if (__view === 'favorites') { clearSentinel(); return; }
+
     // Evita di scatenare il sentinel durante il boot con gli skeleton
     if (FEED_STATE.initialSkeletonsVisible && !hasCards()) return;
 
@@ -3015,6 +3038,7 @@ window.setupInfiniteScroll = function setupInfiniteScroll() {
 
     const now = Date.now();
     if (!__isIngesting && (now - __lastIngestAt > 30_000)) { // Cooldown ridotto
+      if (__view === 'favorites') { clearSentinel(); return; }
       __lastIngestAt = now;
       setSentinelBusy('Controllo la casella di posta…');
       autoIngestAndLoad({ reason: 'sentinel-scroll' }); // Passa un oggetto
@@ -3412,6 +3436,14 @@ function setActiveTab(isFavorites) {
     favHeaderBtn.setAttribute('aria-pressed', String(isFavorites));
     favHeaderIcon?.classList.toggle('ms-filled', isFavorites);
   }
+
+  // Disabilita i trigger di aggiornamento e il PTR nei preferiti
+  try {
+    document.getElementById('ptr')?.classList.toggle('hidden', isFavorites);
+    updateFeedBtn?.classList.toggle('hidden', isFavorites);
+    const s = document.getElementById('load-more-sentinel');
+    if (s) s.classList.toggle('hidden', isFavorites);
+  } catch {}
 
   // Applica il filtro alla vista corrente senza re-renderizzare
   applyViewFilter();
