@@ -29,21 +29,26 @@ jobs:
       - name: Login GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
-      - name: Build image (latest + timestamp tag)
+      - name: Compute tags (once)
+        id: vars
         run: |
-          IMAGE_BASE="ghcr.io/${{ github.repository }}"
-          TAG_LATEST="latest"
-          TAG_TS="$(date +%Y%m%d%H%M%S)"
-          echo "Building $IMAGE_BASE:$TAG_LATEST and $IMAGE_BASE:$TAG_TS"
-          docker build -t "$IMAGE_BASE:$TAG_LATEST" -t "$IMAGE_BASE:$TAG_TS" .
+          echo "IMAGE_BASE=ghcr.io/${GITHUB_REPOSITORY}" >> $GITHUB_ENV
+          echo "TAG_LATEST=latest" >> $GITHUB_ENV
+          echo "TAG_TS=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+          echo "TAG_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Push image (latest + timestamp)
+      - name: Build image (latest + ts + sha)
         run: |
-          IMAGE_BASE="ghcr.io/${{ github.repository }}"
-          TAG_LATEST="latest"
-          TAG_TS="$(date +%Y%m%d%H%M%S)"
+          docker build \
+            -t "$IMAGE_BASE:$TAG_LATEST" \
+            -t "$IMAGE_BASE:$TAG_TS" \
+            -t "$IMAGE_BASE:sha-$TAG_SHA" .
+
+      - name: Push image (latest + ts + sha)
+        run: |
           docker push "$IMAGE_BASE:$TAG_LATEST"
           docker push "$IMAGE_BASE:$TAG_TS"
+          docker push "$IMAGE_BASE:sha-$TAG_SHA"
 
   deploy:
     needs: build-push
