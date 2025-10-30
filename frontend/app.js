@@ -1102,6 +1102,24 @@ FEED_STATE.everLoaded = false;
 
 
 // 2. Funzione per caricare la configurazione remota e aggiornare le variabili
+(function setupBootReadyTimeout(){
+  const MAX_WAIT_MS = 4000;
+  let resolved = false;
+  const fallback = () => {
+    if (resolved || __bootReady) return;
+    resolved = true;
+    __bootReady = true;
+    console.warn('[CFG] Timeout nel caricamento di /config. Procedo con i valori di fallback.');
+    window.__markBootReady = undefined;
+  };
+  setTimeout(fallback, MAX_WAIT_MS);
+  window.__markBootReady = () => {
+    if (resolved) return;
+    resolved = true;
+    __bootReady = true;
+  };
+})();
+
 (async () => {
   try {
     const cfgRes = await fetch(`${window.BACKEND_BASE}/config`);
@@ -1133,12 +1151,14 @@ FEED_STATE.everLoaded = false;
     console.log('[CFG] BACKEND_BASE:', window.BACKEND_BASE);
     
     // 3. Segna l'applicazione come pronta per iniziare
-    __bootReady = true;
+    window.__markBootReady?.();
+    window.__markBootReady = undefined;
 
   } catch (e) {
     console.error('[CFG] Errore critico nel caricare /config. Si useranno i valori di fallback.', e);
     // L'app può comunque tentare di funzionare con i valori di fallback
-    __bootReady = true;
+    window.__markBootReady?.();
+    window.__markBootReady = undefined;
   }
 })();
 
