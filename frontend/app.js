@@ -64,7 +64,7 @@ window.BACKEND_BASE = location.origin;
 window.API_URL = `${window.BACKEND_BASE}/api`;
 let API_URL = window.API_URL;
 window.__DEBUG_FEED = true;
-window.__ASSET_VERSION = '20251030g';
+window.__ASSET_VERSION = '20251030i';
 console.log(`[BUILD] frontend ${window.__ASSET_VERSION}`);
 try {
   fetch(`${window.API_URL}/log`, {
@@ -2281,6 +2281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sentinel = document.getElementById('load-more-sentinel');
     domainDropdown   = document.getElementById('domain-dropdown');
     btnFilterByDomain = document.getElementById('btnFilterByDomain');
+    const btnFavHeader = document.getElementById('btnFavHeader');
     btnAllInboxes   = document.getElementById('btnAllInboxes');
     footerNav = document.querySelector('footer nav');
     domainSearch     = document.getElementById('domain-search');
@@ -2418,6 +2419,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gphotosMenu && !gphotosMenu.classList.contains('hidden')) {
             gphotosMenu.classList.add('hidden');
         }
+    });
+
+    btnFavHeader?.addEventListener('click', () => {
+      setActiveTab(__view !== 'favorites');
     });
 
     gphotosMenu?.addEventListener('click', async (e) => {
@@ -2725,7 +2730,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const domainTarget = menu.querySelector('#menu-hide-domain-target');
           if (domainTarget) domainTarget.textContent = domain;
 
-          // misura e posiziona correttamente
+          // misura e posiziona correttamente (posizionamento su elemento fixed → NO scrollY)
           menu.style.visibility = 'hidden';
           menu.classList.remove('hidden');
           requestAnimationFrame(() => {
@@ -2735,10 +2740,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let left = Math.min(r.left, window.innerWidth - mw - 8);
             left = Math.max(8, left);
 
-            let top = r.bottom + window.scrollY + 6;
-            const viewBottom = window.scrollY + window.innerHeight;
+            let top = r.bottom + 6;
+            const viewBottom = window.innerHeight;
             if (top + mh > viewBottom) {
-              top = r.top + window.scrollY - mh - 6; // apri sopra se non c’è spazio sotto
+              top = r.top - mh - 6; // apri sopra se non c’è spazio sotto
             }
             top = Math.max(8, top);
 
@@ -3386,6 +3391,8 @@ function setActiveTab(isFavorites) {
   
   const tabFeedBtn = document.querySelector('button[data-tab="feed"]');
   const tabFavBtn  = document.querySelector('button[data-tab="favorites"]');
+  const favHeaderBtn = document.getElementById('btnFavHeader');
+  const favHeaderIcon = favHeaderBtn?.querySelector('.material-symbols-outlined');
   
   // Aggiorna lo stato visivo dei pulsanti
   tabFeedBtn?.classList.toggle('text-gray-900', !isFavorites);
@@ -3399,6 +3406,12 @@ function setActiveTab(isFavorites) {
     b.classList.toggle('nav-active', active);
     b.setAttribute('aria-current', active ? 'page' : 'false');
   });
+
+  // Aggiorna lo stato del cuore nell'header
+  if (favHeaderBtn) {
+    favHeaderBtn.setAttribute('aria-pressed', String(isFavorites));
+    favHeaderIcon?.classList.toggle('ms-filled', isFavorites);
+  }
 
   // Applica il filtro alla vista corrente senza re-renderizzare
   applyViewFilter();
@@ -3724,6 +3737,21 @@ function wireImageDebugging(root = document) {
         img.src = `https://picsum.photos/seed/${id}-fallback/800/600`;
         console.warn(`[IMG][FALLBACK] id=${id} → picsum`);
       }
+
+      // Prova a rehostare lato server per evitare futuri errori
+      try {
+        fetch(`${window.API_URL}/feed/${encodeURIComponent(id)}/rehost`, {
+          method: 'POST', credentials: 'include'
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data && data.image_url) {
+            const newUrl = isInternalImageUrl(data.image_url)
+              ? data.image_url
+              : buildImageProxyUrl(data.image_url, id);
+            // Riprova a impostare l'immagine con R2 appena disponibile
+            setCardImage(img, newUrl, isInternalImageUrl(data.image_url));
+          }
+        }).catch(()=>{});
+      } catch {}
     };
 
     img.removeEventListener('load', onLoad);

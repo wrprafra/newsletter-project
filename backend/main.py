@@ -66,6 +66,45 @@ from backend.processing_utils import (
     get_pixabay_image_by_query,
 )
 
+def _is_internal_image_url(u: str, request: Request | None = None) -> bool:
+    try:
+        if not u:
+            return False
+        if request is not None:
+            base = str(request.base_url).rstrip('/')
+            if u.startswith(base):
+                return True
+        if u.startswith('/api/'):
+            return True
+        if R2_PUBLIC_BASE_URL and u.startswith(R2_PUBLIC_BASE_URL):
+            return True
+        return False
+    except Exception:
+        return False
+
+async def _rehost_to_r2(src_url: str, keyword: str | None, client: httpx.AsyncClient) -> tuple[str | None, str | None]:
+    """Scarica src_url e lo carica su R2; ritorna (public_url, accent_hex) oppure (None, None)."""
+    try:
+        r2_client = _get_r2()
+        if not r2_client:
+            return None, None
+        r = await client.get(src_url, timeout=20.0, follow_redirects=True)
+        r.raise_for_status()
+        body = r.content
+        ct = (r.headers.get('content-type') or 'image/jpeg').split(';',1)[0].lower()
+        ext = 'jpg'
+        if ct.endswith('png'): ext = 'png'
+        elif ct.endswith('webp'): ext = 'webp'
+        key = make_r2_key_from_kw(keyword or 'newsletter', ext=ext)
+        # carica
+        _get_r2().put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=ct)
+        url = r2_public_url(key)
+        accent = extract_dominant_hex(body)
+        return url, accent
+    except Exception as e:
+        logging.warning(f"[REHOST] R2 upload failed for {src_url}: {e}")
+        return None, None
+
 # --- GESTIONE CICLO DI VITA APP ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -3173,6 +3212,68 @@ async def get_image_query(email_id: str, request: Request):
         kw = await get_ai_keyword(html, client)
     logging.info("[DBG] image-query for %s (uid=%s) -> %r", email_id, uid, kw)
     return {"email_id": email_id, "image_query": kw}
+
+@app.post("/api/feed/{email_id}/rehost")
+async def rehost_one_image(email_id: str, request: Request):
+    uid = _current_user_id(request)
+    try:
+        n = Newsletter.get((Newsletter.email_id == email_id) & (Newsletter.user_id == uid))
+    except PeeweeDoesNotExist:
+        raise HTTPException(status_code=404, detail="Newsletter non trovata")
+
+    src = (n.image_url or '').strip()
+    if not src:
+        raise HTTPException(status_code=409, detail="Nessuna immagine da rehostare")
+    if _is_internal_image_url(src, request):
+        return {"ok": True, "skipped": True, "image_url": n.image_url}
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        url, accent = await _rehost_to_r2(src, (n.ai_title or n.original_subject), client)
+    if not url:
+        raise HTTPException(status_code=502, detail="Rehost su R2 fallito")
+    n.image_url = url
+    if accent:
+        n.accent_hex = accent
+    n.save()
+    return {"ok": True, "image_url": n.image_url, "accent_hex": n.accent_hex}
+
+class RehostBody(BaseModel):
+    limit: int = 100
+    only_not_r2: bool = True
+
+@app.post("/api/feed/rehost-external-images")
+async def rehost_external_images(body: RehostBody, request: Request):
+    uid = _current_user_id(request)
+    r2c = _get_r2()
+    if not r2c:
+        raise HTTPException(status_code=409, detail="R2 non configurato")
+    q = (Newsletter
+        .select()
+        .where(
+            (Newsletter.user_id == uid) &
+            (Newsletter.image_url.is_null(False)) & (Newsletter.image_url != '')
+        )
+        .order_by(Newsletter.received_date.desc())
+        .limit(max(1, min(500, body.limit)))
+    )
+    updated, skipped, failed = [], 0, []
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for n in q:
+            u = (n.image_url or '').strip()
+            if not u:
+                continue
+            if body.only_not_r2 and _is_internal_image_url(u, request):
+                skipped += 1
+                continue
+            url, accent = await _rehost_to_r2(u, (n.ai_title or n.original_subject), client)
+            if not url:
+                failed.append(n.email_id)
+                continue
+            n.image_url = url
+            if accent:
+                n.accent_hex = accent
+            n.save()
+            updated.append(n.email_id)
+    return {"ok": True, "updated": updated, "skipped": skipped, "failed": failed}
 
 @app.post("/api/feed/{email_id}/favorite")
 async def toggle_favorite(email_id: str, request: Request):
