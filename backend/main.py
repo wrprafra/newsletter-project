@@ -2095,6 +2095,7 @@ async def auth_login(request: Request):
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
+        state=state,
         code_challenge=code_challenge,
         code_challenge_method="S256"
     )
@@ -2170,6 +2171,13 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     _cleanup_pending_auth(request)
     pa = _pending_auth(request)
     pending_entry: Dict[str, Any] | None = pa.get(nonce) if nonce else None
+
+    if (not nonce or not pending_entry) and state:
+        for candidate_nonce, data in pa.items():
+            if data.get("state") == state:
+                nonce = candidate_nonce
+                pending_entry = data
+                break
 
     if not nonce or not pending_entry:
         logging.warning("[AUTH/CALLBACK] Nonce non valido o scaduto. sid=%s, nonce_fornito=%s, pending_keys=%s", sid_from_session, nonce, list(pa.keys()))
