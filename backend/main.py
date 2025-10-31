@@ -1135,14 +1135,30 @@ def placeholder_svg_bytes(text: str = "newsletter") -> tuple[bytes, str]:
 
 def get_user_id_from_session(request) -> str:
     """
-    Ricava un identificatore utente (es. email). Adatta questa funzione
-    al modo in cui salvi l’utente in sessione.
+    Ricava l'identificatore utente dalla sessione.
+    Se non presente, prova a ripristinare la sessione dai cookie ponte
+    (__Host-nl_uid / __Host-nl_email) come fa /api/auth/me.
     """
-    # Esempio: se salvi l'email in request.session["user_email"]
-    # oppure se usi un dict request.state.user etc.
     try:
-        user_id = request.session.get("user_id")
-        return user_id or "anonymous"
+        uid = request.session.get("user_id")
+        if uid:
+            return uid
+
+        # Fallback: prova a ricostruire la sessione dai cookie ponte impostati al login
+        uid_cookie = (request.cookies.get("__Host-nl_uid") or "").strip()
+        mail_cookie = (request.cookies.get("__Host-nl_email") or "").strip()
+        if uid_cookie and uid_cookie in CREDENTIALS_STORE:
+            try:
+                request.session["user_id"] = uid_cookie
+                if mail_cookie:
+                    request.session["user_email"] = mail_cookie
+                logging.info("[AUTH] Sessione ripristinata da cookie ponte per user_id=%s", uid_cookie)
+                return uid_cookie
+            except Exception:
+                # Se fallisce l'assegnazione in sessione, restituisci comunque l'uid
+                return uid_cookie
+
+        return "anonymous"
     except Exception:
         return "anonymous"
 
