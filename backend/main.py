@@ -1485,8 +1485,24 @@ OAUTH_PKCE_ENABLED = os.getenv("OAUTH_PKCE_ENABLED", "true").strip().lower() in 
 async def auth_me(request: Request):
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
+
+    # Fallback: se la sessione non è ancora stata ripristinata, prova dai cookie ponte
+    if not user_id:
+        uid_cookie = (request.cookies.get("__Host-nl_uid") or "").strip()
+        mail_cookie = (request.cookies.get("__Host-nl_email") or "").strip()
+        if uid_cookie and uid_cookie in CREDENTIALS_STORE:
+            try:
+                request.session["user_id"] = uid_cookie
+                if mail_cookie:
+                    request.session["user_email"] = mail_cookie
+                user_id = uid_cookie
+                email = mail_cookie or email
+            except Exception:
+                pass
+
     if not user_id:
         return JSONResponse({"email": None, "logged_in": False}, status_code=401)
+
     has_creds = bool(CREDENTIALS_STORE.get(user_id))
     return {"email": email, "user_id": user_id, "logged_in": True, "has_creds": has_creds}
 
@@ -2454,7 +2470,30 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         await ensure_user_defaults(user_id)
 
         logging.info("[AUTH/CALLBACK] Autenticazione completata con successo per %s", email)
-        return RedirectResponse("/?authenticated=true", status_code=303)
+        response = RedirectResponse("/?authenticated=true", status_code=303)
+        # Cookie ponte per gestire race e casi in cui il cookie di sessione tarda ad essere disponibile
+        try:
+            response.set_cookie(
+                key="__Host-nl_uid",
+                value=user_id,
+                max_age=600,
+                secure=True,
+                httponly=True,
+                samesite="None",
+                path="/",
+            )
+            response.set_cookie(
+                key="__Host-nl_email",
+                value=email,
+                max_age=600,
+                secure=True,
+                httponly=True,
+                samesite="None",
+                path="/",
+            )
+        except Exception:
+            pass
+        return response
 
     except FileNotFoundError:
         logging.error("[AUTH/CALLBACK] CLIENT_SECRETS_FILE mancante: %s", CLIENT_SECRETS_FILE)
