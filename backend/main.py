@@ -2430,6 +2430,13 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
         save_credentials_store()
 
+        # Segnala un successo recente per questo SID (per gestire callback duplicati)
+        try:
+            if sid_from_session and redis_client:
+                redis_client.setex(f"auth_recent_ok:{sid_from_session}", 120, "1")
+        except Exception:
+            pass
+
         # Pulisci il nonce usato
         pa.pop(nonce, None)
         _save_pending_auth(request, pa)
@@ -2455,6 +2462,18 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=missing_oauth_config", status_code=303)
 
     except InvalidGrantError as e:
+        # Dedup: se un successo per questo SID è stato registrato negli ultimi secondi,
+        # interpreta l'errore come callback duplicato e considera l'utente autenticato.
+        try:
+            sid_key = (locals().get("sid_from_session") or locals().get("sid_from_state"))
+            if isinstance(sid_key, str) and redis_client:
+                recent = redis_client.get(f"auth_recent_ok:{sid_key}")
+                if recent:
+                    logging.info("[AUTH/CALLBACK] InvalidGrant ma successo recente per SID=%s → duplicate callback.", sid_key)
+                    return RedirectResponse("/?authenticated=true", status_code=303)
+        except Exception:
+            pass
+
         # If we already have a logged-in user in this session, treat as duplicate callback
         try:
             user_id_value = request.session.get("user_id")
