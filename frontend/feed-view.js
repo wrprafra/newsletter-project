@@ -125,7 +125,7 @@ export function observeRead(cardEl, onRead) {
  * @param {string} options.accentHex - Colore esadecimale per lo sfondo.
  */
 export function attachImage(imgEl, src, { accentHex, emailId } = {}) {
-  if (!imgEl || !src) return;
+  if (!imgEl) return;
 
   imgEl.crossOrigin = 'anonymous'; // Aggiunto per evitare canvas "tainted"
 
@@ -144,7 +144,9 @@ export function attachImage(imgEl, src, { accentHex, emailId } = {}) {
     imgEl.dataset.emailId = String(emailId);
   }
 
-  const finalSrc = toProxy(src, emailId);
+  // Fallback immediato se l'item non ha un'immagine
+  const missingSrc = !src || String(src).trim() === '' || src === 'null' || src === 'undefined';
+  const finalSrc = missingSrc ? '/img/loading.gif' : toProxy(src, emailId);
 
   imgEl.onload = () => {
     imgEl.classList.add('is-loaded');
@@ -162,7 +164,7 @@ export function attachImage(imgEl, src, { accentHex, emailId } = {}) {
   };
 
   imgEl.onerror = () => {
-    imgEl.removeAttribute('srcset');
+    try { imgEl.removeAttribute('srcset'); } catch {}
     imgEl.src = '/img/loading.gif';
     imgEl.classList.add('is-loaded');
   };

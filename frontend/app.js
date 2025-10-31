@@ -1834,7 +1834,19 @@ function buildPlaceholderUrl(emailId) {
 }
 
 function setCardImage(imgEl, url, isInternal) {
-  if (!imgEl || !url) return;
+  if (!imgEl) return;
+
+  // Ricava l'emailId dalla card per fallback coerente
+  const emailId = imgEl.dataset.emailId || imgEl.closest('.feed-card')?.dataset.emailId || '';
+
+  // Se l'URL non è presente, applica subito un placeholder visibile
+  if (!url || String(url).trim() === '' || url === 'null' || url === 'undefined') {
+    try { imgEl.removeAttribute('srcset'); } catch {}
+    imgEl.classList.add('updating-image');
+    imgEl.src = buildPlaceholderUrl(emailId);
+    imgEl.addEventListener('load', () => imgEl.classList.add('is-loaded'), { once: true });
+    return;
+  }
 
   const currentEffectiveSrc = imgEl.currentSrc || imgEl.src;
   if (currentEffectiveSrc === url) {
@@ -1872,7 +1884,7 @@ function setCardImage(imgEl, url, isInternal) {
   imgEl.addEventListener('load', done, { once: true });
 
   // Pipeline di fallback robusta: proxy → originale → placeholder
-  const emailId = imgEl.dataset.emailId || imgEl.closest('.feed-card')?.dataset.emailId || '';
+  // emailId già calcolato sopra
   const original = (() => {
     try {
       const u = new URL(url, window.location.origin);
@@ -4444,6 +4456,9 @@ window.fetchFeed = async ({ reset = false, cursor = null, force = false } = {}) 
 
     applyViewFilter();
 
+    // Backfill non invasivo per item senza immagine
+    autoBackfillImages(page);
+
     // Il cursore si aggiorna solo se ci sono altre pagine
     if (data.has_more) {
         __cursor = data.next_cursor ?? null;
@@ -4825,6 +4840,37 @@ if (document.body.classList.contains('debug-img')) {
     }
   }
 });
+}
+
+// Backfill automatico di immagini mancanti per la pagina corrente (limite ridotto)
+async function autoBackfillImages(pageItems = []) {
+  try {
+    const missing = (pageItems || []).filter(it => !it?.image_url).map(it => String(it.email_id));
+    if (!missing.length) return;
+
+    // Evita carichi eccessivi: limita a 6 per batch
+    const batch = missing.slice(0, 6);
+    const res = await fetch(`${window.API_URL}/feed/update-images`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email_ids: batch, image_source: 'pixabay', only_empty: true })
+    });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const list = data.updated_items || [];
+    for (const item of list) {
+      const card = document.querySelector(`.feed-card[data-email-id="${item.email_id}"]`);
+      if (!card) continue;
+      const img = card.querySelector('.card-image');
+      if (!img) continue;
+      const internal = isInternalImageUrl(item.image_url);
+      const newSrc = internal ? item.image_url : buildImageProxyUrl(item.image_url, item.email_id);
+      img.dataset.emailId = String(item.email_id || '');
+      setCardImage(img, newSrc, internal);
+      img.addEventListener('load', () => { try { applyColorsFromImage(card, img); } catch {} }, { once: true });
+    }
+  } catch {}
 }
 
 const openProfileSheet = () => {
