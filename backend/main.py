@@ -2455,6 +2455,22 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         return RedirectResponse("/?auth_error=missing_oauth_config", status_code=303)
 
     except InvalidGrantError as e:
+        # If we already have a logged-in user in this session, treat as duplicate callback
+        try:
+            user_id_value = request.session.get("user_id")
+            if isinstance(user_id_value, str) and CREDENTIALS_STORE.get(user_id_value):
+                logging.info("[AUTH/CALLBACK] InvalidGrant after prior success; interpreting as duplicate callback.")
+                # Best-effort cleanup of the pending nonce for this SID
+                try:
+                    if 'pa' in locals() and 'nonce' in locals() and nonce:
+                        pa.pop(nonce, None)
+                        _save_pending_auth(request, pa)
+                except Exception:
+                    pass
+                return RedirectResponse("/?authenticated=true", status_code=303)
+        except Exception:
+            # fall through to detailed logging below
+            pass
         client_id_from_flow = "N/A"
         if flow is not None:
             try:
