@@ -1,0 +1,38 @@
+.git
+.github
+.gitignore
+.gk
+.vscode
+.idea
+.DS_Store
+*.lnk
+
+# Python
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# App data and logs
+data/
+logs/
+upload/
+*.db
+*.sqlite
+*.log
+
+# Node/Frontend
+frontend/node_modules/
+frontend/.cache/
+frontend/dist/
+
+# Env and secrets
+.env
+.env.*
+secrets/
+
+# Build artifacts
+build/
+dist/
