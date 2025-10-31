@@ -183,7 +183,7 @@ def _cheap_fallback_keyword_from_text(text: str) -> str:
         "about", "there", "their", "which", "while", "after", "before",
         "email", "mail", "contenuto", "newsletter", "notizie", "news",
         "aggiornamenti", "update", "articolo", "article", "report"
-    }
+    }}
     cand = [w for w in tokens if w not in stop]
     if not cand:
         return "newsletter"
@@ -324,12 +324,12 @@ Non inserire link, emoji o checklist.
 
 Output Format
 
-Esempio previsto:
+    Esempio previsto:
 
-{
+    {{
   "title": "Illusione della parola ripetuta",
   "summary_markdown": "Perché il cervello **salta** parole comuni.\n\nCos’è (breve), come influisce su **lettura** e **attenzione**. Indicazioni di **layout** applicabili."
-}
+}}
 {("\n\nAdattamento specifico per tipologia:\n" + adapter) if adapter else ""}
 """
 
@@ -598,7 +598,7 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
         "safesearch": "true",
         "order": "popular",
         "per_page": 10,
-    }
+    }}
 
     last_error: Exception | None = None
 

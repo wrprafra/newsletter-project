@@ -28,6 +28,7 @@ from pathlib import Path
 import boto3
 from botocore.config import Config as BotoConfig
 import shutil
+import uuid
 
 from backend.database import db, Newsletter, initialize_db, DomainTypeOverride
 from backend.processing_utils import (
