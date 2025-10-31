@@ -1437,7 +1437,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get("SESSION_SECRET", "dev-secret"),
     session_cookie="nl_sess",
-    same_site="lax",
+    same_site="none",
     https_only=SESSION_HTTPS_ONLY,
     max_age=60*60*24*7,
     domain=SESSION_DOMAIN if IS_PROD else None,
@@ -1485,11 +1485,10 @@ OAUTH_PKCE_ENABLED = os.getenv("OAUTH_PKCE_ENABLED", "true").strip().lower() in 
 async def auth_me(request: Request):
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
-
-    if not user_id or user_id not in CREDENTIALS_STORE:
+    if not user_id:
         return JSONResponse({"email": None, "logged_in": False}, status_code=401)
-
-    return {"email": email, "logged_in": True}
+    has_creds = bool(CREDENTIALS_STORE.get(user_id))
+    return {"email": email, "user_id": user_id, "logged_in": True, "has_creds": has_creds}
 
 @router_settings.get("")
 def get_settings(request: Request):
