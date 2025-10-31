@@ -3106,16 +3106,24 @@ window.setupInfiniteScroll = function setupInfiniteScroll() {
   console.log("[SCROLL] Infinite scroll inizializzato correttamente.");
 };
 
+    // Click sul sentinel: quando abbiamo altre pagine, avanza SEMPRE con il cursore corrente.
+    // Evita di ricaricare la prima pagina senza 'before'.
     sentinel?.addEventListener('click', () => {
       if (__inFlight) return;
-      if (__hasMore) fetchFeed();
-      else if (!__autoIngesting) autoIngestAndLoad({ reason: 'sentinel-click' });
+      if (__hasMore) {
+        fetchFeed({ reset: false, cursor: __cursor });
+      } else if (!__autoIngesting) {
+        autoIngestAndLoad({ reason: 'sentinel-click' });
+      }
     });
     sentinel?.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && !__inFlight) {
         e.preventDefault();
-        if (__hasMore) fetchFeed();
-        else if (!__autoIngesting) autoIngestAndLoad({ reason: 'sentinel-key' });
+        if (__hasMore) {
+          fetchFeed({ reset: false, cursor: __cursor });
+        } else if (!__autoIngesting) {
+          autoIngestAndLoad({ reason: 'sentinel-key' });
+        }
       }
     });
 
