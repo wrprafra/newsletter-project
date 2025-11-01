@@ -792,6 +792,9 @@ def _save_pending_auth(request: Request, data: dict):
             "state": entry.get("state"),
             "ts": entry.get("ts"),
         }
+        auth_url = entry.get("auth_url")
+        if isinstance(auth_url, str) and len(auth_url) <= 600:
+            slim["auth_url"] = auth_url
         session_data[nonce] = {k: v for k, v in slim.items() if v is not None}
 
     request.session["pending_auth"] = session_data
@@ -1273,10 +1276,14 @@ async def get_feed_item(email_id: str, request: Request):
 
     
 @app.get("/api/img")
-async def api_img(request: Request, u: str = Query(..., description="URL assoluto dell'immagine")):
-    return await proxy_image(u, request)
+async def api_img(
+    request: Request,
+    u: str = Query(..., description="URL assoluto dell'immagine"),
+    email_id: str | None = Query(None, description="Newsletter email_id per eventuale fallback rehost"),
+):
+    return await proxy_image(u, request, email_id=email_id)
 
-async def proxy_image(u: str, request: Request):
+async def proxy_image(u: str, request: Request, email_id: str | None = None):
     """
     Proxy per immagini con cache in memoria, retry con backoff esponenziale,
     e gestione degli header di caching.
@@ -1365,8 +1372,77 @@ async def proxy_image(u: str, request: Request):
             last_error = f"Network error: {e}"
             await asyncio.sleep(wait + random.uniform(0, 0.2))
     
-    # Se tutti i tentativi falliscono, restituisci un errore 502
+    # Se tutti i tentativi falliscono, prova un fallback di rehosting su R2 (se possibile)
+    if email_id:
+        fallback_response = await _proxy_rehost_fallback(email_id, original_url, request)
+        if fallback_response is not None:
+            return fallback_response
+
+    # Se il fallback non è riuscito, restituisci un errore 502
     raise HTTPException(status_code=502, detail=last_error or "Impossibile recuperare l'immagine upstream")
+
+
+async def _proxy_rehost_fallback(email_id: str, original_url: str, request: Request) -> Response | None:
+    """Tenta di rehostare l'immagine sorgente su R2 e restituisce una Response pronta."""
+    if not original_url or _is_internal_image_url(original_url, request):
+        return None
+
+    try:
+        n = Newsletter.get((Newsletter.email_id == email_id))
+    except PeeweeDoesNotExist:
+        logging.info("[PROXY] Impossibile trovare newsletter %s per rehost.", email_id)
+        return None
+
+    r2_client = _get_r2()
+    if not r2_client:
+        logging.info("[PROXY] R2 non configurato, salto rehost per %s", email_id)
+        return None
+
+    keyword = n.ai_title or n.original_subject or n.source_domain or "newsletter"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            new_url, accent = await _rehost_to_r2(original_url, keyword, client)
+    except Exception as e:
+        logging.warning("[PROXY] Rehost fallback errore http per %s: %s", email_id, e)
+        return None
+
+    if not new_url:
+        logging.warning("[PROXY] Rehost fallback fallito per %s", email_id)
+        return None
+
+    try:
+        if accent:
+            n.accent_hex = accent
+        n.image_url = new_url
+        n.is_complete = bool(n.ai_title and n.ai_summary_markdown and new_url)
+        n.save()
+    except Exception as e:
+        logging.warning("[PROXY] Salvataggio newsletter fallito per %s: %s", email_id, e)
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(new_url, headers={"User-Agent": "NewsletterFeedProxy/1.0"})
+        resp.raise_for_status()
+        content = resp.content
+        if len(content) > IMG_PROXY_MAX_BYTES:
+            logging.warning("[PROXY] Immagine rehost %s troppo grande (%s bytes)", email_id, len(content))
+            return None
+        ct = resp.headers.get("content-type", "image/jpeg").split(";", 1)[0].strip().lower()
+    except Exception as e:
+        logging.warning("[PROXY] Recupero immagine rehost fallito per %s: %s", email_id, e)
+        return None
+
+    etag = f'W/"{hashlib.sha1(content).hexdigest()}"'
+    _cache_put(normalize_image_url(original_url) or original_url, {"ts": time.time(), "bytes": content, "ct": ct, "etag": etag})
+
+    headers = {
+        "Content-Type": ct,
+        "Cache-Control": f"public, max-age={IMG_PROXY_TTL}, immutable",
+        "ETag": etag,
+        "X-Cache-Status": "MISS-R2",
+    }
+    return Response(content=content, headers=headers)
 
 
 @app.get("/api/gmail/messages/{msg_id}/html")
