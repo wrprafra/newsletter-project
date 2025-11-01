@@ -16,8 +16,30 @@ from email.utils import parseaddr
 from html import escape as html_escape
 import random
 import httpx
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 SHARED_HTTP_CLIENT = httpx.AsyncClient(timeout=30.0)
+
+
+def normalize_image_url(url: str | None) -> str | None:
+    """Normalizza URL di immagini upstream per evitare errori di download (es. Pixabay)."""
+    if not url:
+        return url
+
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url
+
+    host = (parsed.hostname or "").lower()
+    if host.endswith("pixabay.com") and parsed.path.startswith("/get/"):
+        pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        if not any(k.lower() == "attachment" for k, _ in pairs):
+            pairs.append(("attachment", "1"))
+            parsed = parsed._replace(query=urlencode(pairs))
+            return urlunparse(parsed)
+
+    return url
 
 # --- CONFIGURAZIONE ---
 MODEL_SUMMARY = "gpt-5-nano"
@@ -110,7 +132,7 @@ __all__ = [
     "_extract_output_text", "extract_domain_from_from_header", "_decode_body",
     "root_domain_py", "get_ai_summary", "classify_type_and_topic",
     "get_ai_keyword", "get_pixabay_image_by_query", "extract_dominant_hex",
-    "SHARED_HTTP_CLIENT", "PIXABAY_FALLBACK_IMAGE_URL"
+    "normalize_image_url", "SHARED_HTTP_CLIENT", "PIXABAY_FALLBACK_IMAGE_URL"
 ]
 
 _BANNED_KW = {
@@ -586,7 +608,7 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
     """
     if not PIXABAY_KEY:
         logging.warning("PIXABAY_KEY non è impostata, impossibile cercare immagini.")
-        return PIXABAY_FALLBACK_IMAGE_URL or None
+        return normalize_image_url(PIXABAY_FALLBACK_IMAGE_URL) or None
 
     q = (query or "newsletter").strip()
 
@@ -631,7 +653,7 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
                 continue
 
             logging.info("Trovato URL da Pixabay per '%s': %s", q, image_url)
-            return image_url
+            return normalize_image_url(image_url)
 
         except httpx.HTTPStatusError as e:
             last_error = e
@@ -687,7 +709,7 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
             )
         else:
             logging.info("Uso immagine di fallback per '%s' (nessun risultato).", q)
-        return PIXABAY_FALLBACK_IMAGE_URL
+        return normalize_image_url(PIXABAY_FALLBACK_IMAGE_URL)
 
     if last_error:
         logging.error("Ricerca Pixabay fallita definitivamente per '%s': %s", q, last_error)

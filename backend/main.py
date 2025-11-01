@@ -67,6 +67,7 @@ from backend.processing_utils import (
     get_ai_summary,
     classify_type_and_topic,
     SHARED_HTTP_CLIENT,
+    normalize_image_url,
 )
 
 def _is_internal_image_url(u: str, request: Request | None = None) -> bool:
@@ -94,7 +95,10 @@ async def _rehost_to_r2(src_url: str, keyword: str | None, client: httpx.AsyncCl
     if not r2_client:
         return None, None
 
+    src_url = normalize_image_url(src_url) or src_url
+
     async def _download(u: str) -> tuple[bytes, str]:
+        u = normalize_image_url(u) or u
         r = await client.get(u, timeout=20.0, follow_redirects=True)
         r.raise_for_status()
         body = r.content
@@ -1255,10 +1259,11 @@ async def proxy_image(u: str, request: Request):
     Proxy per immagini con cache in memoria, retry con backoff esponenziale,
     e gestione degli header di caching.
     """
-    url = unquote(u)
+    original_url = unquote(u)
+    url = normalize_image_url(original_url) or original_url
     
     # Controllo di sicurezza per evitare loop
-    if "/api/img" in url:
+    if "/api/img" in original_url:
         raise HTTPException(status_code=400, detail="Loop di proxy rilevato")
 
     # Controlla prima la cache
@@ -3194,6 +3199,8 @@ async def update_images(body: UpdateImagesRequest, request: Request):
                         if not image_query:
                             image_query = n.ai_title or n.original_subject or n.source_domain or "newsletter"
                         new_image_url = await get_pixabay_image_by_query(client, image_query)
+
+                    new_image_url = normalize_image_url(new_image_url) or new_image_url
 
                     if not new_image_url:
                         failed_items.append({"email_id": email_id, "error": "no_image_found"})
