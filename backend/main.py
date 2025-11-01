@@ -1506,6 +1506,14 @@ OAUTH_PKCE_ENABLED = os.getenv("OAUTH_PKCE_ENABLED", "true").strip().lower() in 
 async def auth_me(request: Request):
     user_id = request.session.get("user_id")
     email = request.session.get("user_email")
+    if not user_id:
+        cookie_keys = sorted(request.cookies.keys())
+        logging.info(
+            "[AUTH/ME] user_id assente in sessione. sid=%s cookies=%s ua=%s",
+            request.session.get("sid"),
+            cookie_keys,
+            (request.headers.get("user-agent") or "-")[:160],
+        )
 
     # Fallback: se la sessione non è ancora stata ripristinata, prova dai cookie ponte
     if not user_id:
@@ -1518,8 +1526,19 @@ async def auth_me(request: Request):
                     request.session["user_email"] = mail_cookie
                 user_id = uid_cookie
                 email = mail_cookie or email
+                logging.info(
+                    "[AUTH/ME] Sessione ripristinata da cookie ponte. uid=%s sid=%s",
+                    uid_cookie,
+                    request.session.get("sid"),
+                )
             except Exception:
                 pass
+        else:
+            logging.info(
+                "[AUTH/ME] Cookie ponte mancanti o non validi. uid_cookie=%r store_hit=%s",
+                bool(uid_cookie),
+                uid_cookie in CREDENTIALS_STORE if uid_cookie else False,
+            )
 
     if not user_id:
         return JSONResponse({"email": None, "logged_in": False}, status_code=401)
