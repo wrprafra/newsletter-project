@@ -1508,10 +1508,12 @@ async def auth_me(request: Request):
     email = request.session.get("user_email")
     if not user_id:
         cookie_keys = sorted(request.cookies.keys())
+        session_snapshot = {k: ("***" if k in {"user_id", "user_email"} else v) for k, v in request.session.items()}
         logging.info(
-            "[AUTH/ME] user_id assente in sessione. sid=%s cookies=%s ua=%s",
+            "[AUTH/ME] user_id assente in sessione. sid=%s cookies=%s session_keys=%s ua=%s",
             request.session.get("sid"),
             cookie_keys,
+            session_snapshot,
             (request.headers.get("user-agent") or "-")[:160],
         )
 
@@ -1526,19 +1528,21 @@ async def auth_me(request: Request):
                     request.session["user_email"] = mail_cookie
                 user_id = uid_cookie
                 email = mail_cookie or email
-                logging.info(
-                    "[AUTH/ME] Sessione ripristinata da cookie ponte. uid=%s sid=%s",
-                    uid_cookie,
-                    request.session.get("sid"),
-                )
-            except Exception:
-                pass
-        else:
             logging.info(
-                "[AUTH/ME] Cookie ponte mancanti o non validi. uid_cookie=%r store_hit=%s",
-                bool(uid_cookie),
-                uid_cookie in CREDENTIALS_STORE if uid_cookie else False,
+                "[AUTH/ME] Sessione ripristinata da cookie ponte. uid=%s sid=%s cookies=%s",
+                uid_cookie,
+                request.session.get("sid"),
+                sorted(request.cookies.keys()),
             )
+        except Exception:
+            pass
+    else:
+        logging.info(
+            "[AUTH/ME] Cookie ponte mancanti o non validi. uid_cookie=%r store_hit=%s cookies=%s",
+            bool(uid_cookie),
+            uid_cookie in CREDENTIALS_STORE if uid_cookie else False,
+            sorted(request.cookies.keys()),
+        )
 
     if not user_id:
         return JSONResponse({"email": None, "logged_in": False}, status_code=401)
