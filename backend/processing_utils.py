@@ -15,7 +15,6 @@ from collections import Counter
 from email.utils import parseaddr
 from html import escape as html_escape
 import random
-import httpx
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 SHARED_HTTP_CLIENT = httpx.AsyncClient(timeout=30.0)
