@@ -2281,7 +2281,7 @@ async def auth_login(request: Request):
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
 
-    effective_redirect: str | None = None
+    effective_redirect: str = "unknown"
 
     try:
         effective_redirect = _effective_redirect_uri(request)
@@ -2414,6 +2414,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
     flow: Flow | None = None
     pkce_verifier: str | None = None
 
+    effective_redirect = "unknown"  # Default value
     try:
         effective_redirect = _effective_redirect_uri(request)
         flow = Flow.from_client_secrets_file(
@@ -2589,7 +2590,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             extra={
                 "reason": getattr(e, "description", str(e))[:200],
                 "hint": getattr(e, "uri", None),
-                "redirect_uri_usato": effective_redirect or "unknown",
+                "redirect_uri_usato": effective_redirect,
                 "has_verifier": bool(pkce_verifier),
                 "client_id_tail": client_id_from_flow[-6:],
             },
