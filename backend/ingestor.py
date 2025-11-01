@@ -271,7 +271,7 @@ def main_loop():
             for email_id in new_ids:
                 nl, created = Newsletter.get_or_create(
                     email_id=email_id, user_id=user_id,
-                    defaults={"received_date": datetime.now(timezeone.utc),
+                    defaults={"received_date": datetime.now(timezone.utc),
                               "enriched": False, "is_complete": False}
                 )
                 needs_work = created or (not nl.enriched) or (not nl.is_complete) or not (nl.image_url or "").strip()

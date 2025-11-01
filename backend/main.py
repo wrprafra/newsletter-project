@@ -128,9 +128,13 @@ async def _rehost_to_r2(src_url: str, keyword: str | None, client: httpx.AsyncCl
     if ct.endswith('png'): ext = 'png'
     elif ct.endswith('webp'): ext = 'webp'
 
+    if body is None:
+        logging.warning("[REHOST] Nessun contenuto scaricato per src=%s", src_url)
+        return None, None
+
     key = make_r2_key_from_kw(keyword or 'newsletter', ext=ext)
     try:
-        _get_r2().put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=ct)
+        r2_client.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=ct)
     except Exception as e:
         logging.warning(f"[REHOST] R2 put_object failed: {e}")
         return None, None
@@ -1528,21 +1532,21 @@ async def auth_me(request: Request):
                     request.session["user_email"] = mail_cookie
                 user_id = uid_cookie
                 email = mail_cookie or email
+                logging.info(
+                    "[AUTH/ME] Sessione ripristinata da cookie ponte. uid=%s sid=%s cookies=%s",
+                    uid_cookie,
+                    request.session.get("sid"),
+                    sorted(request.cookies.keys()),
+                )
+            except Exception:
+                pass
+        else:
             logging.info(
-                "[AUTH/ME] Sessione ripristinata da cookie ponte. uid=%s sid=%s cookies=%s",
-                uid_cookie,
-                request.session.get("sid"),
+                "[AUTH/ME] Cookie ponte mancanti o non validi. uid_cookie=%r store_hit=%s cookies=%s",
+                bool(uid_cookie),
+                uid_cookie in CREDENTIALS_STORE if uid_cookie else False,
                 sorted(request.cookies.keys()),
             )
-        except Exception:
-            pass
-    else:
-        logging.info(
-            "[AUTH/ME] Cookie ponte mancanti o non validi. uid_cookie=%r store_hit=%s cookies=%s",
-            bool(uid_cookie),
-            uid_cookie in CREDENTIALS_STORE if uid_cookie else False,
-            sorted(request.cookies.keys()),
-        )
 
     if not user_id:
         return JSONResponse({"email": None, "logged_in": False}, status_code=401)
@@ -2068,7 +2072,7 @@ def clean_html(html_content):
         element.extract()
     return ' '.join(soup.get_text(separator=' ', strip=True).split())
 
-async def get_ai_summary(content: str, client: httpx.AsyncClient):
+async def get_ai_summary(content: str, client: httpx.AsyncClient, type_tag: str | None = None):
     raw = content or ""
     clean_content = clean_html(raw)[:4000]
 
@@ -2106,11 +2110,11 @@ Developer: # Ruolo e Obiettivo
                 {"role": "system", "content": [{"type": "input_text", "text": instructions}]},
                 {"role": "user", "content": [{"type": "input_text", "text": user_input}]}
             ],
-                    "text": {
-            "format": {"type": "json_object"},
-            "verbosity": "low"
-                },
-                "reasoning": {"effort": "minimal"},
+            "text": {
+                "format": {"type": "json_object"},
+                "verbosity": "low"
+            },
+            "reasoning": {"effort": "minimal"},
             "max_output_tokens": 600
         }
 
@@ -2276,6 +2280,8 @@ async def auth_login(request: Request):
 
     nonce = secrets.token_urlsafe(24)
     state = f"{sid}.{nonce}"
+
+    effective_redirect: str | None = None
 
     try:
         effective_redirect = _effective_redirect_uri(request)
@@ -2523,7 +2529,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
                 max_age=600,
                 secure=True,
                 httponly=True,
-                samesite="None",
+                samesite="none",
                 path="/",
             )
             response.set_cookie(
@@ -2532,7 +2538,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
                 max_age=600,
                 secure=True,
                 httponly=True,
-                samesite="None",
+                samesite="none",
                 path="/",
             )
         except Exception:
@@ -2583,7 +2589,7 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
             extra={
                 "reason": getattr(e, "description", str(e))[:200],
                 "hint": getattr(e, "uri", None),
-                "redirect_uri_usato": effective_redirect,
+                "redirect_uri_usato": effective_redirect or "unknown",
                 "has_verifier": bool(pkce_verifier),
                 "client_id_tail": client_id_from_flow[-6:],
             },
@@ -3403,7 +3409,7 @@ async def recompute_summaries(body: RecomputeBody, request: Request):
                     topic_tag = tags.get("topic_tag") or topic_tag
 
                 # 2) rigenera riassunto con adattatore per tipo
-                s = await get_ai_summary(html, SHARED_HTTP_CLIENT, type_tag=type_tag)
+                s = await get_ai_summary(html, SHARED_HTTP_CLIENT, type_tag)
                 title = (s.get('title') or '').strip()
                 summ  = (s.get('summary_markdown') or '').strip()
 
