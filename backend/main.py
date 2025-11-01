@@ -66,6 +66,7 @@ from backend.processing_utils import (
     get_pixabay_image_by_query,
     get_ai_summary,
     classify_type_and_topic,
+    PIXABAY_FALLBACK_IMAGE_URL,
     SHARED_HTTP_CLIENT,
     normalize_image_url,
 )
