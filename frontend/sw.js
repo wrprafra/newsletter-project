@@ -136,7 +136,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4) STATIC ASSETS (scripts/styles/fonts): stale-while-revalidate
+  // 4) STATIC ASSETsS (scripts/styles/fonts): stale-while-revalidate
   if (['script', 'style', 'font'].includes(req.destination)) {
     event.respondWith((async () => {
       const cache = await caches.open(C_STATIC);
