@@ -781,10 +781,28 @@ def _save_pending_auth(request: Request, data: dict):
             ok = True
         except Exception as e:
             logging.error(f"[AUTH] redis set failed: {e}")
-    # fallback sempre
-    request.session["pending_auth"] = data
+
+    # Versione "slim" da mettere nel cookie di sessione (evita overflow >4KB)
+    session_data: dict[str, dict] = {}
+    for nonce, entry in (data or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        slim = {
+            "pkce": entry.get("pkce"),
+            "state": entry.get("state"),
+            "ts": entry.get("ts"),
+        }
+        session_data[nonce] = {k: v for k, v in slim.items() if v is not None}
+
+    request.session["pending_auth"] = session_data
     PENDING_AUTH[sid] = data
-    logging.info(f"[AUTH] save_pending_auth sid={sid} via={'redis+session' if ok else 'session-only'} keys={list(data.keys())}")
+    logging.info(
+        "[AUTH] save_pending_auth sid=%s via=%s keys=%s (session_keys=%s)",
+        sid,
+        'redis+session' if ok else 'session-only',
+        list(data.keys()),
+        list(session_data.keys()),
+    )
 
 def _cleanup_pending_auth(request: Request):
     sid = request.session.get("sid")
@@ -804,7 +822,7 @@ def _cleanup_pending_auth(request: Request):
             continue
         if not isinstance(data, dict):
             continue
-        if not all(k in data for k in ("pkce", "auth_url", "state")):
+        if not all(k in data for k in ("pkce", "state")):
             continue
         cleaned[nonce] = data
 
@@ -2491,6 +2509,10 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         # Salva le informazioni corrette nella sessione
         request.session["user_email"] = email
         request.session["user_id"] = user_id
+        logging.info(
+            "[AUTH/CALLBACK] Session keys after login: %s",
+            list(request.session.keys()),
+        )
 
         # Salva le credenziali usando l'ID UTENTE come chiave
         CREDENTIALS_STORE[user_id] = json.loads(creds.to_json())
@@ -2503,8 +2525,10 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         except Exception:
             pass
 
+        logging.info("[AUTH/CALLBACK] pending_auth prima del pop: %s", list(pa.keys()))
         # Pulisci il nonce usato
         pa.pop(nonce, None)
+        logging.info("[AUTH/CALLBACK] pending_auth dopo il pop: %s", list(pa.keys()))
         _save_pending_auth(request, pa)
         if sid_from_session and redis_client:
             try:
