@@ -3984,6 +3984,50 @@ function getAverageColorFromImage(img) {
   } catch { return null; }
 }
 
+const ACCENT_DARK_THRESHOLD = 0.38;
+
+function hexToRgb(hex) {
+  if (!hex) return null;
+  let clean = hex.trim().replace(/^#/, '');
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  if (clean.length !== 6) return null;
+  const num = parseInt(clean, 16);
+  if (Number.isNaN(num)) return null;
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
+function getRelativeLuminanceFromRgb(rgb) {
+  if (!rgb) return 1;
+  const convert = (value) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+  };
+  const R = convert(rgb.r);
+  const G = convert(rgb.g);
+  const B = convert(rgb.b);
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+function applyAccentContrast(card, rgb) {
+  if (!card) return;
+  if (!rgb) {
+    card.classList.remove('accent-dark');
+    return;
+  }
+  const luminance = getRelativeLuminanceFromRgb(rgb);
+  if (luminance < ACCENT_DARK_THRESHOLD) {
+    card.classList.add('accent-dark');
+  } else {
+    card.classList.remove('accent-dark');
+  }
+}
+
 function applyColorsFromImage(card, img) {
   if (!card || !img) return;
   const key = img.currentSrc || img.src || '';
@@ -3991,6 +4035,7 @@ function applyColorsFromImage(card, img) {
   if (!bg) {
     const avg = getAverageColorFromImage(img);
     if (!avg) return;
+    applyAccentContrast(card, avg);
     const darkR = Math.round(avg.r * 0.6);
     const darkG = Math.round(avg.g * 0.6);
     const darkB = Math.round(avg.b * 0.6);
@@ -4092,6 +4137,15 @@ function renderFeedCard(item, opts = {}) {
   if (imgEl) {
     imgEl.dataset.emailId = String(item.email_id || '');
   }
+  const accentHex = (item.accent_hex || '').trim();
+  if (accentHex) {
+    cardEl.style.setProperty('--accent', accentHex);
+    const accentRgb = hexToRgb(accentHex);
+    applyAccentContrast(cardEl, accentRgb);
+  } else {
+    cardEl.style.removeProperty('--accent');
+    cardEl.classList.remove('accent-dark');
+  }
   const imageUrl = item.image_url || '';
 
   if (__cardRenderCount <= 3) {
@@ -4136,6 +4190,16 @@ function updateFeedCard(cardEl, item) {
     : '<p class="md-p">Elaborazione del contenuto...</p>';
   if (summaryEl && summaryEl.innerHTML !== newSummaryHtml) {
     summaryEl.innerHTML = newSummaryHtml;
+  }
+
+  const accentHex = (item.accent_hex || '').trim();
+  if (accentHex) {
+    cardEl.style.setProperty('--accent', accentHex);
+    const accentRgb = hexToRgb(accentHex);
+    applyAccentContrast(cardEl, accentRgb);
+  } else {
+    cardEl.style.removeProperty('--accent');
+    cardEl.classList.remove('accent-dark');
   }
 
   const imgEl = cardEl.querySelector('.card-image');

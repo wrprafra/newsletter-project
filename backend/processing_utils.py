@@ -51,7 +51,7 @@ PIXABAY_MAX_RETRIES = int(os.getenv("PIXABAY_MAX_RETRIES", "3"))
 PIXABAY_RETRY_BACKOFF_BASE = float(os.getenv("PIXABAY_RETRY_BACKOFF_BASE", "1.8"))
 PIXABAY_FALLBACK_IMAGE_URL = os.getenv(
     "FALLBACK_NEWSLETTER_IMAGE_URL",
-    "https://pub-8285be88ef4a47ec93f9739c0ce45155.r2.dev/platform/fallbacks/newsletter-placeholder.jpg",
+    "https://picsum.photos/seed/newsletter/1600/900",
 )
 
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
@@ -708,7 +708,10 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
             )
         else:
             logging.info("Uso immagine di fallback per '%s' (nessun risultato).", q)
-        return normalize_image_url(PIXABAY_FALLBACK_IMAGE_URL)
+        # Usa seed deterministico per ridurre ripetizioni tra newsletter simili
+        seed = slugify_kw(q) or "newsletter"
+        fallback_url = PIXABAY_FALLBACK_IMAGE_URL.replace("/seed/newsletter/", f"/seed/{seed}/", 1)
+        return normalize_image_url(fallback_url)
 
     if last_error:
         logging.warning("[PIXABAY] Nessun fallback disponibile per '%s'. Errore: %s", q, last_error)

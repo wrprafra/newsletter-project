@@ -125,7 +125,9 @@ async def _rehost_to_r2(src_url: str, keyword: str | None, client: httpx.AsyncCl
             body = None
 
     if body is None:
-        fallback_url = normalize_image_url(PIXABAY_FALLBACK_IMAGE_URL) if PIXABAY_FALLBACK_IMAGE_URL else None
+        seed = _seed_from_keyword(keyword)
+        fallback_base = PIXABAY_FALLBACK_IMAGE_URL or "https://picsum.photos/seed/newsletter/1600/900"
+        fallback_url = normalize_image_url(fallback_base.replace("/seed/newsletter/", f"/seed/{seed}/", 1))
         if fallback_url:
             try:
                 body, ct = await _download(fallback_url)
@@ -425,6 +427,13 @@ PHOTOS_CACHE_MAX_ITEMS = int(os.getenv("PHOTOS_CACHE_MAX_ITEMS", "200"))
 photos_cache: "OrderedDict[str, dict]" = OrderedDict()
 PHOTOS_CACHE_TTL       = int(os.getenv("PHOTOS_CACHE_TTL", str(30*60)))  # 30m
 SESSION_EMAIL: dict[str, str] = {}
+
+def _seed_from_keyword(keyword: str | None) -> str:
+    base = (keyword or "newsletter").strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", base).strip("-")
+    if not slug:
+        slug = "newsletter"
+    return slug[:48]
 # ⬇️ UNICA istanza FastAPI
 _proxy_limits = httpx.Limits(max_connections=200, max_keepalive_connections=100)
 _proxy_timeout = httpx.Timeout(15.0, connect=5.0)
@@ -1193,6 +1202,19 @@ def get_user_id_from_session(request) -> str:
         if uid:
             return uid
 
+        sid = request.session.get("sid")
+        cache_uid = SESSION_EMAIL.get(sid or "") if sid else None
+        if cache_uid and cache_uid in CREDENTIALS_STORE:
+            request.session["user_id"] = cache_uid
+            email_guess = request.session.get("user_email")
+            if not email_guess:
+                cred = CREDENTIALS_STORE.get(cache_uid) or {}
+                email_guess = cred.get("account") or cred.get("email")
+                if email_guess:
+                    request.session["user_email"] = email_guess
+            logging.info("[AUTH] Sessione ripristinata via cache SID=%s", sid)
+            return cache_uid
+
         # Fallback: prova a ricostruire la sessione dai cookie ponte impostati al login
         uid_cookie = (request.cookies.get("__Host-nl_uid") or "").strip()
         mail_cookie = (request.cookies.get("__Host-nl_email") or "").strip()
@@ -1613,7 +1635,27 @@ async def auth_me(request: Request):
             (request.headers.get("user-agent") or "-")[:160],
         )
 
-    # Fallback: se la sessione non è ancora stata ripristinata, prova dai cookie ponte
+    # Fallback: se la sessione non è ancora stata ripristinata, prova prima dalla cache SID→utente
+    if not user_id:
+        sid = request.session.get("sid")
+        cache_uid = SESSION_EMAIL.get(sid or "") if sid else None
+        if cache_uid and cache_uid in CREDENTIALS_STORE:
+            request.session["user_id"] = cache_uid
+            cached_email = request.session.get("user_email") or None
+            if not cached_email:
+                cred = CREDENTIALS_STORE.get(cache_uid) or {}
+                cached_email = cred.get("account") or cred.get("email")
+                if cached_email:
+                    request.session["user_email"] = cached_email
+            user_id = cache_uid
+            email = cached_email or email
+            logging.info(
+                "[AUTH/ME] Sessione ripristinata da cache SID. uid=%s sid=%s",
+                cache_uid,
+                sid,
+            )
+
+    # Fallback finale: cookie ponte
     if not user_id:
         uid_cookie = (request.cookies.get("__Host-nl_uid") or "").strip()
         mail_cookie = (request.cookies.get("__Host-nl_email") or "").strip()
@@ -2583,6 +2625,8 @@ async def auth_callback(request: Request, bg: BackgroundTasks):
         # Salva le informazioni corrette nella sessione
         request.session["user_email"] = email
         request.session["user_id"] = user_id
+        if sid_from_session:
+            SESSION_EMAIL[sid_from_session] = user_id
         logging.info(
             "[AUTH/CALLBACK] Session keys after login: %s",
             list(request.session.keys()),
@@ -3642,6 +3686,10 @@ async def logout(request: Request):
     # Pulisci pool e bearer per-utente
     PHOTOS_POOLS.pop(user_id, [])
     PHOTOS_BEARERS.pop(user_id, None)
+
+    for sid, uid in list(SESSION_EMAIL.items()):
+        if uid == user_id:
+            SESSION_EMAIL.pop(sid, None)
 
     # Svuota la sessione
     try:

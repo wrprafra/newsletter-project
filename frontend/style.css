@@ -923,6 +923,9 @@
 
 /* Icone header: visibili sempre (colore scuro di default) */
 .icon-btn .material-symbols-outlined { color: #111827; /* gray-900 */ }
+.feed-card.accent-dark .icon-btn .material-symbols-outlined { color: #f9fafb; }
+.feed-card.accent-dark .icon-btn:hover { background-color: rgba(255, 255, 255, 0.18); }
+.feed-card.accent-dark .icon-btn .ripple-circle { background: rgba(255, 255, 255, 0.45); }
 
 /* Cuore attivo (filled) ben visibile */
 .icon-btn[aria-pressed="true"] .material-symbols-outlined,
