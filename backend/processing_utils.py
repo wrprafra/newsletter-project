@@ -51,7 +51,7 @@ PIXABAY_MAX_RETRIES = int(os.getenv("PIXABAY_MAX_RETRIES", "3"))
 PIXABAY_RETRY_BACKOFF_BASE = float(os.getenv("PIXABAY_RETRY_BACKOFF_BASE", "1.8"))
 PIXABAY_FALLBACK_IMAGE_URL = os.getenv(
     "FALLBACK_NEWSLETTER_IMAGE_URL",
-    "https://cdn.pixabay.com/photo/2016/05/05/02/37/email-1370059_1280.jpg",
+    "https://pub-8285be88ef4a47ec93f9739c0ce45155.r2.dev/platform/fallbacks/newsletter-placeholder.jpg",
 )
 
 ALLOWED_TYPE_TAGS = ["newsletter", "promo", "personali", "informative"]
@@ -699,7 +699,7 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
             )
             break
 
-    if PIXABAY_FALLBACK_IMAGE_URL:
+    if PIXABAY_FALLBACK_IMAGE_URL and PIXABAY_FALLBACK_IMAGE_URL.lower().startswith("http"):
         if last_error:
             logging.warning(
                 "Uso immagine di fallback per '%s' dopo errore: %s",
@@ -709,6 +709,11 @@ async def get_pixabay_image_by_query(client: httpx.AsyncClient, query: str) -> s
         else:
             logging.info("Uso immagine di fallback per '%s' (nessun risultato).", q)
         return normalize_image_url(PIXABAY_FALLBACK_IMAGE_URL)
+
+    if last_error:
+        logging.warning("[PIXABAY] Nessun fallback disponibile per '%s'. Errore: %s", q, last_error)
+    else:
+        logging.info("[PIXABAY] Nessuna immagine trovata e nessun fallback per '%s'", q)
 
     if last_error:
         logging.error("Ricerca Pixabay fallita definitivamente per '%s': %s", q, last_error)
